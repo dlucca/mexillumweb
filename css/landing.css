@@ -1,0 +1,211 @@
+/* ==========================================================================
+   Mexillum — landing page
+   Implements "Mexillum Landing.dc.html" as production HTML/CSS.
+   Desktop values are 1:1 with the source composition; layout collapses
+   responsively below, and section content reveals on scroll (motion system:
+   fade + 10px rise, --dur-reveal, --ease-standard).
+   ========================================================================== */
+
+/* a11y: the DS light-theme --text-muted (neutral-500) lands at ~4.0:1 on the
+   light page/inset — under WCAG AA (4.5:1) for the 11–16px mono labels that use
+   it. Nudge it one step darker (still clearly "muted", now 4.8:1+ on every light
+   surface). Dark-theme muted (#8C978E) already passes and is left untouched. */
+:root{--text-muted:#626C63}
+
+.page{font-family:var(--font-core);color:var(--text-body);background:var(--bg-page);overflow-x:hidden}
+
+/* anchor jumps clear the fixed bar */
+html{scroll-padding-top:72px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+
+/* ==========================================================================
+   Sticky top bar — transparent over the hero, gains surface after 80px
+   ========================================================================== */
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;height:64px;display:flex;align-items:center;padding:0 var(--gutter-inline-lg);background:transparent;border-bottom:1px solid transparent;transition:background-color var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard)}
+.nav__inner{display:flex;align-items:center;justify-content:space-between;gap:var(--space-6)}
+.nav__brand,.nav__brand:hover{border-bottom-color:transparent}
+.nav__mark{height:24px;transition:filter var(--dur-base) var(--ease-standard)}
+.nav__word{color:var(--blanco);font-size:18px;transition:color var(--dur-base) var(--ease-standard)}
+.nav--scrolled{background:var(--surface-card);border-bottom-color:var(--border-hairline)}
+.nav--scrolled .nav__mark{filter:brightness(0)}
+.nav--scrolled .nav__word{color:var(--negro)}
+
+/* ---- shared primitives ------------------------------------------------ */
+.container{max-width:var(--max-content);width:100%;margin:0 auto}
+
+.kicker{font:var(--type-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase}
+.kicker--muted{color:var(--text-muted)}
+.kicker--accent{color:var(--text-accent)}
+.kicker--lima{color:var(--lima-circuito)}
+.kicker--mb5{margin-bottom:var(--space-5)}
+.kicker--mb8{margin-bottom:var(--space-8)}
+
+.section{padding:var(--section-y) var(--gutter-inline-lg)}
+.section--inset{background:var(--bg-inset);border-top:1px solid var(--border-hairline);border-bottom:1px solid var(--border-hairline)}
+.section--cases{background:var(--bg-inset);border-top:1px solid var(--border-hairline)}
+.section--dark{position:relative;background:var(--negro);color:var(--text-body)}
+.section--cta{position:relative;background:var(--verde-oscuro);color:var(--text-body)}
+.section__kicker{margin-bottom:var(--space-9)}
+
+/* faint 48px technical grid — the one texture in the system */
+.grid-overlay{position:absolute;inset:0;background-image:linear-gradient(to right,rgba(240,242,236,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(240,242,236,.06) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+
+/* ---- scroll reveal ---------------------------------------------------- */
+.reveal{opacity:0;transform:translateY(10px);transition:opacity var(--dur-reveal) var(--ease-standard),transform var(--dur-reveal) var(--ease-standard);transition-delay:var(--rd,0ms)}
+.reveal.is-in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+}
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+.hero{position:relative;overflow:hidden;background:var(--negro);color:var(--text-body);min-height:760px;display:flex;flex-direction:column;justify-content:flex-end;padding:32px var(--gutter-inline-lg) 80px}
+.hero__img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(.25) contrast(1.05)}
+.hero__scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,10,8,.86) 0%,rgba(8,10,8,.62) 38%,rgba(8,10,8,.94) 100%)}
+.hero__content{position:relative;z-index:1;max-width:var(--max-content);width:100%;margin:0 auto;padding-top:120px}
+
+.brand{display:flex;align-items:center;gap:10px}
+.brand__mark{height:26px;width:auto;display:block}
+.brand__word{font-family:var(--font-wordmark);font-weight:700;letter-spacing:var(--wordmark-track);font-size:20px;color:var(--blanco);line-height:1}
+
+.hero__title{font-family:var(--font-core);font-weight:700;font-size:clamp(44px,5.4vw,76px);line-height:.98;letter-spacing:-.02em;color:var(--blanco);margin:0;max-width:17ch;text-wrap:pretty}
+.hero__lede{font-family:var(--font-core);font-size:var(--size-body-lg);line-height:1.5;color:#C2CCC4;margin:var(--space-7) 0 0;max-width:52ch}
+.hero__actions{display:flex;align-items:center;gap:var(--space-7);margin-top:var(--space-10);flex-wrap:wrap}
+.hero__note{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:#8C978E}
+
+/* ==========================================================================
+   El problema
+   ========================================================================== */
+.problem{display:grid;gap:0;border-top:1px solid var(--border-hairline)}
+.problem__row{display:grid;grid-template-columns:64px minmax(0,26ch) minmax(0,1fr);grid-template-areas:"n h p";gap:var(--space-9);align-items:start;padding:var(--space-9) 0;border-bottom:1px solid var(--border-hairline)}
+.problem__n{grid-area:n;font-family:var(--font-mono);font-size:var(--size-label);color:var(--text-accent);letter-spacing:var(--track-label)}
+.problem__h{grid-area:h;font:var(--type-h3);letter-spacing:var(--track-heading);color:var(--text-strong);margin:0}
+.problem__p{grid-area:p;font:var(--type-body);color:var(--text-body);margin:0;max-width:56ch}
+
+/* ==========================================================================
+   Qué hacemos
+   ========================================================================== */
+.what{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:var(--space-13);align-items:start}
+.what__title{font-family:var(--font-core);font-weight:700;font-size:clamp(32px,3.4vw,var(--size-h1));line-height:1.06;letter-spacing:-.015em;color:var(--text-strong);margin:0;max-width:24ch;text-wrap:pretty}
+.what__lede{font:var(--type-body-strong);font-size:var(--size-body-lg);color:var(--text-body);margin:var(--space-7) 0 0;max-width:54ch}
+.what__aside{border-left:var(--rule-accent-w) solid var(--accent);padding-left:var(--space-8)}
+.what__aside .kicker{margin-bottom:var(--space-5)}
+.what__aside p{font:var(--type-body);color:var(--text-body);margin:0 0 var(--space-6);max-width:44ch}
+
+.metric-list{display:grid;gap:var(--space-6);border-top:1px solid var(--border-hairline);padding-top:var(--space-6)}
+.metric{display:flex;justify-content:space-between;gap:var(--space-6);align-items:baseline}
+.metric__k{font:var(--type-body);color:var(--text-body)}
+.metric__v{font-family:var(--font-mono);font-size:var(--size-label);color:var(--text-strong);font-variant-numeric:tabular-nums}
+.metric__v--accent{color:var(--text-accent)}
+
+/* ==========================================================================
+   Cómo funciona
+   ========================================================================== */
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-8)}
+.step{border-top:2px solid var(--border-hairline);padding-top:var(--space-6)}
+.step--active{border-top-color:var(--accent)}
+.step__n{font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);color:var(--text-muted);margin-bottom:var(--space-5)}
+.step__h{font:var(--type-h4);font-weight:600;color:var(--text-strong);margin:0 0 var(--space-4)}
+.step__p{font:var(--type-body);font-size:var(--size-body-sm);color:var(--text-body);margin:0}
+
+/* ==========================================================================
+   Casos por industria
+   ========================================================================== */
+.cases__head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-9);margin-bottom:var(--space-9);flex-wrap:wrap}
+.cases__intro{font:var(--type-body);color:var(--text-muted);margin:0;max-width:46ch}
+.cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-7)}
+.case{display:flex;flex-direction:column;gap:var(--space-4)}
+.case__sector{font:var(--type-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted)}
+.case__h{font:var(--type-h3);letter-spacing:var(--track-heading);color:var(--text-strong);margin:0}
+.case__p{font:var(--type-body);color:var(--text-body);margin:0;max-width:48ch}
+.case__tag{font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);color:var(--text-accent);margin-top:var(--space-3)}
+
+/* ==========================================================================
+   Modelo 0% CAPEX
+   ========================================================================== */
+.model__inner{position:relative;z-index:1}
+.model__title{font-family:var(--font-core);font-weight:700;font-size:clamp(38px,4.6vw,var(--size-display-2));line-height:1.02;letter-spacing:-.02em;color:var(--blanco);margin:0;max-width:20ch}
+.model__lede{font:var(--type-body);font-size:var(--size-body-lg);color:#C2CCC4;margin:var(--space-7) 0 var(--space-12);max-width:62ch}
+.model__stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-9);border-top:1px solid var(--border-hairline);padding-top:var(--space-9)}
+
+/* ==========================================================================
+   Por qué Mexillum
+   ========================================================================== */
+.why{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-11);border-top:1px solid var(--border-hairline);padding-top:var(--space-9)}
+.why__h{font:var(--type-h3);letter-spacing:var(--track-heading);color:var(--text-strong);margin:0 0 var(--space-4)}
+.why__p{font:var(--type-body);color:var(--text-body);margin:0}
+.brands{margin-top:var(--space-12);border-top:1px solid var(--border-hairline);padding-top:var(--space-8)}
+.brands .kicker{margin-bottom:var(--space-7);display:block}
+.brands__list{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-6) var(--space-9)}
+/* Partner-logo wall: desaturated to sit inside the monochrome palette,
+   true brand colour revealed on hover. Works for transparent or white-bg art. */
+.brand-logo{height:26px;width:auto;filter:grayscale(1);opacity:.5;transition:opacity var(--dur-fast) var(--ease-standard),filter var(--dur-fast) var(--ease-standard)}
+.brand-logo:hover{opacity:1;filter:grayscale(0)}
+/* text fallback shown until the real logo files are dropped into assets/logos/ */
+.brand-chip{font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-body);border:1px solid var(--border-hairline);padding:10px var(--space-6);background:var(--surface-card)}
+@media (prefers-reduced-motion:reduce){.brand-logo{transition:none}}
+
+/* ==========================================================================
+   CTA final
+   ========================================================================== */
+.cta{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:var(--space-13);align-items:start}
+.cta__title{font-family:var(--font-core);font-weight:700;font-size:clamp(34px,4vw,var(--size-h1));line-height:1.04;letter-spacing:-.015em;color:var(--blanco);margin:0;max-width:18ch;text-wrap:pretty}
+.cta__lede{font:var(--type-body);font-size:var(--size-body-lg);color:#C2CCC4;margin:var(--space-7) 0 0;max-width:46ch}
+/* shared card shell for the form and its confirmation */
+.cta-card{background:var(--surface-card);border:1px solid var(--border-hairline);border-top:var(--rule-accent-w) solid var(--accent);border-radius:var(--radius-card);padding:var(--space-9)}
+.cta__form{display:grid;gap:var(--space-6)}
+.cta__form[hidden],.cta__done[hidden]{display:none}
+.cta__formnote{font-family:var(--font-core);font-size:var(--size-body-sm);line-height:1.45;color:var(--text-muted);margin:0}
+.mx-field__error[hidden]{display:none}
+
+/* calm, instrumental confirmation */
+.cta__done{display:flex;flex-direction:column;gap:var(--space-4);outline:none}
+.cta__done-kicker{display:flex;align-items:center;gap:var(--space-3);font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-accent);margin:0}
+.cta__done-sq{width:7px;height:7px;background:var(--accent);display:inline-block}
+.cta__done-title{font-family:var(--font-core);font-weight:700;font-size:var(--size-h3);line-height:var(--lh-snug);color:var(--text-strong);margin:0}
+.cta__done-body{font:var(--type-body);color:var(--text-body);margin:0;max-width:42ch}
+.cta__done-next{margin-top:var(--space-3);border-top:1px solid var(--border-hairline);padding-top:var(--space-6);display:grid;gap:var(--space-4)}
+.cta__done-step{display:flex;gap:var(--space-5);align-items:baseline;font:var(--type-body);font-size:var(--size-body-sm);color:var(--text-body)}
+.cta__done-step-n{flex:none;font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);color:var(--text-muted);font-variant-numeric:tabular-nums}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+.footer{background:var(--negro);color:var(--text-muted);padding:var(--space-9) var(--gutter-inline-lg)}
+.footer__inner{max-width:var(--max-content);margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:var(--space-8);flex-wrap:wrap}
+.footer__note{font-family:var(--font-mono);font-size:var(--size-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase}
+.footer__legal{max-width:var(--max-content);margin:var(--space-7) auto 0;border-top:1px solid var(--border-hairline);padding-top:var(--space-7);display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-7);flex-wrap:wrap}
+.footer__addr{font-style:normal;display:flex;flex-direction:column;gap:var(--space-2);font-family:var(--font-core);font-size:var(--size-body-sm);line-height:1.5;color:var(--text-muted)}
+.footer__co{color:var(--text-body);font-weight:var(--weight-semibold)}
+.footer__addr a{color:var(--text-accent)}
+.footer__copy{font-family:var(--font-mono);font-size:var(--size-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted)}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width:1080px){
+  .what{grid-template-columns:1fr;gap:var(--space-10)}
+  .cta{grid-template-columns:1fr;gap:var(--space-10)}
+  .steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-9)}
+}
+
+@media (max-width:720px){
+  .nav{padding:0 var(--gutter-inline)}
+  .section{padding:var(--section-y-sm) var(--gutter-inline)}
+  .section__kicker{margin-bottom:var(--space-8)}
+  .hero{min-height:0;padding:24px var(--gutter-inline) 56px}
+  .hero__content{padding-top:88px;padding-bottom:8px}
+  .problem__row{grid-template-columns:44px 1fr;grid-template-areas:"n h" ". p";gap:var(--space-3) var(--space-6);padding:var(--space-8) 0}
+  .cases{grid-template-columns:1fr}
+  .model__stats{grid-template-columns:1fr;gap:var(--space-8)}
+  .model__lede{margin-bottom:var(--space-10)}
+  .why{grid-template-columns:1fr;gap:var(--space-9)}
+  .steps{grid-template-columns:1fr;gap:var(--space-8)}
+  .footer{padding:var(--space-8) var(--gutter-inline)}
+}
+
+@media (max-width:420px){
+  .hero__actions{gap:var(--space-5)}
+  .hero__actions .mx-btn{width:100%}
+}
