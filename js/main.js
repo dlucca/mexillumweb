@@ -47,13 +47,12 @@
     var submitBtn = form.querySelector('button[type="submit"]');
 
     var isEmail = function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); };
-    var isPhone = function (v) { return v.replace(/\D/g, '').length >= 10; };
 
     var fields = [
-      { el: form.querySelector('#f-nombre'),   err: form.querySelector('#err-nombre'),   test: function (v) { return v.trim().length > 1; } },
-      { el: form.querySelector('#f-empresa'),  err: form.querySelector('#err-empresa'),  test: function (v) { return v.trim().length > 1; } },
-      { el: form.querySelector('#f-sector'),   err: form.querySelector('#err-sector'),   test: function (v) { return v !== ''; } },
-      { el: form.querySelector('#f-contacto'), err: form.querySelector('#err-contacto'), test: function (v) { return isEmail(v) || isPhone(v); } }
+      { el: form.querySelector('#f-nombre'),  err: form.querySelector('#err-nombre'),  test: function (v) { return v.trim().length > 1; } },
+      { el: form.querySelector('#f-empresa'), err: form.querySelector('#err-empresa'), test: function (v) { return v.trim().length > 1; } },
+      { el: form.querySelector('#f-sector'),  err: form.querySelector('#err-sector'),  test: function (v) { return v !== ''; } },
+      { el: form.querySelector('#f-correo'),  err: form.querySelector('#err-correo'),  test: function (v) { return isEmail(v); } }
     ];
 
     var mark = function (f, invalid) {

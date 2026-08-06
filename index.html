@@ -49,22 +49,52 @@
     <!-- ================= El problema ================= -->
     <section class="section" aria-labelledby="problema-t">
       <div class="container">
-        <p class="kicker kicker--muted section__kicker reveal" id="problema-t">El problema</p>
-        <div class="problem">
-          <div class="problem__row reveal">
-            <span class="problem__n">01</span>
-            <h3 class="problem__h">El kWh barato, en la hora equivocada</h3>
-            <p class="problem__p">Con generación solar en sitio o sin ella, el kWh barato no siempre está disponible en la hora en que la planta lo consume.</p>
-          </div>
-          <div class="problem__row reveal">
-            <span class="problem__n">02</span>
-            <h3 class="problem__h">Pico de demanda sin atacar</h3>
-            <p class="problem__p">El cargo por demanda se paga completo cada mes, aunque el pico dure minutos.</p>
-          </div>
-          <div class="problem__row reveal">
-            <span class="problem__n">03</span>
-            <h3 class="problem__h">Continuidad de proceso expuesta</h3>
-            <p class="problem__p">Un hueco de tensión o un corte de 40 minutos detiene la línea. Ese costo no aparece en la factura eléctrica.</p>
+        <p class="kicker kicker--muted reveal">El problema</p>
+        <h2 class="faults__title reveal" id="problema-t">Tres fugas de margen y continuidad</h2>
+
+        <div class="faults">
+          <div class="grid-overlay grid-overlay--ink"></div>
+          <div class="faults__inner">
+            <div class="faults__bar reveal">
+              <span class="faults__meta">Diagnóstico</span>
+              <span class="faults__status"><span class="faults__pulse" aria-hidden="true"></span>3 puntos sin cubrir</span>
+            </div>
+
+            <ol class="faults__list">
+              <li class="fault reveal">
+                <span class="fault__idx" aria-hidden="true">01</span>
+                <div class="fault__body">
+                  <h3 class="fault__title">El kWh barato, en la hora equivocada</h3>
+                  <p class="fault__desc">Con generación solar en sitio o sin ella, el kWh barato no siempre está disponible en la hora en que la planta lo consume.</p>
+                  <p class="fault__readout">
+                    <span class="fault__tag fault__tag--warn">Sobrecosto</span>
+                    <span class="fault__eq">Generas barato, consumes caro</span>
+                  </p>
+                </div>
+              </li>
+              <li class="fault reveal" style="--rd:90ms">
+                <span class="fault__idx" aria-hidden="true">02</span>
+                <div class="fault__body">
+                  <h3 class="fault__title">Pico de demanda sin atacar</h3>
+                  <p class="fault__desc">El cargo por demanda se paga completo cada mes, aunque el pico dure minutos.</p>
+                  <p class="fault__readout">
+                    <span class="fault__tag fault__tag--warn">Cargo por demanda</span>
+                    <span class="fault__eq">Pico de minutos, cargo de mes</span>
+                  </p>
+                </div>
+              </li>
+              <li class="fault reveal" style="--rd:180ms">
+                <span class="fault__idx" aria-hidden="true">03</span>
+                <div class="fault__body">
+                  <h3 class="fault__title">Continuidad de proceso expuesta</h3>
+                  <p class="fault__desc">Un hueco de tensión o un corte de 40 minutos detiene la línea. Ese costo no aparece en la factura eléctrica.</p>
+                  <p class="fault__readout">
+                    <span class="fault__tag fault__tag--alert">Paro de línea</span>
+                    <span class="fault__eq">40 min detienen la producción</span>
+                  </p>
+                </div>
+              </li>
+            </ol>
           </div>
         </div>
       </div>
@@ -248,9 +278,9 @@
               <p class="mx-field__error" id="err-sector" hidden>Selecciona un sector.</p>
             </div>
             <div class="mx-field">
-              <label class="mx-field__label" for="f-contacto">Correo o teléfono</label>
-              <input id="f-contacto" name="contacto" class="mx-input" type="text" inputmode="email" placeholder="nombre@empresa.mx" autocomplete="email" required aria-describedby="err-contacto">
-              <p class="mx-field__error" id="err-contacto" hidden>Ingresa un correo o teléfono válido.</p>
+              <label class="mx-field__label" for="f-correo">Correo</label>
+              <input id="f-correo" name="correo" class="mx-input" type="email" inputmode="email" placeholder="nombre@empresa.mx" autocomplete="email" required aria-describedby="err-correo">
+              <p class="mx-field__error" id="err-correo" hidden>Ingresa un correo válido.</p>
             </div>
             <button type="submit" class="mx-btn mx-btn--primary mx-btn--lg mx-btn--block" style="margin-top:var(--space-3)">Agenda un diagnóstico</button>
             <p class="cta__formnote">Usamos tus datos solo para preparar tu diagnóstico.</p>
