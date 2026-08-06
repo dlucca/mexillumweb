@@ -178,7 +178,11 @@ html{scroll-padding-top:72px}
 .cta__form{display:grid;gap:var(--space-6)}
 .cta__form[hidden],.cta__done[hidden]{display:none}
 .cta__formnote{font-family:var(--font-core);font-size:var(--size-body-sm);line-height:1.45;color:var(--text-muted);margin:0}
+.cta__err{font-family:var(--font-core);font-size:var(--size-body-sm);line-height:1.45;color:var(--signal-alert);margin:0}
+.cta__err[hidden]{display:none}
 .mx-field__error[hidden]{display:none}
+/* honeypot — off-screen, out of tab order and a11y tree */
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
 
 /* calm, instrumental confirmation */
 .cta__done{display:flex;flex-direction:column;gap:var(--space-4);outline:none}

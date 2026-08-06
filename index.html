@@ -254,6 +254,7 @@
         </div>
         <div class="cta__panel reveal" style="--rd:120ms">
           <form class="cta__form cta-card" novalidate aria-label="Solicitar diagnóstico">
+            <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
             <div class="mx-field">
               <label class="mx-field__label" for="f-nombre">Nombre</label>
               <input id="f-nombre" name="nombre" class="mx-input" type="text" placeholder="Nombre y apellido" autocomplete="name" required aria-describedby="err-nombre">
@@ -283,6 +284,7 @@
               <p class="mx-field__error" id="err-correo" hidden>Ingresa un correo válido.</p>
             </div>
             <button type="submit" class="mx-btn mx-btn--primary mx-btn--lg mx-btn--block" style="margin-top:var(--space-3)">Agenda un diagnóstico</button>
+            <p class="cta__err" role="alert" hidden>No se pudo enviar. Intenta de nuevo o escríbenos a <a href="mailto:info@mexillum.com">info@mexillum.com</a>.</p>
             <p class="cta__formnote">Usamos tus datos solo para preparar tu diagnóstico.</p>
           </form>
           <div class="cta__done cta-card" hidden role="status" aria-live="polite" tabindex="-1">
