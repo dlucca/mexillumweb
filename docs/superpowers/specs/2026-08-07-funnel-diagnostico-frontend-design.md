@@ -155,7 +155,7 @@ Racional: en la pantalla de resultado el diagnóstico ya está a la vista; el bo
 
 ## 5. Vista y flujo (`view.js`)
 
-- **Pasos 1–6:** una pregunta por vista. Opciones como `mx-check__box--radio` dentro de `mx-card--interactive`. Indicador "Paso N de 6". Back-nav libre. Selección avanza al siguiente paso automáticamente; botón "Atrás" siempre visible desde el paso 2.
+- **Pasos 1–6:** una pregunta por vista. Opciones como `mx-check__box--radio` dentro de `mx-card--interactive`. Indicador "Paso N de 6". Back-nav libre. **Sin auto-avance**: elegir una opción habilita el botón "Siguiente"; el usuario puede cambiar su selección antes de avanzar (evita que un misclick salte de paso sin poder corregir). Botón "Atrás" visible desde el paso 2. Si vuelve a un paso, la opción elegida aparece marcada.
 - **Gate:** `mx-field` + `mx-input`, validación *forgiving* (limpia el error al volverse válido) igual que `main.js`. Obligatorios: nombre, empresa, correo (regex de `main.js`). Opcionales: teléfono, cargo. Honeypot `website` oculto. Copy de transición de §5.
 - **Resultado (desktop, 2 columnas):**
   - Izquierda: bloque de diagnóstico (Capa A + B si aplica + Capa C texto) + botón CTA (§4.1) + slot `#agenda` (placeholder cal.diy) + botón "Imprimir / Guardar PDF". Botón de email presente pero oculto/deshabilitado en v1.
@@ -183,7 +183,7 @@ Racional: en la pantalla de resultado el diagnóstico ya está a la vista; el bo
 ## 7. Requisitos no funcionales
 
 - **Mobile-first** (probable mayoría del tráfico C-suite).
-- **`<2 min`**: single-select con auto-avance, sin tipeo hasta el gate.
+- **`<2 min`**: single-select con "Siguiente" explícito, sin tipeo hasta el gate.
 - **Sin jerga técnica**: el copy cerrado ya lo garantiza; no se reintroduce en labels/aria/placeholders.
 - **`prefers-reduced-motion`**: respetado (patrón de `main.js`).
 - **Sobre el design system existente**: solo componentes `mx-*` y tokens; sin estilos paralelos.
