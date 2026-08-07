@@ -104,8 +104,8 @@ const content = {
       'Si hay algo de tu consumo que sí podrías mover de horario'
     ],
     picos: [
-      'Tus últimos recibos de CFE (6–12 meses)',
-      'Algún registro de consumo por intervalos de 15 minutos, si lo tenés (aunque sea de un mes)',
+      'Tus últimos 12 recibos de CFE',
+      'Idealmente, algún registro de consumo por intervalos de 15 minutos, si lo tenés (aunque sea de un mes)',
       'A qué hora o en qué proceso ocurre tu momento de mayor consumo'
     ],
     intermitente: [

@@ -212,6 +212,11 @@ function renderResult() {
         <h2 class="dx__sronly" id="dx-diag-h" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
         <p>${cuerpo}</p>
         <p class="dx__close">${esc(res.layerC.texto)}</p>
+        <aside class="dx__checklist" aria-label="Preparación para la llamada">
+          <h3>${esc(content.checklistTitulo)}</h3>
+          <ul>${items}</ul>
+          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
+        </aside>
         <div class="dx__actions">
           <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
         </div>
@@ -221,12 +226,6 @@ function renderResult() {
         <h2 class="dx__col-title" id="dx-book-h">Agenda una conversación</h2>
         <p class="dx__col-sub">Elegí un horario y coordinamos una llamada para revisar tu diagnóstico a fondo. Adjuntamos automáticamente tu diagnóstico a la reunión.</p>
         <div class="dx__cal" id="agenda"></div>
-
-        <aside class="dx__checklist" aria-label="Preparación para la llamada">
-          <h3>${esc(content.checklistTitulo)}</h3>
-          <ul>${items}</ul>
-          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
-        </aside>
       </section>
 
       <section class="dx__print-only dx__checklist">
