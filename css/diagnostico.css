@@ -1,0 +1,9 @@
+/* Funnel de diagnóstico — sobre tokens.css + components.css. Solo layout/espaciado. */
+.dx{max-width:var(--max-content);margin:0 auto;padding:var(--section-y-sm) var(--gutter-inline)}
+.dx__progress{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-5)}
+.dx__question{font:var(--type-h2);color:var(--text-strong);margin:0 0 var(--space-8);max-width:var(--measure-narrow)}
+.dx__options{display:flex;flex-direction:column;gap:var(--space-4);max-width:var(--measure-prose)}
+.dx__option{width:100%;text-align:left}
+.dx__option .mx-check{width:100%}
+.dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-9)}
+.dx__nav--end{justify-content:space-between}
