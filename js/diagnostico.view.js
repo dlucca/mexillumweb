@@ -173,6 +173,7 @@ function renderResult() {
 
   const layerB = res.layerB ? `<p>${esc(res.layerB)}</p>` : '';
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
+  const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
 
   const view = el(`
     <div class="dx__view dx__result">
@@ -196,6 +197,13 @@ function renderResult() {
         <ul>${items}</ul>
         <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
       </aside>
+      <section class="dx__print-only dx__checklist">
+        <h3>${esc(content.checklistTitulo)}</h3>
+        <ul>${itemsFull}</ul>
+      </section>
+      <footer class="dx__print-only dx__printfoot">
+        <p>mexillum — diagnóstico energético · mexillum.com · info@mexillum.com</p>
+      </footer>
     </div>`);
 
   view.querySelector('[data-act="cta"]').addEventListener('click', () => {

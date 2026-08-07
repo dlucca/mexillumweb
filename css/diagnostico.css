@@ -11,7 +11,7 @@
 .dx__gate{max-width:var(--measure-narrow)}
 .dx__gate p{color:var(--text-body)}
 .dx__gate .mx-field{margin-bottom:var(--space-5)}
-.dx__hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.dx__hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
 .dx__formerr{color:var(--signal-alert);font-size:var(--size-body-sm);margin-top:var(--space-4)}
 
 .dx__result{display:grid;grid-template-columns:1fr;gap:var(--space-9)}
@@ -26,3 +26,21 @@
 .dx__checklist li{position:relative;padding-left:var(--space-6);color:var(--text-body)}
 .dx__checklist li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:var(--radius-full);background:var(--accent)}
 .dx__checklist__foot{font-size:var(--size-body-sm);color:var(--text-muted);margin-top:var(--space-5)}
+
+/* solo-print: oculto en pantalla, visible al imprimir */
+.dx__print-only{display:none}
+
+@media print{
+  .dx__nav, .dx__cta, .dx__agenda, .dx__actions, .dx__checklist:not(.dx__print-only){display:none !important}
+  .dx__print-only{display:block}
+  .dx{max-width:none;padding:0}
+  .dx__result{grid-template-columns:1fr;gap:var(--space-7)}
+  .dx__diag p{font-size:12pt;color:#000}
+  .dx__printfoot{margin-top:var(--space-8);border-top:1px solid #999;padding-top:var(--space-4);font-size:9pt;color:#333}
+  a[href]::after{content:''}
+}
+
+/* mobile: apila y quita sticky */
+@media (max-width:899px){
+  .dx__question{font:var(--type-h3);color:var(--text-strong)}
+}
