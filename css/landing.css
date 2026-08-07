@@ -74,6 +74,8 @@ html{scroll-padding-top:72px}
 .hero__lede{font-family:var(--font-core);font-size:var(--size-body-lg);line-height:1.5;color:#C2CCC4;margin:var(--space-7) 0 0;max-width:52ch}
 .hero__actions{display:flex;align-items:center;gap:var(--space-7);margin-top:var(--space-10);flex-wrap:wrap}
 .hero__note{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:#8C978E}
+.hero__sub{font-family:var(--font-core);font-size:var(--size-body-lg);line-height:1.5;color:#C2CCC4;margin:var(--space-6) 0 0;max-width:52ch}
+.diag-cta{display:flex;align-items:center;gap:var(--space-7);flex-wrap:wrap;margin-top:var(--space-9)}
 
 /* ==========================================================================
    El problema — diagnostic panel
