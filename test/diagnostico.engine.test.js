@@ -171,13 +171,65 @@ test('assembleResult: arma resultado completo y leadPayload', () => {
   assert.ok(Array.isArray(res.leadPayload.checklist_full));
 });
 
+// ---- Booking: el estado de la reserva llega al score y al payload ----------
+
+test('assembleResult: sin booking, score sin +2 y flag en false', () => {
+  const estado = {
+    respuestas: { ...neutra, interrupciones: 'si_medido' }, // 3 puntos
+    contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'ana@acme.mx' }
+  };
+  const res = assembleResult(estado, content);
+  assert.equal(res.score.valor, 3);
+  assert.equal(res.score.nivel, 'medio');
+  assert.equal(res.leadPayload.booking_agendado, false);
+  assert.equal(res.leadPayload.booking_datetime, null);
+});
+
+test('assembleResult: con booking, suma +2 y viaja la fecha', () => {
+  const estado = {
+    respuestas: { ...neutra, interrupciones: 'si_medido' }, // 3 puntos
+    contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'ana@acme.mx' },
+    bookingAgendado: true,
+    bookingDatetime: '2026-08-20T16:00:00.000Z'
+  };
+  const res = assembleResult(estado, content);
+  assert.equal(res.score.valor, 5);        // 3 + 2 del booking
+  assert.equal(res.score.nivel, 'alto');   // cruza el corte de 5
+  assert.equal(res.leadPayload.booking_agendado, true);
+  assert.equal(res.leadPayload.booking_datetime, '2026-08-20T16:00:00.000Z');
+});
+
+test('leadPayload: expone las claves que consume /api/lead', () => {
+  const estado = {
+    respuestas: { ...neutra, diesel_red_debil: 'si' },
+    contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'ana@acme.mx', telefono: '5555', cargo: 'CFO' },
+    bookingAgendado: true,
+    bookingDatetime: '2026-08-20T16:00:00.000Z'
+  };
+  const p = assembleResult(estado, content).leadPayload;
+  const esperadas = [
+    'lead_id', 'timestamp', 'nombre', 'empresa', 'correo', 'telefono', 'cargo',
+    'respuestas_legibles', 'respuestas_codigos', 'arquetipo_base', 'refuerzo_activado',
+    'score', 'booking_agendado', 'booking_datetime', 'checklist_full'
+  ];
+  for (const k of esperadas) assert.ok(k in p, `falta ${k} en leadPayload`);
+
+  // el handler recorre estas 6 keys de respuestas_legibles para armar el email
+  for (const paso of content.pasos) {
+    assert.equal(typeof p.respuestas_legibles[paso.key], 'string', `falta legible ${paso.key}`);
+  }
+  assert.equal(typeof p.score.valor, 'number');
+  assert.ok(['bajo', 'medio', 'alto'].includes(p.score.nivel));
+  assert.ok(JSON.stringify(p).length < 8000, 'payload demasiado grande para un POST simple');
+});
+
 // ---- Contrato de copy: pin del texto exacto de cada capa (v actualizada) ----
 
 test('Copy Capa A: las 5 combinaciones arman el texto correcto', () => {
   const esperado = {
-    estacional: 'Tu generación cubre parte del año, pero el resto pagás la tarifa completa de CFE. Podemos ayudarte a cerrar ese hueco y bajar esa factura — justo en la época de mayor sol.',
-    fisica: 'Ya generás tu propia energía, pero parte se pierde cuando no coincide con lo que necesitás. Esa energía perdida es ahorro que hoy se está quedando sobre la mesa.',
-    continuo: 'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes.',
+    estacional: 'Tu generación cubre parte del año, pero el resto pagas la tarifa completa de CFE. Podemos ayudarte a cerrar ese hueco y bajar esa factura — justo en la época de mayor sol.',
+    fisica: 'Ya generas tu propia energía, pero parte se pierde cuando no coincide con lo que necesitas. Esa energía perdida es ahorro que hoy se está quedando sobre la mesa.',
+    continuo: 'Tu operación no se detiene, así que hoy compras en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes.',
     picos: 'La mayoría de las operaciones paga de más por apenas unos minutos al mes — su momento de mayor consumo. Ese pico suele pesar más de lo que parece en la factura, y es de lo más fácil de recortar.',
     intermitente: 'Tu consumo varía mucho, lo que casi siempre esconde picos que encarecen toda la factura sin que se note en el día a día. Identificarlos es el primer paso para bajarla.'
   };
@@ -198,9 +250,9 @@ test('Copy Capa A: las 5 combinaciones arman el texto correcto', () => {
 test('Copy Capa B: las 4 combinaciones arman el texto correcto', () => {
   const esperado = {
     diesel: 'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.',
-    int_medido: 'Y ya tenés el dato más valioso: cuánto te cuesta cada falla. Ese número es justo el que dimensiona el ahorro real del proyecto.',
+    int_medido: 'Y ya tienes el dato más valioso: cuánto te cuesta cada falla. Ese número es justo el que dimensiona el ahorro real del proyecto.',
     int_no_medido: 'Ese tipo de interrupciones casi nunca se mide, y suele costar más de lo que parece. Cuantificarlo es el primer paso para convertirlo en ahorro.',
-    exporta: 'Y si ya exportás excedente, hay margen para que ese mismo kWh valga más según a qué hora lo vendés — ingreso adicional sin cambiar tu operación.'
+    exporta: 'Y si ya exportas excedente, hay margen para que ese mismo kWh valga más según a qué hora lo vendes — ingreso adicional sin cambiar tu operación.'
   };
   const fixtures = {
     diesel: { ...neutra, diesel_red_debil: 'si' },
@@ -219,7 +271,7 @@ test('Copy Capa C: las 4 combinaciones arman texto y botón correctos', () => {
   const esperado = {
     industrial: { texto: 'La solución puede ser 100% financiada: el ahorro empieza desde el primer mes y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
     comercial: { texto: 'Todo esto sin desembolso inicial: el ahorro arranca desde el primer mes.', ctaText: 'Quiero ver el diagnóstico' },
-    publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protegé la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
+    publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protege la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
     ev: { texto: 'Sin esperar años de trámite ni poner capital — la optimización de tus costos empieza de inmediato.', ctaText: 'Quiero ver el diagnóstico' }
   };
   for (const t of Object.keys(esperado)) {
@@ -235,7 +287,7 @@ test('Ensamblado final: continuo + diesel + industrial coincide con el ejemplo',
   const c = pickLayerC(resp, content);
   const armado = `${a.text} ${b.text}\n\n${c.texto}`;
   const esperado =
-    'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes. ' +
+    'Tu operación no se detiene, así que hoy compras en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes. ' +
     'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.\n\n' +
     'La solución puede ser 100% financiada: el ahorro empieza desde el primer mes y el riesgo del activo queda de nuestro lado.';
   assert.equal(armado, esperado);

@@ -11,7 +11,9 @@ const CAL_LINK = 'dlucca/30min';
 const estado = {
   paso: 0,                 // 0..5 = pasos; 'result' (diagnóstico + agenda, sin gate previo)
   respuestas: {},
-  contacto: {}
+  contacto: {},
+  bookingAgendado: false,  // lo marca el callback de cal.diy; suma +2 al score
+  bookingDatetime: null
 };
 
 function el(html) {
@@ -167,6 +169,20 @@ function buildNote(res, resp) {
   ].join('\n');
 }
 
+// cal.diy manda las preguntas extra del event type en `responses`, con forma
+// variable entre versiones ({campo: valor} o {campo: {value}}). Busca el primer alias
+// que exista y devuelve una cadena, o '' si no hay nada usable.
+function readResponse(booking, alias) {
+  const r = booking && booking.responses;
+  if (!r) return '';
+  for (const k of alias) {
+    const v = r[k];
+    const valor = v && typeof v === 'object' ? v.value : v;
+    if (typeof valor === 'string' && valor.trim()) return valor.trim();
+  }
+  return '';
+}
+
 let calBookingHooked = false;
 function mountCal(selector, res) {
   loadCal();
@@ -188,9 +204,21 @@ function mountCal(selector, res) {
           const data = e && e.detail && e.detail.data;
           const booking = data && (data.booking || data.confirmed || data);
           const at = booking && booking.attendees && booking.attendees[0];
-          if (at) estado.contacto = { ...estado.contacto, nombre: at.name || '', correo: at.email || '' };
+          if (at) {
+            estado.contacto = {
+              ...estado.contacto,
+              nombre: at.name || '',
+              correo: at.email || '',
+              // cal.diy expone las preguntas extra del event type acá; si configuraste
+              // un campo "empresa"/"company", lo levantamos. Si no, queda vacío.
+              empresa: estado.contacto.empresa || readResponse(booking, ['empresa', 'company']) || '',
+              telefono: estado.contacto.telefono || at.phoneNumber || readResponse(booking, ['telefono', 'phone']) || '',
+              cargo: estado.contacto.cargo || readResponse(booking, ['cargo', 'title', 'role']) || ''
+            };
+          }
           if (booking && booking.startTime) estado.bookingDatetime = booking.startTime;
         } catch (_) { /* el formato del evento puede variar entre versiones */ }
+        estado.bookingAgendado = true; // marca el +2 del score y el flag del payload
         submitLead(assembleResult(estado, content).leadPayload);
       }
     });
@@ -242,6 +270,8 @@ function renderResult() {
     estado.paso = 0;
     estado.respuestas = {};
     estado.contacto = {};
+    estado.bookingAgendado = false;
+    estado.bookingDatetime = null;
     render();
   });
 
@@ -257,7 +287,27 @@ function render() {
 
 render();
 
-// Exportado para tests futuros / integraciones. En v1 solo loguea.
+// Envía el lead a /api/lead (Resend). Fire-and-forget deliberado: la reserva ya está
+// confirmada del lado de cal.diy, así que un fallo acá no debe romper la pantalla del
+// usuario — se registra en consola y el lead sigue existiendo en el calendario.
+let leadEnviado = false;
 export function submitLead(payload) {
-  console.log('[diagnostico] leadPayload', payload);
+  if (leadEnviado) return Promise.resolve(false); // el evento de Cal puede repetirse
+  leadEnviado = true;
+
+  return fetch('/api/lead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    keepalive: true // sobrevive si el usuario cierra la pestaña al terminar de agendar
+  })
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return true;
+    })
+    .catch((err) => {
+      leadEnviado = false; // permite reintento si el usuario vuelve a disparar el evento
+      console.error('[diagnostico] no se pudo registrar el lead', err);
+      return false;
+    });
 }

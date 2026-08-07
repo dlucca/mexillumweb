@@ -69,7 +69,10 @@ export function assembleResult(estado, content) {
   const b = pickLayerB(resp, content);
   const c = pickLayerC(resp, content);
   const checklist = buildChecklist(resp, content);
-  const score = computeScore(resp, false);
+  // El booking se confirma después de renderizar el resultado, así que el score se
+  // recalcula al ensamblar: si ya agendó, suma el +2 y viaja marcado en el payload.
+  const agendado = estado.bookingAgendado === true;
+  const score = computeScore(resp, agendado);
   const legibles = toReadable(resp, content);
 
   const leadPayload = {
@@ -85,7 +88,8 @@ export function assembleResult(estado, content) {
     arquetipo_base: base.id,
     refuerzo_activado: b ? b.id : null,
     score,
-    booking_agendado: false,
+    booking_agendado: agendado,
+    booking_datetime: estado.bookingDatetime || null,
     checklist_full: checklist.full
   };
 

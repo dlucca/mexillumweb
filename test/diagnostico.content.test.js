@@ -36,3 +36,22 @@ test('los ctaText de Capa C por segmento', () => {
   }
   assert.equal(content.capaC.publico.ctaText, 'Quiero agendar una conversación');
 });
+
+// El copy es es-MX (tuteo). El voseo ya se coló dos veces (commits 52fd835, 720c713),
+// así que lo bloqueamos acá en vez de descubrirlo en producción.
+test('el copy no tiene voseo — es-MX en todas las cadenas', () => {
+  // Formas verbales voseantes: agudas en -ás/-és/-ís, e imperativos -á/-é/-í.
+  // Se listan explícitas para no marcar palabras legítimas (así, está, según, energía).
+  const VOSEO = /\b(?:pagás|generás|comprás|tenés|exportás|vendés|necesitás|protegé|querés|podés|sabés|hacés|tenés|ponés|elegí|mirá|fijate|contá|revisá|agendá|escribí|dejá|sumá|bajá)\b/i;
+
+  const cadenas = [];
+  const recorrer = (v) => {
+    if (typeof v === 'string') cadenas.push(v);
+    else if (Array.isArray(v)) v.forEach(recorrer);
+    else if (v && typeof v === 'object') Object.values(v).forEach(recorrer);
+  };
+  recorrer(content);
+
+  const infractoras = cadenas.filter((s) => VOSEO.test(s));
+  assert.deepEqual(infractoras, [], `voseo detectado:\n${infractoras.join('\n')}`);
+});
