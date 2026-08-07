@@ -4,8 +4,8 @@ import { assembleResult } from './diagnostico.engine.js';
 const root = document.getElementById('dx-root');
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Instancia de cal.diy (self-hosted en Railway) y el event type para la llamada.
-const CAL_ORIGIN = 'https://caldiy-production-e7dd.up.railway.app';
+// Instancia de cal.diy (self-hosted en Railway, dominio propio) y el event type para la llamada.
+const CAL_ORIGIN = 'https://cal.mexillum.com';
 const CAL_LINK = 'dlucca/30min';
 
 const estado = {
