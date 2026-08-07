@@ -5,7 +5,7 @@ const root = document.getElementById('dx-root');
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const estado = {
-  paso: 0,                 // 0..5 = pasos; 'gate'; 'result'
+  paso: 0,                 // 0..5 = pasos; 'result' (diagnóstico + agenda, sin gate previo)
   respuestas: {},
   contacto: {}
 };
@@ -105,7 +105,7 @@ function renderStep() {
   siguiente.addEventListener('click', () => {
     if (!estado.respuestas[paso.key]) return;
     if (estado.paso < content.pasos.length - 1) estado.paso += 1;
-    else estado.paso = 'gate';
+    else estado.paso = 'result'; // tras la última pregunta, directo al diagnóstico + agenda
     render();
   });
 
@@ -116,7 +116,15 @@ function renderStep() {
 
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
 
-function renderGate() {
+// Pantalla final: diagnóstico a la derecha, agenda (formulario + cal.diy + checklist) a la izquierda.
+function renderResult() {
+  const res = assembleResult(estado, content);
+
+  // Ensamblado (§6.4): Capa A + Capa B (si aplica) en un párrafo, luego el cierre de Capa C.
+  const cuerpo = res.layerB ? `${esc(res.layerA)} ${esc(res.layerB)}` : esc(res.layerA);
+  const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
+  const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
+
   const campos = content.gate.campos.map((f) => `
     <div class="mx-field">
       <label class="mx-field__label" for="dx-${f.name}">${esc(f.label)}</label>
@@ -127,22 +135,52 @@ function renderGate() {
     </div>`).join('');
 
   const view = el(`
-    <div class="dx__view dx__gate">
-      <p class="dx__progress">${esc(content.progresoLabel(content.pasos.length, content.pasos.length))} · Casi listo</p>
-      <h2 class="dx__sronly" data-dx-focus tabindex="-1">Datos de contacto</h2>
-      ${content.gate.intro.map((p) => `<p>${esc(p)}</p>`).join('')}
-      <form novalidate aria-label="Datos de contacto">
-        <input class="dx__hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-        ${campos}
-        <div class="dx__nav">
-          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
-          <button type="submit" class="mx-btn mx-btn--primary">Ver mi diagnóstico</button>
+    <div class="dx__view dx__final">
+      <section class="dx__diag" aria-labelledby="dx-diag-h">
+        <h2 class="dx__sronly" id="dx-diag-h" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
+        <p>${cuerpo}</p>
+        <p class="dx__close">${esc(res.layerC.texto)}</p>
+        <div class="dx__actions">
+          <button type="button" class="mx-btn mx-btn--secondary" data-act="print">Imprimir / Guardar PDF</button>
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
         </div>
-        <p class="dx__formerr" data-formerr hidden>Revisá los campos marcados.</p>
-      </form>
+      </section>
+
+      <section class="dx__book" aria-labelledby="dx-book-h">
+        <h2 class="dx__col-title" id="dx-book-h">Agenda una conversación</h2>
+        <p class="dx__col-sub">Déjanos tus datos y coordinamos una llamada para revisar tu diagnóstico a fondo.</p>
+        <form class="dx__book-form" novalidate aria-label="Agendar una conversación">
+          <input class="dx__hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          ${campos}
+          <!-- Slot para el widget de cal.diy (se integra en el próximo paso). -->
+          <div class="dx__cal" id="agenda" data-caldiy hidden></div>
+          <button type="submit" class="mx-btn mx-btn--primary mx-btn--block" style="margin-top:var(--space-3)">Agendar una conversación</button>
+          <p class="dx__formerr" data-formerr hidden>Revisá los campos marcados.</p>
+        </form>
+        <div class="dx__book-done" role="status" hidden tabindex="-1">
+          <p class="dx__done-kicker"><span class="dx__done-sq" aria-hidden="true"></span>Datos recibidos</p>
+          <h3 class="dx__done-title">Coordinamos tu llamada</h3>
+          <p>Te contactamos para agendar la conversación sobre tu diagnóstico.</p>
+        </div>
+
+        <aside class="dx__checklist" aria-label="Preparación para la llamada">
+          <h3>${esc(content.checklistTitulo)}</h3>
+          <ul>${items}</ul>
+          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
+        </aside>
+      </section>
+
+      <section class="dx__print-only dx__checklist">
+        <h3>${esc(content.checklistTitulo)}</h3>
+        <ul>${itemsFull}</ul>
+      </section>
+      <footer class="dx__print-only dx__printfoot">
+        <p>mexillum — diagnóstico energético · mexillum.com · info@mexillum.com</p>
+      </footer>
     </div>`);
 
-  const form = view.querySelector('form');
+  // --- Formulario de agenda: captura el lead. cal.diy se integrará en #agenda. ---
+  const form = view.querySelector('.dx__book-form');
   const tests = {
     nombre: (v) => v.trim().length > 1,
     empresa: (v) => v.trim().length > 1,
@@ -162,11 +200,6 @@ function renderGate() {
     form.querySelector(`#dx-${name}`).addEventListener('input', (e) => {
       if (e.target.classList.contains('mx-input--invalid') && tests[name](e.target.value)) mark(name, false);
     });
-  });
-
-  view.querySelector('[data-act="atras"]').addEventListener('click', () => {
-    estado.paso = content.pasos.length - 1;
-    render();
   });
 
   form.addEventListener('submit', (e) => {
@@ -193,59 +226,15 @@ function renderGate() {
       telefono: form.telefono.value.trim(),
       cargo: form.cargo.value.trim()
     };
-    estado.paso = 'result';
-    render();
+    // El lead ya trae contacto + respuestas + arquetipo + score.
+    submitLead(assembleResult(estado, content).leadPayload);
+
+    form.hidden = true;
+    const done = view.querySelector('.dx__book-done');
+    done.hidden = false;
+    done.focus();
   });
 
-  root.replaceChildren(view);
-  focusMain();
-}
-
-function renderResult() {
-  const res = assembleResult(estado, content);
-  // v1: console.log. Sub-proyecto 2 conecta un endpoint real acá — cuando lo haga,
-  // agregar un guard (p. ej. hasSubmitted) porque renderResult puede re-ejecutarse.
-  submitLead(res.leadPayload);
-
-  // Ensamblado (§6.4): Capa A + Capa B (si aplica) en un mismo párrafo, luego el cierre de Capa C.
-  const cuerpo = res.layerB ? `${esc(res.layerA)} ${esc(res.layerB)}` : esc(res.layerA);
-  const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
-  const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
-
-  const view = el(`
-    <div class="dx__view dx__result">
-      <section class="dx__diag">
-        <h2 class="dx__sronly" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
-        <p>${cuerpo}</p>
-        <p class="dx__close">${esc(res.layerC.texto)}</p>
-        <div class="dx__cta">
-          <button type="button" class="mx-btn mx-btn--primary mx-btn--lg" data-act="cta">${esc(res.layerC.ctaText)}</button>
-        </div>
-        <div class="dx__agenda" id="agenda">
-          <p>Aquí vas a poder agendar tu llamada. (Agendamiento disponible próximamente.)</p>
-        </div>
-        <div class="dx__actions">
-          <button type="button" class="mx-btn mx-btn--secondary" data-act="print">Imprimir / Guardar PDF</button>
-          <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
-        </div>
-      </section>
-      <aside class="dx__checklist" aria-label="Preparación para la llamada">
-        <h3>${esc(content.checklistTitulo)}</h3>
-        <ul>${items}</ul>
-        <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
-      </aside>
-      <section class="dx__print-only dx__checklist">
-        <h3>${esc(content.checklistTitulo)}</h3>
-        <ul>${itemsFull}</ul>
-      </section>
-      <footer class="dx__print-only dx__printfoot">
-        <p>mexillum — diagnóstico energético · mexillum.com · info@mexillum.com</p>
-      </footer>
-    </div>`);
-
-  view.querySelector('[data-act="cta"]').addEventListener('click', () => {
-    view.querySelector('#agenda').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
-  });
   view.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
   view.querySelector('[data-act="reiniciar"]').addEventListener('click', () => {
     estado.paso = 0;
@@ -259,7 +248,6 @@ function renderResult() {
 }
 
 function render() {
-  if (estado.paso === 'gate') return renderGate();
   if (estado.paso === 'result') return renderResult();
   return renderStep();
 }

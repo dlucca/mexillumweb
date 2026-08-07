@@ -28,20 +28,31 @@
 .dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-9)}
 .dx__nav--end{justify-content:space-between}
 
-.dx__gate{max-width:var(--measure-narrow)}
-.dx__gate p{color:var(--text-body)}
-.dx__gate .mx-field{margin-bottom:var(--space-5)}
 .dx__hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
 .dx__formerr{color:var(--signal-alert);font-size:var(--size-body-sm);margin-top:var(--space-4)}
 
-.dx__result{display:grid;grid-template-columns:1fr;gap:var(--space-9)}
-@media (min-width:900px){.dx__result{grid-template-columns:1.4fr 1fr;align-items:start}}
+/* pantalla final: diagnóstico (derecha) + agenda con formulario/cal.diy/checklist (izquierda).
+   Orden del DOM: diagnóstico primero → en mobile se muestra arriba; en desktop la grilla
+   coloca la agenda a la izquierda y el diagnóstico a la derecha. */
+.dx__final{display:grid;grid-template-columns:1fr;gap:var(--space-10)}
+@media (min-width:900px){
+  .dx__final{grid-template-columns:1fr 1.15fr;align-items:start;gap:var(--space-11)}
+  .dx__book{grid-column:1;grid-row:1}
+  .dx__diag{grid-column:2;grid-row:1}
+}
 .dx__diag p{font-size:var(--size-body-lg);line-height:var(--lh-body);color:var(--text-body)}
 .dx__diag .dx__close{color:var(--text-strong);font-weight:var(--weight-semibold)}
-.dx__cta{margin:var(--space-7) 0}
-.dx__agenda{margin-top:var(--space-8);padding:var(--space-8);border:1px dashed var(--border-default);border-radius:var(--radius-panel);color:var(--text-muted);text-align:center}
-.dx__actions{display:flex;flex-wrap:wrap;gap:var(--space-4);margin-top:var(--space-7)}
-@media (min-width:900px){.dx__checklist{position:sticky;top:var(--space-9)}}
+.dx__actions{display:flex;flex-wrap:wrap;gap:var(--space-4);margin-top:var(--space-8)}
+
+.dx__col-title{font:var(--type-h3);color:var(--text-strong);margin:0 0 var(--space-3)}
+.dx__col-sub{color:var(--text-body);font-size:var(--size-body-sm);margin:0 0 var(--space-7)}
+.dx__book-form .mx-field{margin-bottom:var(--space-5)}
+.dx__cal:not([hidden]){margin:var(--space-6) 0;min-height:120px}
+.dx__book-done{border:1px solid var(--border-accent);border-left:var(--rule-accent-w) solid var(--accent);border-radius:var(--radius-card);padding:var(--space-7)}
+.dx__done-kicker{display:flex;align-items:center;gap:var(--space-3);font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-accent);margin:0 0 var(--space-3)}
+.dx__done-sq{width:8px;height:8px;background:var(--accent);border-radius:var(--radius-1)}
+.dx__done-title{margin:0 0 var(--space-3)}
+.dx__book .dx__checklist{margin-top:var(--space-9);border-top:1px solid var(--border-hairline);padding-top:var(--space-7)}
 .dx__checklist ul{list-style:none;margin:var(--space-5) 0;padding:0;display:flex;flex-direction:column;gap:var(--space-4)}
 .dx__checklist li{position:relative;padding-left:var(--space-6);color:var(--text-body)}
 .dx__checklist li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:var(--radius-full);background:var(--accent)}
@@ -51,10 +62,10 @@
 .dx__print-only{display:none}
 
 @media print{
-  .dx__top, .dx__footer, .dx__nav, .dx__cta, .dx__agenda, .dx__actions, .dx__checklist:not(.dx__print-only){display:none !important}
+  .dx__top, .dx__footer, .dx__book, .dx__actions{display:none !important}
   .dx__print-only{display:block}
   .dx{max-width:none;padding:0}
-  .dx__result{grid-template-columns:1fr;gap:var(--space-7)}
+  .dx__final{grid-template-columns:1fr;gap:var(--space-7)}
   .dx__diag p{font-size:12pt;color:#000}
   .dx__printfoot{margin-top:var(--space-8);border-top:1px solid #999;padding-top:var(--space-4);font-size:9pt;color:#333}
   a[href]::after{content:''}
