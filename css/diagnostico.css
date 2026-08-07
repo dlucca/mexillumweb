@@ -28,10 +28,7 @@
 .dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-9)}
 .dx__nav--end{justify-content:space-between}
 
-.dx__hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
-.dx__formerr{color:var(--signal-alert);font-size:var(--size-body-sm);margin-top:var(--space-4)}
-
-/* pantalla final: diagnóstico (derecha) + agenda con formulario/cal.diy/checklist (izquierda).
+/* pantalla final: diagnóstico (derecha) + agenda con calendario cal.diy + checklist (izquierda).
    Orden del DOM: diagnóstico primero → en mobile se muestra arriba; en desktop la grilla
    coloca la agenda a la izquierda y el diagnóstico a la derecha. */
 .dx__final{display:grid;grid-template-columns:1fr;gap:var(--space-10)}
@@ -46,12 +43,7 @@
 
 .dx__col-title{font:var(--type-h3);color:var(--text-strong);margin:0 0 var(--space-3)}
 .dx__col-sub{color:var(--text-body);font-size:var(--size-body-sm);margin:0 0 var(--space-7)}
-.dx__book-form .mx-field{margin-bottom:var(--space-5)}
-.dx__cal:not([hidden]){margin:var(--space-6) 0;min-height:120px}
-.dx__book-done{border:1px solid var(--border-accent);border-left:var(--rule-accent-w) solid var(--accent);border-radius:var(--radius-card);padding:var(--space-7)}
-.dx__done-kicker{display:flex;align-items:center;gap:var(--space-3);font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-accent);margin:0 0 var(--space-3)}
-.dx__done-sq{width:8px;height:8px;background:var(--accent);border-radius:var(--radius-1)}
-.dx__done-title{margin:0 0 var(--space-3)}
+.dx__cal{margin:var(--space-6) 0 0;min-height:580px}
 .dx__book .dx__checklist{margin-top:var(--space-9);border-top:1px solid var(--border-hairline);padding-top:var(--space-7)}
 .dx__checklist ul{list-style:none;margin:var(--space-5) 0;padding:0;display:flex;flex-direction:column;gap:var(--space-4)}
 .dx__checklist li{position:relative;padding-left:var(--space-6);color:var(--text-body)}

@@ -4,6 +4,10 @@ import { assembleResult } from './diagnostico.engine.js';
 const root = document.getElementById('dx-root');
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Instancia de cal.diy (self-hosted en Railway) y el event type para la llamada.
+const CAL_ORIGIN = 'https://caldiy-production-e7dd.up.railway.app';
+const CAL_LINK = 'dlucca/30min';
+
 const estado = {
   paso: 0,                 // 0..5 = pasos; 'result' (diagnóstico + agenda, sin gate previo)
   respuestas: {},
@@ -114,9 +118,86 @@ function renderStep() {
   focusMain();
 }
 
-function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
+// ---- Integración cal.diy (embed inline) --------------------------------------
 
-// Pantalla final: diagnóstico a la derecha, agenda (formulario + cal.diy + checklist) a la izquierda.
+// Carga el loader oficial de Cal una sola vez.
+function loadCal() {
+  if (window.Cal) return;
+  (function (C, A, L) {
+    let p = function (a, ar) { a.q.push(ar); };
+    let d = C.document;
+    C.Cal = C.Cal || function () {
+      let cal = C.Cal; let ar = arguments;
+      if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement('script')).src = A; cal.loaded = true; }
+      if (ar[0] === L) {
+        const api = function () { p(api, arguments); };
+        const namespace = ar[1];
+        api.q = api.q || [];
+        if (typeof namespace === 'string') { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ['initNamespace', namespace]); } else p(cal, ar);
+        return;
+      }
+      p(cal, ar);
+    };
+  })(window, CAL_ORIGIN + '/embed/embed.js', 'init');
+  window.Cal('init', { origin: CAL_ORIGIN });
+}
+
+// Nota que viaja adjunta al evento agendado, para que Mexillum reciba el contexto.
+function buildNote(res, resp) {
+  const legibles = res.leadPayload.respuestas_legibles;
+  const preguntas = [
+    ['Tipo de instalación', legibles.tipo_instalacion],
+    ['Generación propia', legibles.generacion_propia],
+    ['Patrón de operación', legibles.patron_operacion],
+    ['Interrupciones', legibles.interrupciones],
+    ['Diésel/red débil', legibles.diesel_red_debil],
+    ['Exporta excedente', legibles.exporta_excedente]
+  ];
+  return [
+    'Diagnóstico Mexillum',
+    '',
+    res.layerB ? `${res.layerA} ${res.layerB}` : res.layerA,
+    res.layerC.texto,
+    '',
+    'Preparar para la llamada:',
+    ...res.checklist.full.map((b) => `• ${b}`),
+    '',
+    'Respuestas del formulario:',
+    ...preguntas.map(([k, v], i) => `${i + 1}. ${k}: ${v}`)
+  ].join('\n');
+}
+
+let calBookingHooked = false;
+function mountCal(selector, res) {
+  loadCal();
+  window.Cal('inline', {
+    elementOrSelector: selector,
+    calLink: CAL_LINK,
+    layout: 'month_view',
+    config: { notes: buildNote(res, estado.respuestas), theme: 'light' }
+  });
+  window.Cal('ui', { layout: 'month_view', hideEventTypeDetails: false });
+
+  // Costura: cuando la reserva se concreta, registrar el lead (contacto desde cal.diy).
+  if (!calBookingHooked) {
+    calBookingHooked = true;
+    window.Cal('on', {
+      action: 'bookingSuccessful',
+      callback: (e) => {
+        try {
+          const data = e && e.detail && e.detail.data;
+          const booking = data && (data.booking || data.confirmed || data);
+          const at = booking && booking.attendees && booking.attendees[0];
+          if (at) estado.contacto = { ...estado.contacto, nombre: at.name || '', correo: at.email || '' };
+          if (booking && booking.startTime) estado.bookingDatetime = booking.startTime;
+        } catch (_) { /* el formato del evento puede variar entre versiones */ }
+        submitLead(assembleResult(estado, content).leadPayload);
+      }
+    });
+  }
+}
+
+// Pantalla final: diagnóstico a la derecha; agenda (calendario cal.diy + checklist) a la izquierda.
 function renderResult() {
   const res = assembleResult(estado, content);
 
@@ -124,15 +205,6 @@ function renderResult() {
   const cuerpo = res.layerB ? `${esc(res.layerA)} ${esc(res.layerB)}` : esc(res.layerA);
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
   const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
-
-  const campos = content.gate.campos.map((f) => `
-    <div class="mx-field">
-      <label class="mx-field__label" for="dx-${f.name}">${esc(f.label)}</label>
-      <input class="mx-input" id="dx-${f.name}" name="${f.name}" type="${f.type}"
-             autocomplete="${f.autocomplete}" ${f.required ? 'required' : ''}
-             aria-describedby="err-${f.name}">
-      <span class="mx-field__error" id="err-${f.name}" hidden>Revisá este dato.</span>
-    </div>`).join('');
 
   const view = el(`
     <div class="dx__view dx__final">
@@ -148,20 +220,8 @@ function renderResult() {
 
       <section class="dx__book" aria-labelledby="dx-book-h">
         <h2 class="dx__col-title" id="dx-book-h">Agenda una conversación</h2>
-        <p class="dx__col-sub">Déjanos tus datos y coordinamos una llamada para revisar tu diagnóstico a fondo.</p>
-        <form class="dx__book-form" novalidate aria-label="Agendar una conversación">
-          <input class="dx__hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-          ${campos}
-          <!-- Slot para el widget de cal.diy (se integra en el próximo paso). -->
-          <div class="dx__cal" id="agenda" data-caldiy hidden></div>
-          <button type="submit" class="mx-btn mx-btn--primary mx-btn--block" style="margin-top:var(--space-3)">Agendar una conversación</button>
-          <p class="dx__formerr" data-formerr hidden>Revisá los campos marcados.</p>
-        </form>
-        <div class="dx__book-done" role="status" hidden tabindex="-1">
-          <p class="dx__done-kicker"><span class="dx__done-sq" aria-hidden="true"></span>Datos recibidos</p>
-          <h3 class="dx__done-title">Coordinamos tu llamada</h3>
-          <p>Te contactamos para agendar la conversación sobre tu diagnóstico.</p>
-        </div>
+        <p class="dx__col-sub">Elegí un horario y coordinamos una llamada para revisar tu diagnóstico a fondo. Adjuntamos automáticamente tu diagnóstico a la reunión.</p>
+        <div class="dx__cal" id="agenda"></div>
 
         <aside class="dx__checklist" aria-label="Preparación para la llamada">
           <h3>${esc(content.checklistTitulo)}</h3>
@@ -179,62 +239,6 @@ function renderResult() {
       </footer>
     </div>`);
 
-  // --- Formulario de agenda: captura el lead. cal.diy se integrará en #agenda. ---
-  const form = view.querySelector('.dx__book-form');
-  const tests = {
-    nombre: (v) => v.trim().length > 1,
-    empresa: (v) => v.trim().length > 1,
-    correo: (v) => isEmail(v)
-  };
-
-  function mark(name, invalid) {
-    const input = form.querySelector(`#dx-${name}`);
-    const err = form.querySelector(`#err-${name}`);
-    input.classList.toggle('mx-input--invalid', invalid);
-    input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
-    if (err) err.hidden = !invalid;
-  }
-
-  // Forgiving: limpia el error apenas el campo se vuelve válido.
-  Object.keys(tests).forEach((name) => {
-    form.querySelector(`#dx-${name}`).addEventListener('input', (e) => {
-      if (e.target.classList.contains('mx-input--invalid') && tests[name](e.target.value)) mark(name, false);
-    });
-  });
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (form.website.value) return; // honeypot: bot → no-op
-
-    let firstBad = null;
-    Object.keys(tests).forEach((name) => {
-      const input = form.querySelector(`#dx-${name}`);
-      const ok = tests[name](input.value);
-      mark(name, !ok);
-      if (!ok && !firstBad) firstBad = input;
-    });
-    if (firstBad) {
-      form.querySelector('[data-formerr]').hidden = false;
-      firstBad.focus();
-      return;
-    }
-
-    estado.contacto = {
-      nombre: form.nombre.value.trim(),
-      empresa: form.empresa.value.trim(),
-      correo: form.correo.value.trim(),
-      telefono: form.telefono.value.trim(),
-      cargo: form.cargo.value.trim()
-    };
-    // El lead ya trae contacto + respuestas + arquetipo + score.
-    submitLead(assembleResult(estado, content).leadPayload);
-
-    form.hidden = true;
-    const done = view.querySelector('.dx__book-done');
-    done.hidden = false;
-    done.focus();
-  });
-
   view.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
   view.querySelector('[data-act="reiniciar"]').addEventListener('click', () => {
     estado.paso = 0;
@@ -245,6 +249,7 @@ function renderResult() {
 
   root.replaceChildren(view);
   focusMain();
+  mountCal('#agenda', res); // el elemento #agenda ya está en el DOM
 }
 
 function render() {
