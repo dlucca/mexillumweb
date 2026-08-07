@@ -207,7 +207,8 @@ function renderResult() {
   // agregar un guard (p. ej. hasSubmitted) porque renderResult puede re-ejecutarse.
   submitLead(res.leadPayload);
 
-  const layerB = res.layerB ? `<p>${esc(res.layerB)}</p>` : '';
+  // Ensamblado (§6.4): Capa A + Capa B (si aplica) en un mismo párrafo, luego el cierre de Capa C.
+  const cuerpo = res.layerB ? `${esc(res.layerA)} ${esc(res.layerB)}` : esc(res.layerA);
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
   const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
 
@@ -215,8 +216,7 @@ function renderResult() {
     <div class="dx__view dx__result">
       <section class="dx__diag">
         <h2 class="dx__sronly" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
-        <p>${esc(res.layerA)}</p>
-        ${layerB}
+        <p>${cuerpo}</p>
         <p class="dx__close">${esc(res.layerC.texto)}</p>
         <div class="dx__cta">
           <button type="button" class="mx-btn mx-btn--primary mx-btn--lg" data-act="cta">${esc(res.layerC.ctaText)}</button>

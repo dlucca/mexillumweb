@@ -161,7 +161,7 @@ test('assembleResult: arma resultado completo y leadPayload', () => {
   assert.equal(res.reinforcement, 'diesel');       // diesel gana en B
   assert.ok(res.layerA.startsWith('Tu generación cubre'));
   assert.ok(res.layerB.includes('diésel'));
-  assert.equal(res.layerC.ctaText, 'Quiero agendar mi diagnóstico');
+  assert.equal(res.layerC.ctaText, 'Quiero ver el diagnóstico');
   assert.equal(res.checklist.web[res.checklist.web.length - 1], content.checklistUniversal);
   assert.equal(res.leadPayload.booking_agendado, false);
   assert.equal(res.leadPayload.empresa, 'Acme');
@@ -169,4 +169,74 @@ test('assembleResult: arma resultado completo y leadPayload', () => {
   assert.equal(res.leadPayload.arquetipo_base, 'estacional');
   assert.equal(typeof res.leadPayload.lead_id, 'string');
   assert.ok(Array.isArray(res.leadPayload.checklist_full));
+});
+
+// ---- Contrato de copy: pin del texto exacto de cada capa (v actualizada) ----
+
+test('Copy Capa A: las 5 combinaciones arman el texto correcto', () => {
+  const esperado = {
+    estacional: 'Tu generación cubre parte del año, pero el resto pagás la tarifa completa de CFE. Podemos ayudarte a cerrar ese hueco y bajar esa factura — justo en la época de mayor sol.',
+    fisica: 'Ya generás tu propia energía, pero parte se pierde cuando no coincide con lo que necesitás. Esa energía perdida es ahorro que hoy se está quedando sobre la mesa.',
+    continuo: 'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes.',
+    picos: 'La mayoría de las operaciones paga de más por apenas unos minutos al mes — su momento de mayor consumo. Ese pico suele pesar más de lo que parece en la factura, y es de lo más fácil de recortar.',
+    intermitente: 'Tu consumo varía mucho, lo que casi siempre esconde picos que encarecen toda la factura sin que se note en el día a día. Identificarlos es el primer paso para bajarla.'
+  };
+  const fixtures = {
+    estacional: { ...neutra, generacion_propia: 'estacional' },
+    fisica: { ...neutra, generacion_propia: 'fisica' },
+    continuo: { ...neutra, patron_operacion: 'continuo' },
+    picos: { ...neutra, patron_operacion: 'picos' },
+    intermitente: { ...neutra, patron_operacion: 'intermitente' }
+  };
+  for (const id of Object.keys(esperado)) {
+    const a = resolveBaseArchetype(fixtures[id], content);
+    assert.equal(a.id, id);
+    assert.equal(a.text, esperado[id]);
+  }
+});
+
+test('Copy Capa B: las 4 combinaciones arman el texto correcto', () => {
+  const esperado = {
+    diesel: 'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.',
+    int_medido: 'Y ya tenés el dato más valioso: cuánto te cuesta cada falla. Ese número es justo el que dimensiona el ahorro real del proyecto.',
+    int_no_medido: 'Ese tipo de interrupciones casi nunca se mide, y suele costar más de lo que parece. Cuantificarlo es el primer paso para convertirlo en ahorro.',
+    exporta: 'Y si ya exportás excedente, hay margen para que ese mismo kWh valga más según a qué hora lo vendés — ingreso adicional sin cambiar tu operación.'
+  };
+  const fixtures = {
+    diesel: { ...neutra, diesel_red_debil: 'si' },
+    int_medido: { ...neutra, interrupciones: 'si_medido' },
+    int_no_medido: { ...neutra, interrupciones: 'si_no_medido' },
+    exporta: { ...neutra, exporta_excedente: 'si' }
+  };
+  for (const id of Object.keys(esperado)) {
+    const b = pickLayerB(fixtures[id], content);
+    assert.equal(b.id, id);
+    assert.equal(b.text, esperado[id]);
+  }
+});
+
+test('Copy Capa C: las 4 combinaciones arman texto y botón correctos', () => {
+  const esperado = {
+    industrial: { texto: 'Todo esto sin poner capital: el ahorro empieza desde el primer mes, y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
+    comercial: { texto: 'Todo esto sin desembolso inicial: el ahorro arranca desde el primer mes.', ctaText: 'Quiero ver el diagnóstico' },
+    publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protegé la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
+    ev: { texto: 'Sin esperar años de trámite ni poner capital — la optimización de tus costos empieza de inmediato.', ctaText: 'Quiero ver el diagnóstico' }
+  };
+  for (const t of Object.keys(esperado)) {
+    const c = pickLayerC({ ...neutra, tipo_instalacion: t }, content);
+    assert.deepEqual(c, esperado[t]);
+  }
+});
+
+test('Ensamblado final: continuo + diesel + industrial coincide con el ejemplo', () => {
+  const resp = { ...neutra, patron_operacion: 'continuo', diesel_red_debil: 'si', tipo_instalacion: 'industrial' };
+  const a = resolveBaseArchetype(resp, content);
+  const b = pickLayerB(resp, content);
+  const c = pickLayerC(resp, content);
+  const armado = `${a.text} ${b.text}\n\n${c.texto}`;
+  const esperado =
+    'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes. ' +
+    'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.\n\n' +
+    'Todo esto sin poner capital: el ahorro empieza desde el primer mes, y el riesgo del activo queda de nuestro lado.';
+  assert.equal(armado, esperado);
 });

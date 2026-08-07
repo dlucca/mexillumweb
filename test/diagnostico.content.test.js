@@ -30,9 +30,9 @@ test('capaC cubre los 4 tipos de instalación', () => {
   }
 });
 
-test('los ctaText de industrial/comercial/ev usan el copy corregido', () => {
+test('los ctaText de Capa C por segmento', () => {
   for (const t of ['industrial', 'comercial', 'ev']) {
-    assert.equal(content.capaC[t].ctaText, 'Quiero agendar mi diagnóstico');
+    assert.equal(content.capaC[t].ctaText, 'Quiero ver el diagnóstico');
   }
   assert.equal(content.capaC.publico.ctaText, 'Quiero agendar una conversación');
 });

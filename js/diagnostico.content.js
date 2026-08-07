@@ -65,27 +65,27 @@ const content = {
 
   // Capa A — prioridad = orden del array. Primera que matchea gana. (§6.1)
   reglasA: [
-    { id: 'estacional', when: { generacion_propia: 'estacional' }, text: 'Tu generación cubre parte del año. Te ayudamos a cubrir el resto — con la ventaja de que ese periodo suele coincidir con mayor disponibilidad de sol.' },
-    { id: 'fisica', when: { generacion_propia: 'fisica' }, text: 'Ya generás tu propia energía. Te ayudamos a aprovechar cada kWh — en vez de perder lo que generás cuando no coincide con lo que necesitás.' },
-    { id: 'continuo', when: { patron_operacion: 'continuo' }, text: 'Tu operación no se detiene, así que compra energía en el horario más caro todos los días sin poder evitarlo. Podemos cambiar eso.' },
-    { id: 'picos', when: { patron_operacion: 'picos' }, text: 'La mayoría de las operaciones paga de más por unos minutos al mes — su momento de mayor consumo. Vale la pena revisar si ese es tu caso.' },
-    { id: 'intermitente', when: { patron_operacion: 'intermitente' }, text: 'Tu consumo es variable, lo que suele esconder picos que encarecen toda tu factura sin que se note en el día a día.' }
+    { id: 'estacional', when: { generacion_propia: 'estacional' }, text: 'Tu generación cubre parte del año, pero el resto pagás la tarifa completa de CFE. Podemos ayudarte a cerrar ese hueco y bajar esa factura — justo en la época de mayor sol.' },
+    { id: 'fisica', when: { generacion_propia: 'fisica' }, text: 'Ya generás tu propia energía, pero parte se pierde cuando no coincide con lo que necesitás. Esa energía perdida es ahorro que hoy se está quedando sobre la mesa.' },
+    { id: 'continuo', when: { patron_operacion: 'continuo' }, text: 'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes.' },
+    { id: 'picos', when: { patron_operacion: 'picos' }, text: 'La mayoría de las operaciones paga de más por apenas unos minutos al mes — su momento de mayor consumo. Ese pico suele pesar más de lo que parece en la factura, y es de lo más fácil de recortar.' },
+    { id: 'intermitente', when: { patron_operacion: 'intermitente' }, text: 'Tu consumo varía mucho, lo que casi siempre esconde picos que encarecen toda la factura sin que se note en el día a día. Identificarlos es el primer paso para bajarla.' }
   ],
 
   // Capa B — refuerzo, máximo 1. Prioridad = orden. (§6.2)
   reglasB: [
-    { id: 'diesel', when: { diesel_red_debil: 'si' }, text: 'Además, sustituir diésel por almacenamiento no solo es más limpio — suele ser bastante más barato por hora operada.' },
-    { id: 'int_medido', when: { interrupciones: 'si_medido' }, text: 'Y ya tenés el dato más difícil de conseguir: cuánto te cuesta cuando falla la energía. Ese número es el que arma el proyecto.' },
-    { id: 'int_no_medido', when: { interrupciones: 'si_no_medido' }, text: 'Ese tipo de interrupciones casi nunca se mide — y suele ser más caro de lo que parece. Es de las primeras cosas que podemos ayudarte a cuantificar.' },
-    { id: 'exporta', when: { exporta_excedente: 'si' }, text: 'Y si ya exportás excedente, hay margen para que valga más según a qué hora lo vendés.' }
+    { id: 'diesel', when: { diesel_red_debil: 'si' }, text: 'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.' },
+    { id: 'int_medido', when: { interrupciones: 'si_medido' }, text: 'Y ya tenés el dato más valioso: cuánto te cuesta cada falla. Ese número es justo el que dimensiona el ahorro real del proyecto.' },
+    { id: 'int_no_medido', when: { interrupciones: 'si_no_medido' }, text: 'Ese tipo de interrupciones casi nunca se mide, y suele costar más de lo que parece. Cuantificarlo es el primer paso para convertirlo en ahorro.' },
+    { id: 'exporta', when: { exporta_excedente: 'si' }, text: 'Y si ya exportás excedente, hay margen para que ese mismo kWh valga más según a qué hora lo vendés — ingreso adicional sin cambiar tu operación.' }
   ],
 
   // Capa C — cierre por segmento. ctaText ya corregido (spec §4.1). (§6.3)
   capaC: {
-    industrial: { texto: 'Protegé tu margen operativo y reducí tu exposición eléctrica — sin inversión de capital inicial.', ctaText: 'Quiero agendar mi diagnóstico' },
-    comercial: { texto: 'Reducí tu costo energético y la exposición de tu operación a fallas eléctricas — sin desembolso inicial.', ctaText: 'Quiero agendar mi diagnóstico' },
+    industrial: { texto: 'Todo esto sin poner capital: el ahorro empieza desde el primer mes, y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
+    comercial: { texto: 'Todo esto sin desembolso inicial: el ahorro arranca desde el primer mes.', ctaText: 'Quiero ver el diagnóstico' },
     publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protegé la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
-    ev: { texto: 'Evitá esperar meses (o años) para ampliar tu capacidad eléctrica — y controlá el costo de tus picos de carga rápida.', ctaText: 'Quiero agendar mi diagnóstico' }
+    ev: { texto: 'Sin esperar años de trámite ni poner capital — la optimización de tus costos empieza de inmediato.', ctaText: 'Quiero ver el diagnóstico' }
   },
 
   // Checklist base — keyed por id de reglasA (mismo selector de prioridad). (§7.1)
