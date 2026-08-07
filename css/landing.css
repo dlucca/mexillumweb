@@ -23,6 +23,7 @@ html{scroll-padding-top:72px}
    ========================================================================== */
 .nav{position:fixed;top:0;left:0;right:0;z-index:50;height:64px;display:flex;align-items:center;padding:0 var(--gutter-inline-lg);background:transparent;border-bottom:1px solid transparent;transition:background-color var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard)}
 .nav__inner{display:flex;align-items:center;justify-content:space-between;gap:var(--space-6)}
+.nav__actions{display:flex;align-items:center;gap:var(--space-4)}
 .nav__brand,.nav__brand:hover{border-bottom-color:transparent}
 .nav__mark{height:24px;transition:filter var(--dur-base) var(--ease-standard)}
 .nav__word{color:var(--blanco);font-size:18px;transition:color var(--dur-base) var(--ease-standard)}
@@ -217,6 +218,7 @@ html{scroll-padding-top:72px}
 
 @media (max-width:720px){
   .nav{padding:0 var(--gutter-inline)}
+  .nav__actions a[href="/diagnostico"]{display:none}
   .section{padding:var(--section-y-sm) var(--gutter-inline)}
   .section__kicker{margin-bottom:var(--space-8)}
   .hero{min-height:0;padding:24px var(--gutter-inline) 56px}
