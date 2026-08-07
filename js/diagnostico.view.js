@@ -213,7 +213,6 @@ function renderResult() {
         <p>${cuerpo}</p>
         <p class="dx__close">${esc(res.layerC.texto)}</p>
         <div class="dx__actions">
-          <button type="button" class="mx-btn mx-btn--secondary" data-act="print">Imprimir / Guardar PDF</button>
           <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
         </div>
       </section>
@@ -239,7 +238,6 @@ function renderResult() {
       </footer>
     </div>`);
 
-  view.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
   view.querySelector('[data-act="reiniciar"]').addEventListener('click', () => {
     estado.paso = 0;
     estado.respuestas = {};

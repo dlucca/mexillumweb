@@ -217,7 +217,7 @@ test('Copy Capa B: las 4 combinaciones arman el texto correcto', () => {
 
 test('Copy Capa C: las 4 combinaciones arman texto y botón correctos', () => {
   const esperado = {
-    industrial: { texto: 'Todo esto sin poner capital: el ahorro empieza desde el primer mes, y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
+    industrial: { texto: 'La solución puede ser 100% financiada: el ahorro empieza desde el primer mes y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
     comercial: { texto: 'Todo esto sin desembolso inicial: el ahorro arranca desde el primer mes.', ctaText: 'Quiero ver el diagnóstico' },
     publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protegé la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
     ev: { texto: 'Sin esperar años de trámite ni poner capital — la optimización de tus costos empieza de inmediato.', ctaText: 'Quiero ver el diagnóstico' }
@@ -237,6 +237,6 @@ test('Ensamblado final: continuo + diesel + industrial coincide con el ejemplo',
   const esperado =
     'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes. ' +
     'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.\n\n' +
-    'Todo esto sin poner capital: el ahorro empieza desde el primer mes, y el riesgo del activo queda de nuestro lado.';
+    'La solución puede ser 100% financiada: el ahorro empieza desde el primer mes y el riesgo del activo queda de nuestro lado.';
   assert.equal(armado, esperado);
 });

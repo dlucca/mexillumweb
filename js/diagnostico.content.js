@@ -82,7 +82,7 @@ const content = {
 
   // Capa C — cierre por segmento. ctaText ya corregido (spec §4.1). (§6.3)
   capaC: {
-    industrial: { texto: 'Todo esto sin poner capital: el ahorro empieza desde el primer mes, y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
+    industrial: { texto: 'La solución puede ser 100% financiada: el ahorro empieza desde el primer mes y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
     comercial: { texto: 'Todo esto sin desembolso inicial: el ahorro arranca desde el primer mes.', ctaText: 'Quiero ver el diagnóstico' },
     publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protegé la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
     ev: { texto: 'Sin esperar años de trámite ni poner capital — la optimización de tus costos empieza de inmediato.', ctaText: 'Quiero ver el diagnóstico' }
