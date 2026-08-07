@@ -52,10 +52,13 @@ html{scroll-padding-top:72px}
 .grid-overlay{position:absolute;inset:0;background-image:linear-gradient(to right,rgba(240,242,236,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(240,242,236,.06) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
 
 /* ---- scroll reveal ---------------------------------------------------- */
-.reveal{opacity:0;transform:translateY(10px);transition:opacity var(--dur-reveal) var(--ease-standard),transform var(--dur-reveal) var(--ease-standard);transition-delay:var(--rd,0ms)}
-.reveal.is-in{opacity:1;transform:none}
+/* Progressive enhancement: content is visible by default. Only when JS runs
+   (the <head> script adds .js to <html>) do .reveal elements start hidden and
+   animate in on scroll — so a JS failure can never leave the page blank. */
+.js .reveal{opacity:0;transform:translateY(10px);transition:opacity var(--dur-reveal) var(--ease-standard),transform var(--dur-reveal) var(--ease-standard);transition-delay:var(--rd,0ms)}
+.js .reveal.is-in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){
-  .reveal{opacity:1;transform:none;transition:none}
+  .js .reveal{opacity:1;transform:none;transition:none}
 }
 
 /* ==========================================================================
@@ -75,7 +78,11 @@ html{scroll-padding-top:72px}
 .hero__actions{display:flex;align-items:center;gap:var(--space-7);margin-top:var(--space-10);flex-wrap:wrap}
 .hero__note{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:#8C978E}
 .hero__sub{font-family:var(--font-core);font-size:var(--size-body-lg);line-height:1.5;color:#C2CCC4;margin:var(--space-6) 0 0;max-width:52ch}
-.diag-cta{display:flex;align-items:center;gap:var(--space-7);flex-wrap:wrap;margin-top:var(--space-9)}
+/* compact CTA band — early re-entry to the diagnostic (not a second pitch) */
+.section--band{padding-top:var(--space-10);padding-bottom:var(--space-10)}
+.diag-band{display:flex;align-items:center;justify-content:space-between;gap:var(--space-8);flex-wrap:wrap}
+.diag-band__text{display:flex;flex-direction:column;gap:var(--space-4);max-width:64ch;min-width:0}
+.diag-band__lead{font:var(--type-body-strong);font-size:var(--size-body-lg);color:var(--text-strong);margin:0;text-wrap:pretty}
 
 /* ==========================================================================
    El problema — diagnostic panel
@@ -138,8 +145,12 @@ html{scroll-padding-top:72px}
    ========================================================================== */
 .cases__head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-9);margin-bottom:var(--space-9);flex-wrap:wrap}
 .cases__intro{font:var(--type-body);color:var(--text-muted);margin:0;max-width:46ch}
-.cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-7)}
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-7)}
 .case{display:flex;flex-direction:column;gap:var(--space-4)}
+/* featured lead case — spans the row and runs horizontally for emphasis */
+.case--lead{grid-column:1 / -1;flex-direction:row;align-items:flex-start;gap:var(--space-11);border-top:var(--rule-accent-w) solid var(--accent)}
+.case--lead .case__lead-main{flex:0 0 clamp(240px,32%,360px);display:flex;flex-direction:column;gap:var(--space-4)}
+.case--lead .case__p{font-size:var(--size-body-lg);max-width:60ch;margin:0}
 .case__sector{font:var(--type-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted)}
 .case__h{font:var(--type-h3);letter-spacing:var(--track-heading);color:var(--text-strong);margin:0}
 .case__p{font:var(--type-body);color:var(--text-body);margin:0;max-width:48ch}
@@ -176,26 +187,12 @@ html{scroll-padding-top:72px}
 .cta{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:var(--space-13);align-items:start}
 .cta__title{font-family:var(--font-core);font-weight:700;font-size:clamp(34px,4vw,var(--size-h1));line-height:1.04;letter-spacing:-.015em;color:var(--blanco);margin:0;max-width:18ch;text-wrap:pretty}
 .cta__lede{font:var(--type-body);font-size:var(--size-body-lg);color:#C2CCC4;margin:var(--space-7) 0 0;max-width:46ch}
-/* shared card shell for the form and its confirmation */
+/* action card shell */
 .cta-card{background:var(--surface-card);border:1px solid var(--border-hairline);border-top:var(--rule-accent-w) solid var(--accent);border-radius:var(--radius-card);padding:var(--space-9)}
-.cta__form{display:grid;gap:var(--space-6)}
-.cta__form[hidden],.cta__done[hidden]{display:none}
-.cta__formnote{font-family:var(--font-core);font-size:var(--size-body-sm);line-height:1.45;color:var(--text-muted);margin:0}
-.cta__err{font-family:var(--font-core);font-size:var(--size-body-sm);line-height:1.45;color:var(--signal-alert);margin:0}
-.cta__err[hidden]{display:none}
-.mx-field__error[hidden]{display:none}
-/* honeypot — off-screen, out of tab order and a11y tree */
-.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
-
-/* calm, instrumental confirmation */
-.cta__done{display:flex;flex-direction:column;gap:var(--space-4);outline:none}
 .cta__done-kicker{display:flex;align-items:center;gap:var(--space-3);font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-accent);margin:0}
 .cta__done-sq{width:7px;height:7px;background:var(--accent);display:inline-block}
 .cta__done-title{font-family:var(--font-core);font-weight:700;font-size:var(--size-h3);line-height:var(--lh-snug);color:var(--text-strong);margin:0}
 .cta__done-body{font:var(--type-body);color:var(--text-body);margin:0;max-width:42ch}
-.cta__done-next{margin-top:var(--space-3);border-top:1px solid var(--border-hairline);padding-top:var(--space-6);display:grid;gap:var(--space-4)}
-.cta__done-step{display:flex;gap:var(--space-5);align-items:baseline;font:var(--type-body);font-size:var(--size-body-sm);color:var(--text-body)}
-.cta__done-step-n{flex:none;font-family:var(--font-mono);font-size:var(--size-label);letter-spacing:var(--track-label);color:var(--text-muted);font-variant-numeric:tabular-nums}
 
 /* ==========================================================================
    Footer
@@ -220,14 +217,16 @@ html{scroll-padding-top:72px}
 
 @media (max-width:720px){
   .nav{padding:0 var(--gutter-inline)}
-  .nav__actions a[href="/diagnostico"]{display:none}
   .section{padding:var(--section-y-sm) var(--gutter-inline)}
   .section__kicker{margin-bottom:var(--space-8)}
   .hero{min-height:0;padding:24px var(--gutter-inline) 56px}
   .hero__content{padding-top:88px;padding-bottom:8px}
+  .diag-band{gap:var(--space-6)}
+  .diag-band .mx-btn{width:100%}
   .fault{grid-template-columns:1fr;gap:var(--space-3);padding:var(--space-7) 0}
   .fault__idx{font-size:30px}
   .cases{grid-template-columns:1fr}
+  .case--lead{flex-direction:column;gap:var(--space-4)}
   .model__stats{grid-template-columns:1fr;gap:var(--space-8)}
   .model__lede{margin-bottom:var(--space-10)}
   .why{grid-template-columns:1fr;gap:var(--space-9)}

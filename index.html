@@ -7,6 +7,8 @@
 <meta name="description" content="Generación, almacenamiento o ambos, según lo que tu planta necesite. Modelo cero CAPEX: Mexillum financia, instala y opera bajo contrato de servicio.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#080A08">
+<!-- Enables the scroll-reveal animation only when JS runs; without it the page stays fully visible. -->
+<script>document.documentElement.classList.add('js')</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="css/tokens.css">
@@ -24,8 +26,7 @@
         <span class="brand__word nav__word">mexillum</span>
       </a>
       <div class="nav__actions">
-        <a class="mx-btn mx-btn--secondary mx-btn--sm" href="/diagnostico">Diagnóstico en 2 minutos</a>
-        <a class="mx-btn mx-btn--primary mx-btn--sm nav__cta" href="#contacto">Agenda un diagnóstico</a>
+        <a class="mx-btn mx-btn--primary mx-btn--sm nav__cta" href="/diagnostico">Hacer mi diagnóstico</a>
       </div>
     </div>
   </header>
@@ -41,7 +42,7 @@
       <h1 class="hero__title">Sistemas de energía diseñados a la medida de tu operación</h1>
       <p class="hero__lede">Generación, almacenamiento o ambos, según lo que tu planta necesite.</p>
       <div class="hero__actions">
-        <a class="mx-btn mx-btn--primary mx-btn--lg" href="#diagnostico">Diagnóstico en 2 minutos</a>
+        <a class="mx-btn mx-btn--primary mx-btn--lg" href="/diagnostico">Hacer mi diagnóstico</a>
       </div>
       <p class="hero__sub">Un diagnóstico claro de tu perfil energético en 6 preguntas — sin jerga técnica y sin costo.</p>
     </div>
@@ -50,15 +51,13 @@
   <main>
 
     <!-- ================= Diagnóstico en 2 minutos (autoservicio) ================= -->
-    <section class="section section--inset" id="diagnostico" aria-labelledby="diag-t">
-      <div class="container">
-        <p class="kicker kicker--accent kicker--mb8 reveal">Diagnóstico en 2 minutos</p>
-        <h2 class="what__title reveal" id="diag-t">Descubre dónde tu operación pierde energía — y margen.</h2>
-        <p class="what__lede reveal">Responde 6 preguntas sobre tu operación y recibe al instante un diagnóstico claro de tu perfil energético: dónde pagas de más, qué se puede optimizar y qué conviene tener a mano para tu llamada. Sin jerga técnica, sin costo y sin compromiso.</p>
-        <div class="diag-cta reveal" style="--rd:120ms">
-          <a class="mx-btn mx-btn--primary mx-btn--lg" href="/diagnostico">Iniciar ahora</a>
-          <span class="hero__note">6 preguntas · 2 minutos · resultado inmediato</span>
+    <section class="section section--inset section--band" id="diagnostico" aria-labelledby="diag-t">
+      <div class="container diag-band reveal">
+        <div class="diag-band__text">
+          <p class="kicker kicker--accent" id="diag-t">Diagnóstico en 2 minutos</p>
+          <p class="diag-band__lead">Descubre dónde tu operación paga de más — y qué conviene tener a mano para tu llamada.</p>
         </div>
+        <a class="mx-btn mx-btn--primary mx-btn--lg" href="/diagnostico">Hacer mi diagnóstico</a>
       </div>
     </section>
 
@@ -128,7 +127,7 @@
           <p class="kicker kicker--accent">La pieza pendiente</p>
           <p>El almacenamiento es lo que más empresas tienen sin resolver. Es la pieza que convierte kWh baratos en energía disponible en el momento en que la planta la necesita.</p>
           <div class="metric-list">
-            <div class="metric"><span class="metric__k">Peak shaving sobre tarifa GDMTH</span><span class="metric__v">18 %</span></div>
+            <div class="metric"><span class="metric__k">Recorte del cargo por demanda (GDMTH)</span><span class="metric__v">18 %</span></div>
             <div class="metric"><span class="metric__k">Respaldo ante evento de red</span><span class="metric__v">&lt; 20 ms</span></div>
             <div class="metric"><span class="metric__k">Inversión del cliente</span><span class="metric__v metric__v--accent">$0 CAPEX</span></div>
           </div>
@@ -149,7 +148,7 @@
           <div class="step reveal" style="--rd:80ms">
             <div class="step__n">PASO 02</div>
             <h3 class="step__h">Dimensionamiento</h3>
-            <p class="step__p">Del sistema que corresponda: generación, BESS o ambos.</p>
+            <p class="step__p">Del sistema que corresponda: generación, almacenamiento (BESS) o ambos.</p>
           </div>
           <div class="step reveal" style="--rd:160ms">
             <div class="step__n">PASO 03</div>
@@ -173,11 +172,13 @@
           <p class="cases__intro">Cada configuración sale del diagnóstico. No hay un paquete único.</p>
         </div>
         <div class="cases">
-          <article class="mx-card case reveal">
-            <div class="case__sector">Minería</div>
-            <h3 class="case__h">Microred solar + BESS</h3>
+          <article class="mx-card case case--lead reveal">
+            <div class="case__lead-main">
+              <div class="case__sector">Minería</div>
+              <h3 class="case__h">Microred solar + BESS</h3>
+              <div class="case__tag">GENERACIÓN + ALMACENAMIENTO</div>
+            </div>
             <p class="case__p">Sustitución de diésel en sitios con red débil o sin red. Generación y almacenamiento operando como un solo sistema.</p>
-            <div class="case__tag">GENERACIÓN + ALMACENAMIENTO</div>
           </article>
           <article class="mx-card case reveal" style="--rd:80ms">
             <div class="case__sector">Petroquímica</div>
@@ -194,7 +195,7 @@
           <article class="mx-card case reveal" style="--rd:240ms">
             <div class="case__sector">Transporte público</div>
             <h3 class="case__h">Gestión de demanda en patios</h3>
-            <p class="case__p">BESS que aplana la carga simultánea de flota eléctrica y evita reforzar la acometida.</p>
+            <p class="case__p">BESS que aplana la carga simultánea de la flota eléctrica y evita ampliar la conexión eléctrica del sitio.</p>
             <div class="case__tag">ALMACENAMIENTO</div>
           </article>
         </div>
@@ -235,7 +236,7 @@
         <div class="why">
           <div class="reveal">
             <h3 class="why__h">Ingeniería de integración</h3>
-            <p class="why__p">El sistema se diseña sobre tu proceso y tu acometida. No es un producto de catálogo con la etiqueta cambiada.</p>
+            <p class="why__p">El sistema se diseña sobre tu proceso y tu conexión eléctrica. No es un producto de catálogo con la etiqueta cambiada.</p>
           </div>
           <div class="reveal" style="--rd:100ms">
             <h3 class="why__h">O&amp;M local</h3>
@@ -266,15 +267,14 @@
         <div class="reveal">
           <p class="kicker kicker--lima kicker--mb8">Diagnóstico</p>
           <h2 class="cta__title" id="cta-t">¿Ya sabes qué le falta a tu sistema de energía?</h2>
-          <p class="cta__lede">Hacé el diagnóstico en 2 minutos y descubrí dónde tu operación pierde energía y margen: dónde pagás de más y qué se puede optimizar, en lenguaje de negocio. Sin costo y sin compromiso de contratación.</p>
+          <p class="cta__lede">Descubre dónde tu operación pierde energía y margen — en lenguaje de negocio, no de ingeniería.</p>
         </div>
         <div class="cta__panel reveal" style="--rd:120ms">
           <div class="cta-card">
-            <p class="cta__done-kicker"><span class="cta__done-sq" aria-hidden="true"></span>2 minutos · 6 preguntas</p>
-            <h3 class="cta__done-title">Descubrilo ahora, gratis</h3>
-            <p class="cta__done-body">Respondé 6 preguntas simples y recibí al instante un diagnóstico claro de tu perfil energético — sin jerga técnica y sin costo.</p>
+            <p class="cta__done-kicker"><span class="cta__done-sq" aria-hidden="true"></span>2 minutos · 6 preguntas · resultado inmediato</p>
+            <h3 class="cta__done-title">Descúbrelo ahora, gratis</h3>
+            <p class="cta__done-body">Sin jerga técnica, sin costo y sin compromiso de contratación.</p>
             <a class="mx-btn mx-btn--primary mx-btn--lg mx-btn--block" href="/diagnostico" style="margin-top:var(--space-5)">Hacer mi diagnóstico</a>
-            <p class="cta__formnote">Sin compromiso de contratación.</p>
           </div>
         </div>
       </div>
