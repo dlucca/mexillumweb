@@ -1,5 +1,7 @@
 /* Funnel de diagnóstico — sobre tokens.css + components.css. Solo layout/espaciado. */
 .dx{max-width:var(--max-content);margin:0 auto;padding:var(--section-y-sm) var(--gutter-inline)}
+/* solo para lectores de pantalla: encabezados de estructura y foco, invisibles en pantalla */
+.dx__sronly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .dx__progress{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-5)}
 .dx__question{font:var(--type-h2);color:var(--text-strong);margin:0 0 var(--space-8);max-width:var(--measure-narrow)}
 .dx__options{display:flex;flex-direction:column;gap:var(--space-4);max-width:var(--measure-prose)}

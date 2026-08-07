@@ -21,20 +21,22 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Tras navegar de vista, lleva el foco al encabezado de la vista nueva para que
+// AT/teclado no pierdan el lugar (y se anuncie el contexto sin un aria-live ruidoso).
 function focusMain() {
-  if (!reduce) root.scrollTo?.({ top: 0 });
   window.scrollTo(0, 0);
+  const h = root.querySelector('[data-dx-focus]');
+  if (h) h.focus({ preventScroll: true });
 }
 
 function renderStep() {
   const idx = estado.paso;
   const paso = content.pasos[idx];
-  const elegido = estado.respuestas[paso.key];
 
-  const opciones = paso.opciones.map((o) => {
-    const on = elegido === o.codigo;
+  const opcionesHtml = paso.opciones.map((o) => {
+    const on = estado.respuestas[paso.key] === o.codigo;
     return `
-      <button type="button" class="dx__option" data-codigo="${esc(o.codigo)}" role="radio" aria-checked="${on}">
+      <button type="button" class="dx__option" data-codigo="${esc(o.codigo)}" role="radio" aria-checked="${on}" tabindex="-1">
         <span class="mx-check">
           <span class="mx-check__box mx-check__box--radio ${on ? 'mx-check__box--on' : ''}">
             ${on ? '<span class="mx-check__dot"></span>' : ''}
@@ -47,36 +49,67 @@ function renderStep() {
   const atras = idx > 0
     ? '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>'
     : '<span></span>';
-  const siguienteDisabled = elegido ? '' : 'disabled';
 
   const view = el(`
     <div class="dx__view">
       <p class="dx__progress">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</p>
-      <h2 class="dx__question">${esc(paso.pregunta)}</h2>
-      <div class="dx__options" role="radiogroup" aria-label="${esc(paso.pregunta)}">${opciones}</div>
+      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(paso.pregunta)}</h2>
+      <div class="dx__options" role="radiogroup" aria-label="${esc(paso.pregunta)}">${opcionesHtml}</div>
       <div class="dx__nav dx__nav--end">
         ${atras}
-        <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente" ${siguienteDisabled}>Siguiente</button>
+        <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente" disabled>Siguiente</button>
       </div>
     </div>`);
 
-  view.querySelectorAll('.dx__option').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      estado.respuestas[paso.key] = btn.dataset.codigo;
-      renderStep(); // re-render marca la selección y habilita "Siguiente"
+  const options = [...view.querySelectorAll('.dx__option')];
+  const siguiente = view.querySelector('[data-act="siguiente"]');
+
+  // Actualiza la selección en el sitio (sin re-render): así elegir una opción no
+  // reanuncia toda la pregunta ni roba el foco. Gestiona el roving tabindex del radiogroup.
+  function paint() {
+    const elegido = estado.respuestas[paso.key];
+    options.forEach((btn) => {
+      const on = elegido === btn.dataset.codigo;
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      btn.tabIndex = on ? 0 : -1;
+      const box = btn.querySelector('.mx-check__box');
+      box.classList.toggle('mx-check__box--on', on);
+      let dot = box.querySelector('.mx-check__dot');
+      if (on && !dot) { dot = document.createElement('span'); dot.className = 'mx-check__dot'; box.appendChild(dot); }
+      else if (!on && dot) { dot.remove(); }
+    });
+    if (!elegido && options[0]) options[0].tabIndex = 0; // punto de entrada de tabulación
+    siguiente.disabled = !elegido;
+  }
+
+  function select(btn) {
+    estado.respuestas[paso.key] = btn.dataset.codigo;
+    paint();
+    btn.focus();
+  }
+
+  options.forEach((btn, i) => {
+    btn.addEventListener('click', () => select(btn));
+    btn.addEventListener('keydown', (e) => {
+      let next = null;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (i + 1) % options.length;
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (i - 1 + options.length) % options.length;
+      if (next !== null) { e.preventDefault(); select(options[next]); }
     });
   });
+
   view.querySelector('[data-act="atras"]')?.addEventListener('click', () => {
     estado.paso -= 1;
     render();
   });
-  view.querySelector('[data-act="siguiente"]').addEventListener('click', () => {
+  siguiente.addEventListener('click', () => {
     if (!estado.respuestas[paso.key]) return;
     if (estado.paso < content.pasos.length - 1) estado.paso += 1;
     else estado.paso = 'gate';
     render();
   });
 
+  paint(); // marca la selección previa al volver y fija el tabindex inicial
   root.replaceChildren(view);
   focusMain();
 }
@@ -96,6 +129,7 @@ function renderGate() {
   const view = el(`
     <div class="dx__view dx__gate">
       <p class="dx__progress">${esc(content.progresoLabel(content.pasos.length, content.pasos.length))} · Casi listo</p>
+      <h2 class="dx__sronly" data-dx-focus tabindex="-1">Datos de contacto</h2>
       ${content.gate.intro.map((p) => `<p>${esc(p)}</p>`).join('')}
       <form novalidate aria-label="Datos de contacto">
         <input class="dx__hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -169,7 +203,9 @@ function renderGate() {
 
 function renderResult() {
   const res = assembleResult(estado, content);
-  submitLead(res.leadPayload); // v1: console.log; sub-proyecto 2 lo conecta
+  // v1: console.log. Sub-proyecto 2 conecta un endpoint real acá — cuando lo haga,
+  // agregar un guard (p. ej. hasSubmitted) porque renderResult puede re-ejecutarse.
+  submitLead(res.leadPayload);
 
   const layerB = res.layerB ? `<p>${esc(res.layerB)}</p>` : '';
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
@@ -178,6 +214,7 @@ function renderResult() {
   const view = el(`
     <div class="dx__view dx__result">
       <section class="dx__diag">
+        <h2 class="dx__sronly" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
         <p>${esc(res.layerA)}</p>
         ${layerB}
         <p class="dx__close">${esc(res.layerC.texto)}</p>

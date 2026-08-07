@@ -118,6 +118,25 @@ test('score: publico suma +1 y niveles de corte', () => {
   assert.deepEqual(computeScore(r), { valor: 2, nivel: 'medio' });
 });
 
+test('score: cortes de nivel en las fronteras (1=bajo, 4=medio, 5=alto)', () => {
+  const base = {
+    tipo_instalacion: 'comercial', generacion_propia: 'ninguna', patron_operacion: 'intermitente',
+    interrupciones: 'no', diesel_red_debil: 'no', exporta_excedente: 'no'
+  };
+  // valor 1 → bajo (frontera 1/2)
+  assert.deepEqual(computeScore({ ...base, interrupciones: 'si_no_medido' }), { valor: 1, nivel: 'bajo' });
+  // valor 4 → medio (frontera 4/5): diesel (+2) + si_no_medido (+1) + publico (+1)
+  assert.deepEqual(
+    computeScore({ ...base, tipo_instalacion: 'publico', diesel_red_debil: 'si', interrupciones: 'si_no_medido' }),
+    { valor: 4, nivel: 'medio' }
+  );
+  // valor 5 → alto (frontera 4/5): si_medido (+3) + diesel (+2)
+  assert.deepEqual(
+    computeScore({ ...base, interrupciones: 'si_medido', diesel_red_debil: 'si' }),
+    { valor: 5, nivel: 'alto' }
+  );
+});
+
 test('toReadable: códigos → labels visibles', () => {
   const r = {
     tipo_instalacion: 'industrial', generacion_propia: 'estacional', patron_operacion: 'continuo',
