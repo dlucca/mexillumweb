@@ -1,10 +1,13 @@
 /* Funnel de diagnóstico — sobre tokens.css + components.css. Solo layout/espaciado. */
-.dx{max-width:var(--max-content);margin:0 auto;padding:var(--section-y-sm) var(--gutter-inline)}
+/* sticky footer: fill the viewport so the footer sits at the bottom on short views
+   (e.g. a single question), instead of floating up with empty space beneath it. */
+body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+.dx{max-width:var(--max-content);width:100%;margin:0 auto;padding:var(--section-y-sm) var(--gutter-inline);flex:1 0 auto}
 /* solo para lectores de pantalla: encabezados de estructura y foco, invisibles en pantalla */
 .dx__sronly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 /* marca: header con logo + footer (autoconsistente, sin depender de landing.css) */
-.dx__top{max-width:var(--max-content);margin:0 auto;padding:var(--space-7) var(--gutter-inline) 0}
+.dx__top{max-width:var(--max-content);width:100%;margin:0 auto;padding:var(--space-7) var(--gutter-inline) 0}
 .dx__brand{display:inline-flex;align-items:center;gap:10px;border-bottom:0}
 .dx__brand:hover{border-bottom:0}
 .dx__brand-mark{height:22px;width:auto;display:block;filter:brightness(0)}
