@@ -12,6 +12,12 @@
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/landing.css">
+<style>
+/* El nav no tiene wrap; en pantallas angostas el enlace al funnel vive en el hero (que sí envuelve). */
+@media (max-width:640px){
+  .nav__inner a[href="/diagnostico"]{display:none}
+}
+</style>
 </head>
 <body>
 <div class="page">
@@ -23,6 +29,7 @@
         <img class="brand__mark nav__mark" src="assets/logo-mark-white.png" alt="">
         <span class="brand__word nav__word">mexillum</span>
       </a>
+      <a class="mx-btn mx-btn--secondary mx-btn--sm" href="/diagnostico">Diagnóstico en 2 minutos</a>
       <a class="mx-btn mx-btn--primary mx-btn--sm nav__cta" href="#contacto">Agenda un diagnóstico</a>
     </div>
   </header>
@@ -39,6 +46,7 @@
       <p class="hero__lede">Generación, almacenamiento o ambos, según lo que tu planta necesite.</p>
       <div class="hero__actions">
         <a class="mx-btn mx-btn--primary mx-btn--lg" href="#contacto">Agenda un diagnóstico</a>
+        <a class="mx-btn mx-btn--secondary mx-btn--lg" href="/diagnostico">Diagnóstico en 2 minutos</a>
         <span class="hero__note">Sobre tu factura y tu perfil de carga</span>
       </div>
     </div>
