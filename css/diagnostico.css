@@ -16,7 +16,7 @@
 
 .dx__result{display:grid;grid-template-columns:1fr;gap:var(--space-9)}
 @media (min-width:900px){.dx__result{grid-template-columns:1.4fr 1fr;align-items:start}}
-.dx__diag p{font:var(--type-body-lg);color:var(--text-body)}
+.dx__diag p{font-size:var(--size-body-lg);line-height:var(--lh-body);color:var(--text-body)}
 .dx__diag .dx__close{color:var(--text-strong);font-weight:var(--weight-semibold)}
 .dx__cta{margin:var(--space-7) 0}
 .dx__agenda{margin-top:var(--space-8);padding:var(--space-8);border:1px dashed var(--border-default);border-radius:var(--radius-panel);color:var(--text-muted);text-align:center}
