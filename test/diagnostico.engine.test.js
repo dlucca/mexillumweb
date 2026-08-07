@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
 import {
-  resolveBaseArchetype, pickLayerB, pickLayerC
+  resolveBaseArchetype, pickLayerB, pickLayerC, buildChecklist
 } from '../js/diagnostico.engine.js';
 
 // respuesta base "neutra" que no dispara refuerzos ni generación
@@ -54,4 +54,38 @@ test('Capa C: devuelve texto y ctaText por tipo', () => {
   const c = pickLayerC({ ...neutra, tipo_instalacion: 'publico' }, content);
   assert.equal(c.ctaText, 'Quiero agendar una conversación');
   assert.ok(c.texto.includes('continuidad'));
+});
+
+test('checklist full: base + refuerzos + universal, sin recorte', () => {
+  const r = {
+    tipo_instalacion: 'industrial', generacion_propia: 'ninguna', patron_operacion: 'continuo',
+    interrupciones: 'si_medido', diesel_red_debil: 'si', exporta_excedente: 'si'
+  };
+  const { full } = buildChecklist(r, content);
+  // base continuo (3) + diesel + int_medido + exporta (3) + universal (1) = 7
+  assert.equal(full.length, 7);
+  assert.equal(full[full.length - 1], content.checklistUniversal);
+});
+
+test('checklist web: recorta a 4 de contenido + universal como 5ª', () => {
+  const r = {
+    tipo_instalacion: 'industrial', generacion_propia: 'ninguna', patron_operacion: 'continuo',
+    interrupciones: 'si_medido', diesel_red_debil: 'si', exporta_excedente: 'si'
+  };
+  const { web } = buildChecklist(r, content);
+  assert.equal(web.length, 5); // 4 contenido + universal
+  assert.equal(web[web.length - 1], content.checklistUniversal);
+  // conserva la base (3) + el refuerzo de mayor prioridad (diesel), descarta el resto
+  assert.ok(web.includes('Cuántas horas al año corre tu respaldo de diésel y costo aproximado'));
+  assert.ok(!web.includes('Cómo vendés ese excedente hoy: contrato, tarifa y a quién'));
+});
+
+test('checklist web: sin refuerzos, solo base + universal', () => {
+  const r = {
+    tipo_instalacion: 'industrial', generacion_propia: 'ninguna', patron_operacion: 'intermitente',
+    interrupciones: 'no', diesel_red_debil: 'no', exporta_excedente: 'no'
+  };
+  const { web, full } = buildChecklist(r, content);
+  assert.equal(web.length, 3); // base intermitente (2) + universal
+  assert.deepEqual(web, full); // sin recorte cuando no se supera el tope
 });
