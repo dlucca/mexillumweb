@@ -209,7 +209,8 @@ function renderResult() {
   const view = el(`
     <div class="dx__view dx__final">
       <section class="dx__diag" aria-labelledby="dx-diag-h">
-        <h2 class="dx__sronly" id="dx-diag-h" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
+        <p class="dx__diag-kicker">Diagnóstico listo</p>
+        <h2 class="dx__col-title" id="dx-diag-h" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
         <p>${cuerpo}</p>
         <p class="dx__close">${esc(res.layerC.texto)}</p>
         <aside class="dx__checklist" aria-label="Preparación para la llamada">
@@ -224,7 +225,7 @@ function renderResult() {
 
       <section class="dx__book" aria-labelledby="dx-book-h">
         <h2 class="dx__col-title" id="dx-book-h">Agenda una conversación</h2>
-        <p class="dx__col-sub">Elegí un horario y coordinamos una llamada para revisar tu diagnóstico a fondo. Adjuntamos automáticamente tu diagnóstico a la reunión.</p>
+        <p class="dx__col-sub">Elige un horario y coordinamos una llamada para revisar tu diagnóstico a fondo. Adjuntamos automáticamente tu diagnóstico a la reunión.</p>
         <div class="dx__cal" id="agenda"></div>
       </section>
 

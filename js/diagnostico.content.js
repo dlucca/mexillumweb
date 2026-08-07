@@ -65,9 +65,9 @@ const content = {
 
   // Capa A — prioridad = orden del array. Primera que matchea gana. (§6.1)
   reglasA: [
-    { id: 'estacional', when: { generacion_propia: 'estacional' }, text: 'Tu generación cubre parte del año, pero el resto pagás la tarifa completa de CFE. Podemos ayudarte a cerrar ese hueco y bajar esa factura — justo en la época de mayor sol.' },
-    { id: 'fisica', when: { generacion_propia: 'fisica' }, text: 'Ya generás tu propia energía, pero parte se pierde cuando no coincide con lo que necesitás. Esa energía perdida es ahorro que hoy se está quedando sobre la mesa.' },
-    { id: 'continuo', when: { patron_operacion: 'continuo' }, text: 'Tu operación no se detiene, así que hoy comprás en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes.' },
+    { id: 'estacional', when: { generacion_propia: 'estacional' }, text: 'Tu generación cubre parte del año, pero el resto pagas la tarifa completa de CFE. Podemos ayudarte a cerrar ese hueco y bajar esa factura — justo en la época de mayor sol.' },
+    { id: 'fisica', when: { generacion_propia: 'fisica' }, text: 'Ya generas tu propia energía, pero parte se pierde cuando no coincide con lo que necesitas. Esa energía perdida es ahorro que hoy se está quedando sobre la mesa.' },
+    { id: 'continuo', when: { patron_operacion: 'continuo' }, text: 'Tu operación no se detiene, así que hoy compras en el horario más caro todos los días, sin alternativa. Ese gasto se puede optimizar y reducir de forma constante, mes a mes.' },
     { id: 'picos', when: { patron_operacion: 'picos' }, text: 'La mayoría de las operaciones paga de más por apenas unos minutos al mes — su momento de mayor consumo. Ese pico suele pesar más de lo que parece en la factura, y es de lo más fácil de recortar.' },
     { id: 'intermitente', when: { patron_operacion: 'intermitente' }, text: 'Tu consumo varía mucho, lo que casi siempre esconde picos que encarecen toda la factura sin que se note en el día a día. Identificarlos es el primer paso para bajarla.' }
   ],
@@ -75,16 +75,16 @@ const content = {
   // Capa B — refuerzo, máximo 1. Prioridad = orden. (§6.2)
   reglasB: [
     { id: 'diesel', when: { diesel_red_debil: 'si' }, text: 'Además, sustituir diésel por almacenamiento no solo es más limpio — reduce el costo por hora operada de forma significativa.' },
-    { id: 'int_medido', when: { interrupciones: 'si_medido' }, text: 'Y ya tenés el dato más valioso: cuánto te cuesta cada falla. Ese número es justo el que dimensiona el ahorro real del proyecto.' },
+    { id: 'int_medido', when: { interrupciones: 'si_medido' }, text: 'Y ya tienes el dato más valioso: cuánto te cuesta cada falla. Ese número es justo el que dimensiona el ahorro real del proyecto.' },
     { id: 'int_no_medido', when: { interrupciones: 'si_no_medido' }, text: 'Ese tipo de interrupciones casi nunca se mide, y suele costar más de lo que parece. Cuantificarlo es el primer paso para convertirlo en ahorro.' },
-    { id: 'exporta', when: { exporta_excedente: 'si' }, text: 'Y si ya exportás excedente, hay margen para que ese mismo kWh valga más según a qué hora lo vendés — ingreso adicional sin cambiar tu operación.' }
+    { id: 'exporta', when: { exporta_excedente: 'si' }, text: 'Y si ya exportas excedente, hay margen para que ese mismo kWh valga más según a qué hora lo vendes — ingreso adicional sin cambiar tu operación.' }
   ],
 
   // Capa C — cierre por segmento. ctaText ya corregido (spec §4.1). (§6.3)
   capaC: {
     industrial: { texto: 'La solución puede ser 100% financiada: el ahorro empieza desde el primer mes y el riesgo del activo queda de nuestro lado.', ctaText: 'Quiero ver el diagnóstico' },
     comercial: { texto: 'Todo esto sin desembolso inicial: el ahorro arranca desde el primer mes.', ctaText: 'Quiero ver el diagnóstico' },
-    publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protegé la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
+    publico: { texto: 'Cero inversión, cero deuda, cero riesgo — protege la continuidad de tu servicio sin comprometer presupuesto.', ctaText: 'Quiero agendar una conversación' },
     ev: { texto: 'Sin esperar años de trámite ni poner capital — la optimización de tus costos empieza de inmediato.', ctaText: 'Quiero ver el diagnóstico' }
   },
 
@@ -92,7 +92,7 @@ const content = {
   checklistBase: {
     estacional: [
       'Fechas de tu temporada alta y temporada baja',
-      'Recibos de CFE de la temporada baja (si los tenés a mano)'
+      'Recibos de CFE de la temporada baja (si los tienes a mano)'
     ],
     fisica: [
       'Capacidad instalada y fecha en que empezó a operar',
@@ -100,12 +100,12 @@ const content = {
     ],
     continuo: [
       'Recibos de CFE con desglose por horario, si tu factura lo muestra',
-      'Tu tarifa aplicable, si la conocés (por ejemplo GDMTH o DIST)',
+      'Tu tarifa aplicable, si la conoces (por ejemplo GDMTH o DIST)',
       'Si hay algo de tu consumo que sí podrías mover de horario'
     ],
     picos: [
       'Tus últimos 12 recibos de CFE',
-      'Idealmente, algún registro de consumo por intervalos de 15 minutos, si lo tenés (aunque sea de un mes)',
+      'Idealmente, algún registro de consumo por intervalos de 15 minutos, si lo tienes (aunque sea de un mes)',
       'A qué hora o en qué proceso ocurre tu momento de mayor consumo'
     ],
     intermitente: [
@@ -117,28 +117,14 @@ const content = {
   // Refuerzos del checklist — prioridad = orden. Mismas condiciones que Capa B. (§7.2)
   checklistRefuerzos: [
     { id: 'diesel', when: { diesel_red_debil: 'si' }, bullet: 'Cuántas horas al año corre tu respaldo de diésel y costo aproximado' },
-    { id: 'int_medido', when: { interrupciones: 'si_medido' }, bullet: 'El registro que ya tenés de esos eventos: cuántos y qué costaron' },
+    { id: 'int_medido', when: { interrupciones: 'si_medido' }, bullet: 'El registro que ya tienes de esos eventos: cuántos y qué costaron' },
     { id: 'int_no_medido', when: { interrupciones: 'si_no_medido' }, bullet: 'Una estimación aproximada — no hace falta precisión, con "más o menos X veces el año pasado" alcanza' },
-    { id: 'exporta', when: { exporta_excedente: 'si' }, bullet: 'Cómo vendés ese excedente hoy: contrato, tarifa y a quién' }
+    { id: 'exporta', when: { exporta_excedente: 'si' }, bullet: 'Cómo vendes ese excedente hoy: contrato, tarifa y a quién' }
   ],
 
   checklistUniversal: 'Quién en tu organización tomaría la decisión de un proyecto así', // §7.3
   checklistTitulo: 'Antes de tu llamada, te sirve tener a mano:', // §7.5
   checklistPie: 'No hace falta tenerlo todo listo — con lo que tengas alcanza para empezar.', // §7.5
-
-  gate: {
-    intro: [
-      'Con base en tus respuestas, identificamos una oportunidad relevante para proteger tu operación y reducir tu exposición eléctrica — sin inversión de capital inicial.',
-      'Déjanos tus datos y te enviamos el diagnóstico completo.'
-    ],
-    campos: [
-      { name: 'nombre', label: 'Nombre', required: true, type: 'text', autocomplete: 'name' },
-      { name: 'empresa', label: 'Empresa', required: true, type: 'text', autocomplete: 'organization' },
-      { name: 'correo', label: 'Correo', required: true, type: 'email', autocomplete: 'email' },
-      { name: 'telefono', label: 'Teléfono (opcional)', required: false, type: 'tel', autocomplete: 'tel' },
-      { name: 'cargo', label: 'Cargo (opcional)', required: false, type: 'text', autocomplete: 'organization-title' }
-    ]
-  },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },
   progresoLabel: (n, total) => `Paso ${n} de ${total}`
