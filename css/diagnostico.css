@@ -7,3 +7,9 @@
 .dx__option .mx-check{width:100%}
 .dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-9)}
 .dx__nav--end{justify-content:space-between}
+
+.dx__gate{max-width:var(--measure-narrow)}
+.dx__gate p{color:var(--text-body)}
+.dx__gate .mx-field{margin-bottom:var(--space-5)}
+.dx__hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.dx__formerr{color:var(--signal-alert);font-size:var(--size-body-sm);margin-top:var(--space-4)}

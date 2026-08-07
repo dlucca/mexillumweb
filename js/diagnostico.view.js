@@ -81,8 +81,90 @@ function renderStep() {
   focusMain();
 }
 
+function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
+
 function renderGate() {
-  root.replaceChildren(el('<p>Gate — se implementa en Task 6</p>'));
+  const campos = content.gate.campos.map((f) => `
+    <div class="mx-field">
+      <label class="mx-field__label" for="dx-${f.name}">${esc(f.label)}</label>
+      <input class="mx-input" id="dx-${f.name}" name="${f.name}" type="${f.type}"
+             autocomplete="${f.autocomplete}" ${f.required ? 'required' : ''}
+             aria-describedby="err-${f.name}">
+      <span class="mx-field__error" id="err-${f.name}" hidden>Revisá este dato.</span>
+    </div>`).join('');
+
+  const view = el(`
+    <div class="dx__view dx__gate">
+      <p class="dx__progress">${esc(content.progresoLabel(content.pasos.length, content.pasos.length))} · Casi listo</p>
+      ${content.gate.intro.map((p) => `<p>${esc(p)}</p>`).join('')}
+      <form novalidate aria-label="Datos de contacto">
+        <input class="dx__hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        ${campos}
+        <div class="dx__nav">
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          <button type="submit" class="mx-btn mx-btn--primary">Ver mi diagnóstico</button>
+        </div>
+        <p class="dx__formerr" data-formerr hidden>Revisá los campos marcados.</p>
+      </form>
+    </div>`);
+
+  const form = view.querySelector('form');
+  const tests = {
+    nombre: (v) => v.trim().length > 1,
+    empresa: (v) => v.trim().length > 1,
+    correo: (v) => isEmail(v)
+  };
+
+  function mark(name, invalid) {
+    const input = form.querySelector(`#dx-${name}`);
+    const err = form.querySelector(`#err-${name}`);
+    input.classList.toggle('mx-input--invalid', invalid);
+    input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+    if (err) err.hidden = !invalid;
+  }
+
+  // Forgiving: limpia el error apenas el campo se vuelve válido.
+  Object.keys(tests).forEach((name) => {
+    form.querySelector(`#dx-${name}`).addEventListener('input', (e) => {
+      if (e.target.classList.contains('mx-input--invalid') && tests[name](e.target.value)) mark(name, false);
+    });
+  });
+
+  view.querySelector('[data-act="atras"]').addEventListener('click', () => {
+    estado.paso = content.pasos.length - 1;
+    render();
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (form.website.value) return; // honeypot: bot → no-op
+
+    let firstBad = null;
+    Object.keys(tests).forEach((name) => {
+      const input = form.querySelector(`#dx-${name}`);
+      const ok = tests[name](input.value);
+      mark(name, !ok);
+      if (!ok && !firstBad) firstBad = input;
+    });
+    if (firstBad) {
+      form.querySelector('[data-formerr]').hidden = false;
+      firstBad.focus();
+      return;
+    }
+
+    estado.contacto = {
+      nombre: form.nombre.value.trim(),
+      empresa: form.empresa.value.trim(),
+      correo: form.correo.value.trim(),
+      telefono: form.telefono.value.trim(),
+      cargo: form.cargo.value.trim()
+    };
+    estado.paso = 'result';
+    render();
+  });
+
+  root.replaceChildren(view);
+  focusMain();
 }
 
 function renderResult() {
