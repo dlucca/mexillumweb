@@ -168,7 +168,49 @@ function renderGate() {
 }
 
 function renderResult() {
-  root.replaceChildren(el('<p>Resultado — se implementa en Task 7</p>'));
+  const res = assembleResult(estado, content);
+  submitLead(res.leadPayload); // v1: console.log; sub-proyecto 2 lo conecta
+
+  const layerB = res.layerB ? `<p>${esc(res.layerB)}</p>` : '';
+  const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
+
+  const view = el(`
+    <div class="dx__view dx__result">
+      <section class="dx__diag">
+        <p>${esc(res.layerA)}</p>
+        ${layerB}
+        <p class="dx__close">${esc(res.layerC.texto)}</p>
+        <div class="dx__cta">
+          <button type="button" class="mx-btn mx-btn--primary mx-btn--lg" data-act="cta">${esc(res.layerC.ctaText)}</button>
+        </div>
+        <div class="dx__agenda" id="agenda">
+          <p>Aquí vas a poder agendar tu llamada. (Agendamiento disponible próximamente.)</p>
+        </div>
+        <div class="dx__actions">
+          <button type="button" class="mx-btn mx-btn--secondary" data-act="print">Imprimir / Guardar PDF</button>
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
+        </div>
+      </section>
+      <aside class="dx__checklist" aria-label="Preparación para la llamada">
+        <h3>${esc(content.checklistTitulo)}</h3>
+        <ul>${items}</ul>
+        <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
+      </aside>
+    </div>`);
+
+  view.querySelector('[data-act="cta"]').addEventListener('click', () => {
+    view.querySelector('#agenda').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+  });
+  view.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
+  view.querySelector('[data-act="reiniciar"]').addEventListener('click', () => {
+    estado.paso = 0;
+    estado.respuestas = {};
+    estado.contacto = {};
+    render();
+  });
+
+  root.replaceChildren(view);
+  focusMain();
 }
 
 function render() {
