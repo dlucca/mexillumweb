@@ -164,3 +164,75 @@ export function buildChecklist(resp, content) {
 
   return { web, full };
 }
+
+// ---- Nota del evento cal.diy (texto plano, sin recorte) ----
+export function buildEventNote(res, resp, content) {
+  const p = res.palancas;
+  const palancasLines = [
+    'Palancas:',
+    ...(p.gancho ? [p.gancho] : []),
+    `Principal — ${p.principal.nombre}: ${p.principal.text}`,
+    ...(p.secundaria ? [`Secundaria — ${p.secundaria.nombre}: ${p.secundaria.text}`] : []),
+    ...(p.descartada ? [`No aplica — ${p.descartada.nombre}: ${p.descartada.text}`] : [])
+  ];
+  const legibles = res.leadPayload.respuestas_legibles;
+  return [
+    'Diagnóstico Mexillum',
+    '',
+    res.perfil,
+    '',
+    res.bloqueB.texto,
+    ...res.bloqueB.notas.map((n) => `\n${n}`),
+    '',
+    ...palancasLines,
+    '',
+    res.datoFaltante.dato,
+    res.datoFaltante.cierre,
+    '',
+    res.financiamiento,
+    '',
+    'Preparar para la llamada:',
+    ...res.checklist.full.map((b) => `• ${b}`),
+    '',
+    'Respuestas del formulario:',
+    ...content.pasos.map((paso, i) => `${i + 1}. ${paso.notaLabel}: ${legibles[paso.key]}`)
+  ].join('\n');
+}
+
+// ---- Orquestador ----
+export function assembleResult(estado, content) {
+  const resp = estado.respuestas;
+  const contacto = estado.contacto || {};
+  const perfil = buildProfile(resp, content);
+  const bloqueB = renderBlockB(resp, content);
+  const palancas = pickLevers(resp, content);
+  const datoFaltante = pickMissingData(resp, content);
+  const financiamiento = pickFinancing(resp, content);
+  const checklist = buildChecklist(resp, content);
+  const legibles = toReadable(resp, content);
+
+  const rango_texto = bloqueB.sinNumero
+    ? (bloqueB.sinNumero === 'privado'
+        ? 'Suministrador privado — sin rango numérico'
+        : 'Factura sin especificar — sin rango numérico')
+    : formatRango(bloqueB.piso, bloqueB.techo);
+
+  const leadPayload = {
+    lead_id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
+    timestamp: new Date().toISOString(),
+    nombre: contacto.nombre || '',
+    empresa: contacto.empresa || '',
+    correo: contacto.correo || '',
+    telefono: contacto.telefono || '',
+    rol: contacto.rol || '',
+    respuestas_legibles: legibles,
+    respuestas_codigos: { ...resp },
+    perfil,
+    rango_texto,
+    checklist_full: checklist.full
+  };
+
+  const res = { perfil, bloqueB, palancas, datoFaltante, financiamiento, checklist, leadPayload };
+  res.note = buildEventNote(res, resp, content);
+  return res;
+}

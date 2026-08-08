@@ -4,7 +4,7 @@ import content from '../js/diagnostico.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
-  pickFinancing, ofreceServicio, buildChecklist
+  pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -229,4 +229,58 @@ test('buildChecklist: sin viabilidad cuando factura=muyalto', () => {
 test('buildChecklist: viabilidad publico para sector publico', () => {
   const r = { sector: 'publico', generacion: 'no', tarifa: 'gdmth', corte: 'nada', disparador: 'costo', factura: 'alto' };
   assert.ok(buildChecklist(r, content).full.includes(content.checklistViabilidad.publico));
+});
+
+// ---- ASSEMBLER + NOTA DEL EVENTO ----
+
+const estadoFx = {
+  respuestas: { ...fx },
+  contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'ana@acme.mx', telefono: '5555', rol: 'Finanzas' }
+};
+
+test('assembleResult: fixture end-to-end (spec §5)', () => {
+  const res = assembleResult(estadoFx, content);
+  assert.equal(res.perfil, 'Perfil: manufactura multi-planta con exposición a cargo por demanda.');
+  assert.equal(res.bloqueB.piso, 2250000);
+  assert.equal(res.bloqueB.techo, 4200000);
+  assert.ok(res.bloqueB.texto.includes('Rango estimado: $2.2 a $4.2 millones de MXN al año.'));
+  assert.equal(res.palancas.principal.nombre, 'Recorte de demanda');
+  assert.equal(res.palancas.secundaria.nombre, 'Continuidad de proceso');
+  assert.equal(res.palancas.descartada.nombre, 'Solar');
+  assert.equal(res.datoFaltante.dato, content.datoFaltanteCorte);
+  assert.ok(res.financiamiento.startsWith('Hay dos caminos'));
+  assert.equal(res.checklist.web[res.checklist.web.length - 1], content.checklistUniversal);
+});
+
+test('assembleResult: leadPayload expone las keys que consume /api/lead', () => {
+  const p = assembleResult(estadoFx, content).leadPayload;
+  const esperadas = ['lead_id', 'timestamp', 'nombre', 'empresa', 'correo', 'telefono', 'rol',
+    'respuestas_legibles', 'respuestas_codigos', 'perfil', 'rango_texto', 'checklist_full'];
+  for (const k of esperadas) assert.ok(k in p, `falta ${k}`);
+  assert.equal(p.nombre, 'Ana');
+  assert.equal(p.rol, 'Finanzas');
+  assert.equal(p.rango_texto, '$2.2 a $4.2 millones de MXN al año');
+  assert.equal(p.respuestas_legibles.sector, 'Manufactura por turnos o por lotes');
+  for (const paso of content.pasos) {
+    assert.equal(typeof p.respuestas_legibles[paso.key], 'string', `falta legible ${paso.key}`);
+  }
+  assert.ok(Array.isArray(p.checklist_full));
+  assert.ok(JSON.stringify(p).length < 8000, 'payload demasiado grande');
+});
+
+test('leadPayload.rango_texto: mensajes sin número para privado y nolose', () => {
+  const priv = assembleResult({ respuestas: { ...fx, tarifa: 'privado' }, contacto: {} }, content).leadPayload;
+  assert.match(priv.rango_texto, /privado/i);
+  const nol = assembleResult({ respuestas: { ...fx, factura: 'nolose' }, contacto: {} }, content).leadPayload;
+  assert.match(nol.rango_texto, /sin/i);
+});
+
+test('buildEventNote: incluye perfil, checklist completo y las 8 respuestas', () => {
+  const res = assembleResult(estadoFx, content);
+  const note = res.note;
+  assert.ok(note.includes(res.perfil));
+  assert.ok(note.includes(content.checklistUniversal));
+  assert.ok(note.includes(content.checklistViabilidad.privado)); // full, sin recorte
+  // 8 respuestas crudas (una por notaLabel)
+  for (const paso of content.pasos) assert.ok(note.includes(paso.notaLabel), `falta ${paso.notaLabel} en la nota`);
 });
