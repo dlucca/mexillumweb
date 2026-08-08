@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
-  roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB
+  roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -103,4 +103,41 @@ test('renderBlockB: nolose y privado devuelven copy sin número; diésel se suma
   const privado = renderBlockB({ sector: 'manufactura', tarifa: 'privado', factura: 'alto', disparador: 'costo' }, content);
   assert.equal(privado.sinNumero, 'privado');
   assert.ok(privado.texto.startsWith('Como compras a un suministrador privado'));
+});
+
+// ---- BLOQUE C: palancas jerarquizadas ----
+
+test('pickLevers: fixture → gancho + Recorte de demanda + Continuidad de proceso + Solar', () => {
+  const l = pickLevers(fx, content);
+  assert.equal(l.gancho, content.gancho); // demanda=desconoce
+  assert.equal(l.principal.nombre, 'Recorte de demanda');
+  assert.equal(l.secundaria.nombre, 'Continuidad de proceso');
+  assert.equal(l.descartada.nombre, 'Solar');
+});
+
+test('pickLevers: sin gancho cuando demanda=mide', () => {
+  assert.equal(pickLevers({ ...fx, demanda: 'mide' }, content).gancho, null);
+});
+
+test('pickLevers: principal por precedencia (estacional > diesel > capacidad > continuo)', () => {
+  assert.equal(pickLevers({ ...fx, generacion: 'estacional', disparador: 'diesel' }, content).principal.nombre, 'Cobertura fuera de temporada');
+  assert.equal(pickLevers({ ...fx, generacion: 'no', disparador: 'diesel' }, content).principal.nombre, 'Sustitución de diésel');
+  assert.equal(pickLevers({ ...fx, generacion: 'no', disparador: 'capacidad' }, content).principal.nombre, 'Diferimiento de capacidad');
+  assert.equal(pickLevers({ ...fx, sector: 'continuo', generacion: 'no', disparador: 'costo' }, content).principal.nombre, 'Arbitraje horario');
+});
+
+test('pickLevers: secundaria excluye la que ganó como principal', () => {
+  // continuo gana principal (Arbitraje horario); la secundaria continuo NO debe repetirse.
+  const r = { ...fx, sector: 'continuo', generacion: 'no', corte: 'nada', disparador: 'costo' };
+  const l = pickLevers(r, content);
+  assert.equal(l.principal.nombre, 'Arbitraje horario');
+  assert.equal(l.secundaria, null); // no hay corte útil y continuo ya fue principal
+});
+
+test('pickLevers: sin secundaria ni descartada aplicables → null', () => {
+  const r = { sector: 'manufactura', sitios: 'uno', generacion: 'no', demanda: 'mide', tarifa: 'gdmth', factura: 'alto', corte: 'nada', disparador: 'excedente' };
+  const l = pickLevers(r, content);
+  assert.equal(l.principal.nombre, 'Arbitraje de excedente');
+  assert.equal(l.secundaria, null);
+  assert.equal(l.descartada, null);
 });

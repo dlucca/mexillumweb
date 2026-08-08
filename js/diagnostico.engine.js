@@ -105,3 +105,19 @@ export function renderBlockB(resp, content) {
   if (resp.sector === 'continuo') texto += `\n\n${b.continuoExtra}`;
   return { sinNumero: null, piso, techo, texto, notas };
 }
+
+// ---- BLOQUE C: palancas jerarquizadas ----
+const pick = (r) => (r ? { nombre: r.nombre, text: r.text } : null);
+
+export function pickLevers(resp, content) {
+  const gancho = (resp.demanda === 'desconoce' || resp.demanda === 'visto') ? content.gancho : null;
+  const principalRule = content.palancasPrincipal.find((r) => matchesWhen(resp, r.when)) || content.palancaPrincipalDefault;
+  const secundariaRule = content.palancasSecundaria.find((r) => matchesWhen(resp, r.when) && r.id !== principalRule.id) || null;
+  const descartadaRule = content.palancasDescartada.find((r) => matchesWhen(resp, r.when)) || null;
+  return {
+    gancho,
+    principal: pick(principalRule),
+    secundaria: pick(secundariaRule),
+    descartada: pick(descartadaRule)
+  };
+}
