@@ -108,16 +108,23 @@ test('renderBlockB: nolose y privado devuelven copy sin número; diésel se suma
 
 // ---- BLOQUE C: palancas jerarquizadas ----
 
-test('pickLevers: fixture → gancho + Recorte de demanda + Continuidad de proceso + Solar', () => {
+test('pickLevers: fixture → Recorte de demanda + Continuidad de proceso + Solar (sin gancho: hubo número)', () => {
   const l = pickLevers(fx, content);
-  assert.equal(l.gancho, content.gancho); // demanda=desconoce
+  assert.equal(l.gancho, null); // Cambio 2: demanda=desconoce pero factura=alto → hubo número, sin gancho
   assert.equal(l.principal.nombre, 'Recorte de demanda');
   assert.equal(l.secundaria.nombre, 'Continuidad de proceso');
   assert.equal(l.descartada.nombre, 'Solar');
 });
 
-test('pickLevers: sin gancho cuando demanda=mide', () => {
-  assert.equal(pickLevers({ ...fx, demanda: 'mide' }, content).gancho, null);
+test('pickLevers: gancho solo en salidas sin número (Cambio 2)', () => {
+  // demanda ciega + hubo número → sin gancho
+  assert.equal(pickLevers({ ...fx, demanda: 'desconoce', factura: 'alto', tarifa: 'gdmth' }, content).gancho, null);
+  assert.equal(pickLevers({ ...fx, demanda: 'visto', factura: 'alto', tarifa: 'gdmth' }, content).gancho, null);
+  // demanda ciega + sin número (factura nolose o tarifa privado) → con gancho
+  assert.equal(pickLevers({ ...fx, demanda: 'desconoce', factura: 'nolose' }, content).gancho, content.gancho);
+  assert.equal(pickLevers({ ...fx, demanda: 'visto', tarifa: 'privado' }, content).gancho, content.gancho);
+  // demanda conocida → nunca hay gancho, aun sin número
+  assert.equal(pickLevers({ ...fx, demanda: 'mide', factura: 'nolose' }, content).gancho, null);
 });
 
 test('pickLevers: principal por precedencia (estacional > diesel > capacidad > continuo)', () => {
@@ -135,12 +142,16 @@ test('pickLevers: secundaria excluye la que ganó como principal', () => {
   assert.equal(l.secundaria, null); // no hay corte útil y continuo ya fue principal
 });
 
-test('pickLevers: sin secundaria ni descartada aplicables → null', () => {
+test('pickLevers: descarte SIEMPRE presente vía default cuando ninguna regla 1–5 aplica (Cambio 1)', () => {
+  // manufactura sin señales → default arbitraje; secundaria sí sigue pudiendo ser null
   const r = { sector: 'manufactura', sitios: 'uno', generacion: 'no', demanda: 'mide', tarifa: 'gdmth', factura: 'alto', corte: 'nada', disparador: 'excedente' };
   const l = pickLevers(r, content);
   assert.equal(l.principal.nombre, 'Arbitraje de excedente');
   assert.equal(l.secundaria, null);
-  assert.equal(l.descartada, null);
+  assert.equal(l.descartada.nombre, 'Arbitraje horario como caso principal');
+  // ev residual (ninguna regla 1–5 aplica) → default solar
+  const rev = { sector: 'ev', sitios: 'uno', generacion: 'no', demanda: 'mide', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' };
+  assert.equal(pickLevers(rev, content).descartada.nombre, 'Generación solar como prioridad');
 });
 
 // ---- BLOQUE D: datos que faltan ----
@@ -172,14 +183,20 @@ test('ofreceServicio: true salvo factura=muyalto', () => {
 
 test('pickFinancing: fixture (sitios=pocos) → copy multi-planta (dos caminos)', () => {
   const t = pickFinancing(fx, content);
-  assert.ok(t.startsWith('Hay dos caminos'));
+  assert.ok(t.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
   assert.ok(t.includes('sujeto a análisis de viabilidad'));
 });
 
 test('pickFinancing: precedencia publico > ev > muyalto > sitios', () => {
   assert.ok(pickFinancing({ ...fx, sector: 'publico' }, content).startsWith('Para entidades públicas'));
-  assert.ok(pickFinancing({ ...fx, sector: 'ev' }, content).startsWith('Existe la opción'));
+  assert.ok(pickFinancing({ ...fx, sector: 'ev' }, content).startsWith('Nuestros proyectos pueden estructurarse sin inversión inicial'));
   assert.ok(pickFinancing({ ...fx, sector: 'manufactura', sitios: 'uno', factura: 'muyalto' }, content).startsWith('A tu escala'));
+});
+
+test('pickFinancing: todas las variantes del Bloque E arrancan apropiadas por Mexillum o por escala (Cambio 3)', () => {
+  const arranques = /^(Nuestros proyectos|Para entidades públicas|A tu escala)/;
+  const todos = [...content.financiamiento.map((r) => r.text), content.financiamientoDefault];
+  for (const t of todos) assert.match(t, arranques, `arranque impersonal: ${t}`);
 });
 
 test('pickFinancing: default cuando un solo sitio y sin segmento especial', () => {
@@ -238,18 +255,41 @@ const estadoFx = {
   contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'ana@acme.mx', telefono: '5555', rol: 'Finanzas' }
 };
 
-test('assembleResult: fixture end-to-end (spec §5)', () => {
+test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () => {
   const res = assembleResult(estadoFx, content);
   assert.equal(res.perfil, 'Perfil: manufactura multi-planta con exposición a cargo por demanda.');
-  assert.equal(res.bloqueB.piso, 2250000);
-  assert.equal(res.bloqueB.techo, 4200000);
-  assert.ok(res.bloqueB.texto.includes('Rango estimado: $2.2 a $4.2 millones de MXN al año.'));
+  assert.equal(res.calculo.sin_numero, false);
+  assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
+  assert.ok(res.calculo.cadena.includes('$2.5 millones'));
+  assert.equal(res.gancho, null); // Cambio 2: hubo número
   assert.equal(res.palancas.principal.nombre, 'Recorte de demanda');
   assert.equal(res.palancas.secundaria.nombre, 'Continuidad de proceso');
-  assert.equal(res.palancas.descartada.nombre, 'Solar');
-  assert.equal(res.datoFaltante.dato, content.datoFaltanteCorte);
-  assert.ok(res.financiamiento.startsWith('Hay dos caminos'));
+  assert.equal(res.palancas.descarte.nombre, 'Solar');
+  assert.equal(res.dato_faltante, content.datoFaltanteCorte);
+  assert.equal(res.cierre_llamada, content.cierreComun);
+  assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
   assert.equal(res.checklist.web[res.checklist.web.length - 1], content.checklistUniversal);
+});
+
+// Fixture del parche §Verificación: frío/uno/no/desconoce/gdmth/alto/reinicio/costo.
+// Antes del parche: dos palancas (sin descarte) y frase-gancho redundante.
+// Tras el parche: tres palancas (con descarte default) y gancho null.
+test('assembleResult: fixture del parche → descarte presente y gancho null', () => {
+  const estado = {
+    respuestas: { sector: 'frio', sitios: 'uno', generacion: 'no', demanda: 'desconoce', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' },
+    contacto: {}
+  };
+  const res = assembleResult(estado, content);
+  assert.equal(res.perfil, 'Perfil: frío y logística con exposición a cargo por demanda.');
+  assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
+  assert.equal(res.gancho, null); // Cambio 2: demanda=desconoce pero hubo número
+  assert.equal(res.palancas.principal.nombre, 'Recorte de demanda');
+  assert.equal(res.palancas.secundaria.nombre, 'Continuidad de proceso'); // corte=reinicio
+  assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1
+  assert.equal(res.palancas.descarte.nombre, 'Arbitraje horario como caso principal');
+  assert.ok(res.palancas.descarte.text.startsWith('Tu operación no corre 24/7'));
+  assert.equal(res.dato_faltante, content.datoFaltanteCorte); // corte=reinicio
+  assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
 });
 
 test('assembleResult: leadPayload expone las keys que consume /api/lead', () => {

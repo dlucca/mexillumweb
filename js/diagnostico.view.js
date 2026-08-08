@@ -253,17 +253,35 @@ function mountCal(selector, res) {
 // ---- Pantalla final: diagnóstico (A–E) + agenda ------------------------------
 function renderResult() {
   const res = estado.resultado || assembleResult(estado, content);
+  const c = res.calculo;
   const p = res.palancas;
 
-  const bloqueBHtml = [res.bloqueB.texto, ...res.bloqueB.notas]
-    .map((t) => `<p>${esc(t).replace(/\n\n/g, '</p><p>')}</p>`).join('');
-
-  const palancasHtml = [
-    p.gancho ? `<p><em>${esc(p.gancho)}</em></p>` : '',
-    `<p><strong>Principal — ${esc(p.principal.nombre)}.</strong> ${esc(p.principal.text)}</p>`,
-    p.secundaria ? `<p><strong>Secundaria — ${esc(p.secundaria.nombre)}.</strong> ${esc(p.secundaria.text)}</p>` : '',
-    p.descartada ? `<p><strong>No aplica — ${esc(p.descartada.nombre)}.</strong> ${esc(p.descartada.text)}</p>` : ''
+  // Bloque B: cadena como cuerpo; el rango de ahorro destacado tipográficamente; disclaimer
+  // y matices como texto secundario. El único número que debe grabarse es el rango.
+  const rangoHtml = c.sin_numero ? '' : `
+        <figure class="dx__rango">
+          <figcaption class="dx__rango-label">Rango estimado de ahorro</figcaption>
+          <p class="dx__rango-figure">${esc(c.rango_texto)}</p>
+        </figure>`;
+  const bloqueBHtml = [
+    `<p>${esc(c.cadena)}</p>`,
+    rangoHtml,
+    c.disclaimer ? `<p class="dx__disclaimer">${esc(c.disclaimer)}</p>` : '',
+    c.nota_continuo ? `<p>${esc(c.nota_continuo)}</p>` : '',
+    ...c.notas.map((n) => `<p>${esc(n)}</p>`)
   ].join('');
+
+  // Bloque C: gancho (casi siempre ausente) + palancas como lista de tres jerárquica.
+  const ganchoHtml = res.gancho ? `<p class="dx__gancho"><em>${esc(res.gancho)}</em></p>` : '';
+  const palancaLi = (tag, tagMod, nombre, text) =>
+    `<li><span class="dx__palanca-tag${tagMod}">${esc(tag)}</span> <strong>${esc(nombre)}.</strong> ${esc(text)}</li>`;
+  const palancasHtml = `
+        ${ganchoHtml}
+        <ul class="dx__palancas">
+          ${palancaLi('Principal', '', p.principal.nombre, p.principal.text)}
+          ${p.secundaria ? palancaLi('Secundaria', '', p.secundaria.nombre, p.secundaria.text) : ''}
+          ${palancaLi('No aplica', ' dx__palanca-tag--off', p.descarte.nombre, p.descarte.text)}
+        </ul>`;
 
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
   const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
@@ -275,9 +293,9 @@ function renderResult() {
         <h2 class="dx__col-title" id="dx-diag-h" data-dx-focus tabindex="-1">${esc(res.perfil)}</h2>
         ${bloqueBHtml}
         ${palancasHtml}
-        <p>${esc(res.datoFaltante.dato)}</p>
-        <p class="dx__close">${esc(res.datoFaltante.cierre)}</p>
-        <p>${esc(res.financiamiento)}</p>
+        <p>${esc(res.dato_faltante)}</p>
+        <p class="dx__close">${esc(res.cierre_llamada)}</p>
+        <p class="dx__fin">${esc(res.financiamiento)}</p>
         <aside class="dx__checklist" aria-label="Preparación para la llamada">
           <h3>${esc(content.checklistTitulo)}</h3>
           <ul>${items}</ul>

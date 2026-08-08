@@ -86,8 +86,13 @@ export function renderBlockB(resp, content) {
   const notas = [];
   if (resp.disparador === 'diesel') notas.push(b.dieselNota);
 
-  if (sinNumero === 'privado') return { sinNumero, piso, techo, texto: b.privado, notas };
-  if (sinNumero === 'nolose') return { sinNumero, piso, techo, texto: b.noloseFactura, notas };
+  // Salidas sin número: la `cadena` es el copy explicativo, sin rango/disclaimer/nota destacables.
+  if (sinNumero === 'privado') {
+    return { sinNumero, piso, techo, cadena: b.privado, rangoTexto: null, disclaimer: null, notaContinuo: null, texto: b.privado, notas };
+  }
+  if (sinNumero === 'nolose') {
+    return { sinNumero, piso, techo, cadena: b.noloseFactura, rangoTexto: null, disclaimer: null, notaContinuo: null, texto: b.noloseFactura, notas };
+  }
 
   const factura = content.tablaFactura[resp.factura];
   const dem = content.tablaDemanda[resp.tarifa];
@@ -101,19 +106,29 @@ export function renderBlockB(resp, content) {
     montoDemandaTecho: formatMoney(factura * 12 * dem[1]),
     pctRecortePiso: pct(rec[0]), pctRecorteTecho: pct(rec[1])
   });
-  let texto = `${cadena}\n\n${b.rango(formatRango(piso, techo))}\n\n${b.disclaimer}`;
-  if (resp.sector === 'continuo') texto += `\n\n${b.continuoExtra}`;
-  return { sinNumero: null, piso, techo, texto, notas };
+  const rangoTexto = formatRango(piso, techo);
+  const notaContinuo = resp.sector === 'continuo' ? b.continuoExtra : null;
+  // `texto`: versión concatenada plana, para la nota del evento cal.diy (sin jerarquía visual).
+  let texto = `${cadena}\n\n${b.rango(rangoTexto)}\n\n${b.disclaimer}`;
+  if (notaContinuo) texto += `\n\n${notaContinuo}`;
+  return { sinNumero: null, piso, techo, cadena, rangoTexto, disclaimer: b.disclaimer, notaContinuo, texto, notas };
 }
 
 // ---- BLOQUE C: palancas jerarquizadas ----
 const pick = (r) => (r ? { nombre: r.nombre, text: r.text } : null);
 
 export function pickLevers(resp, content) {
-  const gancho = (resp.demanda === 'desconoce' || resp.demanda === 'visto') ? content.gancho : null;
+  // Cambio 2: la frase-gancho solo cuando el bloque B NO calculó número (nolose/privado);
+  // con número, el bloque B ya educó con aritmética y repetirla sería redundante.
+  const demandaCiega = resp.demanda === 'desconoce' || resp.demanda === 'visto';
+  const sinNumeroB = resp.factura === 'nolose' || resp.tarifa === 'privado';
+  const gancho = (demandaCiega && sinNumeroB) ? content.gancho : null;
   const principalRule = content.palancasPrincipal.find((r) => matchesWhen(resp, r.when)) || content.palancaPrincipalDefault;
   const secundariaRule = content.palancasSecundaria.find((r) => matchesWhen(resp, r.when) && r.id !== principalRule.id) || null;
-  const descartadaRule = content.palancasDescartada.find((r) => matchesWhen(resp, r.when)) || null;
+  // Cambio 1: 6º nivel de precedencia — default de descarte, solo si ninguna regla 1–5 aplicó.
+  // Así ningún resultado queda sin línea "No aplica —".
+  const descartadaRule = content.palancasDescartada.find((r) => matchesWhen(resp, r.when))
+    || (resp.sector === 'ev' ? content.palancaDescartadaDefault.solar : content.palancaDescartadaDefault.arbitraje);
   return {
     gancho,
     principal: pick(principalRule),
@@ -166,14 +181,16 @@ export function buildChecklist(resp, content) {
 }
 
 // ---- Nota del evento cal.diy (texto plano, sin recorte) ----
-export function buildEventNote(res, resp, content) {
+// Consume el resultado estructurado + el texto plano concatenado del bloque B.
+export function buildEventNote(res, resp, content, bloqueBTexto) {
   const p = res.palancas;
   const palancasLines = [
     'Palancas:',
-    ...(p.gancho ? [p.gancho] : []),
+    ...(res.gancho ? [res.gancho] : []),
     `Principal — ${p.principal.nombre}: ${p.principal.text}`,
     ...(p.secundaria ? [`Secundaria — ${p.secundaria.nombre}: ${p.secundaria.text}`] : []),
-    ...(p.descartada ? [`No aplica — ${p.descartada.nombre}: ${p.descartada.text}`] : [])
+    // descarte: siempre presente tras el Cambio 1.
+    ...(p.descarte ? [`No aplica — ${p.descarte.nombre}: ${p.descarte.text}`] : [])
   ];
   const legibles = res.leadPayload.respuestas_legibles;
   return [
@@ -181,13 +198,13 @@ export function buildEventNote(res, resp, content) {
     '',
     res.perfil,
     '',
-    res.bloqueB.texto,
-    ...res.bloqueB.notas.map((n) => `\n${n}`),
+    bloqueBTexto,
+    ...res.calculo.notas.map((n) => `\n${n}`),
     '',
     ...palancasLines,
     '',
-    res.datoFaltante.dato,
-    res.datoFaltante.cierre,
+    res.dato_faltante,
+    res.cierre_llamada,
     '',
     res.financiamiento,
     '',
@@ -211,11 +228,12 @@ export function assembleResult(estado, content) {
   const checklist = buildChecklist(resp, content);
   const legibles = toReadable(resp, content);
 
+  // rango_texto del lead: mensaje legible incluso sin número (mail a ventas).
   const rango_texto = bloqueB.sinNumero
     ? (bloqueB.sinNumero === 'privado'
         ? 'Suministrador privado — sin rango numérico'
         : 'Factura sin especificar — sin rango numérico')
-    : formatRango(bloqueB.piso, bloqueB.techo);
+    : bloqueB.rangoTexto;
 
   const leadPayload = {
     lead_id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
@@ -232,7 +250,29 @@ export function assembleResult(estado, content) {
     checklist_full: checklist.full
   };
 
-  const res = { perfil, bloqueB, palancas, datoFaltante, financiamiento, checklist, leadPayload };
-  res.note = buildEventNote(res, resp, content);
+  // Cambio 4: salida como objeto estructurado para que el HTML jerarquice cada parte.
+  const res = {
+    perfil,                                  // Bloque A
+    calculo: {                               // Bloque B, desglosado
+      cadena: bloqueB.cadena,                // explicación con aritmética (monto de demanda subordinado)
+      rango_texto: bloqueB.rangoTexto,       // el número a destacar (null si sin número)
+      disclaimer: bloqueB.disclaimer,
+      nota_continuo: bloqueB.notaContinuo,   // matiz 24/7, si aplica
+      sin_numero: bloqueB.sinNumero != null,
+      notas: bloqueB.notas                   // p. ej. nota de diésel
+    },
+    gancho: palancas.gancho,                 // frase-gancho del Bloque C (casi siempre null, Cambio 2)
+    palancas: {                              // Bloque C
+      principal: palancas.principal,
+      secundaria: palancas.secundaria,
+      descarte: palancas.descartada          // SIEMPRE presente (Cambio 1)
+    },
+    dato_faltante: datoFaltante.dato,        // Bloque D
+    cierre_llamada: datoFaltante.cierre,     // Bloque D cierre común
+    financiamiento,                          // Bloque E
+    checklist,                               // interno: consumo por vista/nota/lead
+    leadPayload
+  };
+  res.note = buildEventNote(res, resp, content, bloqueB.texto);
   return res;
 }

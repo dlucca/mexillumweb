@@ -162,6 +162,13 @@ const content = {
     { id: 'costo_nada', when: { disparador: 'costo', corte: 'nada' }, nombre: 'Respaldo/continuidad', text: 'Si un corte no te cuesta dinero, pagar por continuidad no tiene sentido — tu caso es puramente de costo.' },
     { id: 'megaproyecto', when: { sitios: 'muchos' }, nombre: 'El megaproyecto', text: 'No te proponemos un megaproyecto multi-planta. Se empieza por un sitio piloto medido y se replica solo si el número se cumple.' }
   ],
+  // Default de descarte: prioridad más baja, solo si ninguna regla 1–5 aplicó. Garantiza
+  // que todo perfil cierre con una línea "No aplica —". `arbitraje` para no-continuo/no-ev;
+  // `solar` para el caso residual ev.
+  palancaDescartadaDefault: {
+    arbitraje: { id: 'default_arbitraje', nombre: 'Arbitraje horario como caso principal', text: 'Tu operación no corre 24/7, así que trasladar consumo entre horarios rinde menos que atacar tu pico directo. No te lo vendemos como el gran ahorro.' },
+    solar: { id: 'default_solar', nombre: 'Generación solar como prioridad', text: 'Tu cuello de botella es el pico de carga y la capacidad de acometida, no generar energía. Ahí es donde ponemos el foco.' }
+  },
 
   // ---- BLOQUE D ----
   datoFaltante: [
@@ -176,13 +183,13 @@ const content = {
 
   // ---- BLOQUE E ----
   financiamiento: [
-    { when: { sector: 'publico' }, text: 'Para entidades públicas, este tipo de proyecto suele poder estructurarse como contrato de servicio en lugar de inversión directa — lo que permite tratarlo como gasto corriente. La viabilidad de ese esquema depende de un análisis de tu caso, y es parte de lo que evaluamos juntos en la llamada.' },
-    { when: { sector: 'ev' }, text: 'Existe la opción de estructurarlo sin inversión inicial, con el activo de nuestro lado — sujeto a una evaluación de viabilidad del proyecto. También puedes adquirirlo directamente si prefieres evaluarlo por retorno. Vemos cuál te conviene según tus números.' },
-    { when: { factura: 'muyalto' }, text: 'A tu escala, la pregunta no suele ser si hay capital, sino dónde rinde mejor. Se puede estructurar como inversión propia o como esquema de servicio que mantiene el activo fuera de tu balance —esto último sujeto a evaluación de viabilidad. Definimos cuál encaja con tu política de capital.' },
-    { when: { sitios: 'pocos' }, text: 'Hay dos caminos: adquirir el sistema y evaluarlo por retorno sobre tu capital, o un esquema de servicio sin inversión inicial —sujeto a análisis de viabilidad— donde ponemos el activo. Con varias plantas, lo natural es probar uno primero y definir el modelo con datos reales antes de replicar.' },
-    { when: { sitios: 'muchos' }, text: 'Hay dos caminos: adquirir el sistema y evaluarlo por retorno sobre tu capital, o un esquema de servicio sin inversión inicial —sujeto a análisis de viabilidad— donde ponemos el activo. Con varias plantas, lo natural es probar uno primero y definir el modelo con datos reales antes de replicar.' }
+    { when: { sector: 'publico' }, text: 'Para entidades públicas, nuestros proyectos suelen poder estructurarse como contrato de servicio en lugar de inversión directa — lo que permite tratarlo como gasto corriente. La viabilidad de ese esquema depende de un análisis de tu caso, y es parte de lo que evaluamos juntos en la llamada.' },
+    { when: { sector: 'ev' }, text: 'Nuestros proyectos pueden estructurarse sin inversión inicial, con el activo de nuestro lado — sujeto a una evaluación de viabilidad. También puedes adquirirlo directamente si prefieres evaluarlo por retorno. Vemos cuál te conviene según tus números.' },
+    { when: { factura: 'muyalto' }, text: 'A tu escala, la pregunta no suele ser si hay capital, sino dónde rinde mejor. Nuestros proyectos pueden estructurarse como inversión propia o como esquema de servicio que mantiene el activo fuera de tu balance —esto último sujeto a evaluación de viabilidad. Definimos cuál encaja con tu política de capital.' },
+    { when: { sitios: 'pocos' }, text: 'Nuestros proyectos pueden estructurarse de dos formas: adquirir el sistema y evaluarlo por retorno sobre tu capital, o un esquema de servicio sin inversión inicial —sujeto a análisis de viabilidad— donde ponemos el activo. Con varias plantas, lo natural es probar uno primero y definir el modelo con datos reales antes de replicar.' },
+    { when: { sitios: 'muchos' }, text: 'Nuestros proyectos pueden estructurarse de dos formas: adquirir el sistema y evaluarlo por retorno sobre tu capital, o un esquema de servicio sin inversión inicial —sujeto a análisis de viabilidad— donde ponemos el activo. Con varias plantas, lo natural es probar uno primero y definir el modelo con datos reales antes de replicar.' }
   ],
-  financiamientoDefault: 'Puede estructurarse de dos formas: adquisición directa evaluada por retorno, o esquema de servicio sin inversión inicial, sujeto a un análisis de viabilidad del proyecto. En la llamada vemos cuál se ajusta mejor a tu caso.',
+  financiamientoDefault: 'Nuestros proyectos pueden estructurarse de dos formas: adquisición directa evaluada por retorno, o esquema de servicio sin inversión inicial, sujeto a un análisis de viabilidad del proyecto. En la llamada vemos cuál se ajusta mejor a tu caso.',
 
   // ---- CHECKLIST ----
   checklistBase: [

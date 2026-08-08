@@ -56,6 +56,20 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx__checklist li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:var(--radius-full);background:var(--accent)}
 .dx__checklist__foot{font-size:var(--size-body-sm);color:var(--text-muted);margin-top:var(--space-5)}
 
+/* Bloque B — el rango de ahorro es el único número que debe grabarse: máximo peso visual. */
+.dx__rango{margin:var(--space-7) 0;padding:var(--space-5) var(--space-7);border-left:3px solid var(--accent)}
+.dx__rango-label{font:var(--type-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-accent);margin:0 0 var(--space-3)}
+.dx__diag .dx__rango-figure{font:var(--type-h1);font-size:var(--size-h1);color:var(--text-strong);margin:0;line-height:1.05}
+/* disclaimer y financiamiento: texto secundario, subordinados al rango */
+.dx__diag p.dx__disclaimer{font-size:var(--size-body-sm);color:var(--text-muted)}
+.dx__diag p.dx__fin{font-size:var(--size-body-sm);color:var(--text-muted);border-top:1px solid var(--border-hairline);padding-top:var(--space-6);margin-top:var(--space-7)}
+
+/* Bloque C — palancas como lista de tres, con etiqueta de rol (Principal / Secundaria / No aplica) */
+.dx__palancas{list-style:none;margin:var(--space-7) 0;padding:0;display:flex;flex-direction:column;gap:var(--space-5)}
+.dx__diag .dx__palancas li{font-size:var(--size-body-lg);line-height:var(--lh-body);color:var(--text-body);padding-left:var(--space-6);border-left:2px solid var(--border-hairline)}
+.dx__palanca-tag{display:inline-block;font:var(--type-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-accent);margin-right:var(--space-3)}
+.dx__palanca-tag--off{color:var(--text-muted)}
+
 /* solo-print: oculto en pantalla, visible al imprimir */
 .dx__print-only{display:none}
 
