@@ -131,3 +131,13 @@ export function pickMissingData(resp, content) {
   else dato = content.datoFaltanteDefault;
   return { dato, cierre: content.cierreComun };
 }
+
+// ---- BLOQUE E: financiamiento (opción sujeta a evaluación) ----
+export function ofreceServicio(resp) {
+  return resp.factura !== 'muyalto';
+}
+
+export function pickFinancing(resp, content) {
+  const regla = content.financiamiento.find((r) => matchesWhen(resp, r.when));
+  return regla ? regla.text : content.financiamientoDefault;
+}

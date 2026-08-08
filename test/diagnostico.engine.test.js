@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
-  roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData
+  roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
+  pickFinancing, ofreceServicio
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -160,4 +161,34 @@ test('pickMissingData: precedencia de igualdad sobre corte!=nada', () => {
 test('pickMissingData: default cuando corte=nada y sin señales', () => {
   const r = { sector: 'manufactura', tarifa: 'gdmth', factura: 'alto', disparador: 'costo', corte: 'nada' };
   assert.equal(pickMissingData(r, content).dato, content.datoFaltanteDefault);
+});
+
+// ---- BLOQUE E: financiamiento (opción sujeta a evaluación) ----
+
+test('ofreceServicio: true salvo factura=muyalto', () => {
+  assert.equal(ofreceServicio({ factura: 'alto' }), true);
+  assert.equal(ofreceServicio({ factura: 'muyalto' }), false);
+});
+
+test('pickFinancing: fixture (sitios=pocos) → copy multi-planta (dos caminos)', () => {
+  const t = pickFinancing(fx, content);
+  assert.ok(t.startsWith('Hay dos caminos'));
+  assert.ok(t.includes('sujeto a análisis de viabilidad'));
+});
+
+test('pickFinancing: precedencia publico > ev > muyalto > sitios', () => {
+  assert.ok(pickFinancing({ ...fx, sector: 'publico' }, content).startsWith('Para entidades públicas'));
+  assert.ok(pickFinancing({ ...fx, sector: 'ev' }, content).startsWith('Existe la opción'));
+  assert.ok(pickFinancing({ ...fx, sector: 'manufactura', sitios: 'uno', factura: 'muyalto' }, content).startsWith('A tu escala'));
+});
+
+test('pickFinancing: default cuando un solo sitio y sin segmento especial', () => {
+  const r = { sector: 'manufactura', sitios: 'uno', factura: 'alto' };
+  assert.equal(pickFinancing(r, content), content.financiamientoDefault);
+});
+
+test('pickFinancing: nunca usa lenguaje de promesa prohibido', () => {
+  const prohibido = /cero riesgo|el ahorro empieza el primer mes/i;
+  const todos = [...content.financiamiento.map((r) => r.text), content.financiamientoDefault];
+  for (const t of todos) assert.ok(!prohibido.test(t), `promesa prohibida: ${t}`);
 });
