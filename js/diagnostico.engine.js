@@ -141,3 +141,26 @@ export function pickFinancing(resp, content) {
   const regla = content.financiamiento.find((r) => matchesWhen(resp, r.when));
   return regla ? regla.text : content.financiamientoDefault;
 }
+
+// ---- CHECKLIST ----
+export function buildChecklist(resp, content) {
+  const ref = content.checklistRefuerzos;
+  const tecnicos = [...content.checklistBase];
+  if (resp.disparador === 'diesel') tecnicos.push(ref.diesel);
+  if (resp.corte !== 'nada') tecnicos.push(ref.paros);
+  if (resp.sector === 'continuo') tecnicos.push(ref.horario);
+  if (resp.tarifa === 'privado') tecnicos.push(ref.contrato);
+  if (resp.generacion === 'estacional') tecnicos.push(ref.techo);
+
+  const viabilidad = ofreceServicio(resp)
+    ? (resp.sector === 'publico' ? content.checklistViabilidad.publico : content.checklistViabilidad.privado)
+    : null;
+
+  const full = [...tecnicos, ...(viabilidad ? [viabilidad] : []), content.checklistUniversal];
+
+  const webContent = tecnicos.slice(0, 4);
+  if (viabilidad && webContent.length < 4) webContent.push(viabilidad);
+  const web = [...webContent, content.checklistUniversal];
+
+  return { web, full };
+}

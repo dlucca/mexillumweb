@@ -4,7 +4,7 @@ import content from '../js/diagnostico.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
-  pickFinancing, ofreceServicio
+  pickFinancing, ofreceServicio, buildChecklist
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -191,4 +191,42 @@ test('pickFinancing: nunca usa lenguaje de promesa prohibido', () => {
   const prohibido = /cero riesgo|el ahorro empieza el primer mes/i;
   const todos = [...content.financiamiento.map((r) => r.text), content.financiamientoDefault];
   for (const t of todos) assert.ok(!prohibido.test(t), `promesa prohibida: ${t}`);
+});
+
+// ---- CHECKLIST ----
+
+test('buildChecklist: fixture → CFE + carga + paros + viabilidad(privado) + universal', () => {
+  const { web, full } = buildChecklist(fx, content);
+  assert.deepEqual(web, [
+    content.checklistBase[0],
+    content.checklistBase[1],
+    content.checklistRefuerzos.paros,
+    content.checklistViabilidad.privado,
+    content.checklistUniversal
+  ]);
+  assert.deepEqual(full, web); // 3 técnicos + viabilidad + universal, sin recorte
+});
+
+test('buildChecklist: recorta viabilidad de la web cuando ya hay 4 técnicos', () => {
+  // diesel + paros + horario + contrato + techo = 5 técnicos (con base son 7)
+  const r = { sector: 'continuo', generacion: 'estacional', tarifa: 'privado', corte: 'reinicio', disparador: 'diesel', factura: 'alto' };
+  const { web, full } = buildChecklist(r, content);
+  assert.equal(web.length, 5); // 4 técnicos + universal (viabilidad recortada)
+  assert.equal(web[web.length - 1], content.checklistUniversal);
+  assert.ok(!web.includes(content.checklistViabilidad.privado));
+  assert.ok(full.includes(content.checklistViabilidad.privado)); // full la conserva
+  assert.equal(full[full.length - 1], content.checklistUniversal);
+});
+
+test('buildChecklist: sin viabilidad cuando factura=muyalto', () => {
+  const r = { sector: 'manufactura', generacion: 'no', tarifa: 'gdmth', corte: 'nada', disparador: 'costo', factura: 'muyalto' };
+  const { full } = buildChecklist(r, content);
+  assert.ok(!full.includes(content.checklistViabilidad.privado));
+  assert.ok(!full.includes(content.checklistViabilidad.publico));
+  assert.equal(full[full.length - 1], content.checklistUniversal);
+});
+
+test('buildChecklist: viabilidad publico para sector publico', () => {
+  const r = { sector: 'publico', generacion: 'no', tarifa: 'gdmth', corte: 'nada', disparador: 'costo', factura: 'alto' };
+  assert.ok(buildChecklist(r, content).full.includes(content.checklistViabilidad.publico));
 });
