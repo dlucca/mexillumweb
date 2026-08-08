@@ -15,7 +15,7 @@
 - Copy en **es-MX (tuteo)**. Prohibido voseo; el test `no-voseo` en `test/diagnostico.content.test.js` lo hace cumplir sobre todo el copy.
 - **Sin estilos CSS nuevos.** Reusar `.mx-field`, `.mx-field__label`, `.mx-field__error`, `.mx-input`, `.mx-select`, `.mx-btn`, `.mx-check`, y las clases `dx__*` existentes.
 - **No editar** `PRD_Funnel_Mexillum.md`, `index.html` (landing) ni `js/main.js`.
-- Motor: reglas evaluadas de arriba hacia abajo, primera que aplique (precedencia = orden). `engine.js` sin DOM; `content.js` sin lógica.
+- Motor: reglas evaluadas de arriba hacia abajo, primera que aplique (precedencia = orden). `engine.js` sin DOM; `content.js` sin lógica de negocio — se permiten funciones triviales de plantilla de copy (`bloqueB.plantilla`, `bloqueB.rango`, `progresoLabel`).
 - Redondeo de dinero ≥1M: millones con un decimal, **round-half-to-even** (banker's). `2,250,000`→"2.2", `2,187,450`→"2.2", `4,200,000`→"4.2". <1M: a la decena de miles, "$XXX,XXX".
 - Lead a `/api/lead` **una sola vez** al enviar el gate. La reserva cal.diy no re-envía lead (solo adjunta la nota del evento).
 - Bloque E: financiamiento como opción **sujeta a evaluación**; prohibido "cero riesgo" / "el ahorro empieza el primer mes" / promesas cerradas.
