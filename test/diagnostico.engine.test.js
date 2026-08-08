@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
-  roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers
+  roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -140,4 +140,24 @@ test('pickLevers: sin secundaria ni descartada aplicables → null', () => {
   assert.equal(l.principal.nombre, 'Arbitraje de excedente');
   assert.equal(l.secundaria, null);
   assert.equal(l.descartada, null);
+});
+
+// ---- BLOQUE D: datos que faltan ----
+
+test('pickMissingData: fixture (corte=reinicio, sin señales de igualdad) → regla corte!=nada', () => {
+  const d = pickMissingData(fx, content);
+  assert.equal(d.dato, content.datoFaltanteCorte);
+  assert.equal(d.cierre, content.cierreComun);
+});
+
+test('pickMissingData: precedencia de igualdad sobre corte!=nada', () => {
+  assert.equal(pickMissingData({ ...fx, factura: 'nolose' }, content).dato, content.datoFaltante[0].text);
+  assert.equal(pickMissingData({ ...fx, tarifa: 'privado' }, content).dato, content.datoFaltante[1].text);
+  assert.equal(pickMissingData({ ...fx, disparador: 'diesel' }, content).dato, content.datoFaltante[2].text);
+  assert.equal(pickMissingData({ ...fx, sector: 'continuo' }, content).dato, content.datoFaltante[3].text);
+});
+
+test('pickMissingData: default cuando corte=nada y sin señales', () => {
+  const r = { sector: 'manufactura', tarifa: 'gdmth', factura: 'alto', disparador: 'costo', corte: 'nada' };
+  assert.equal(pickMissingData(r, content).dato, content.datoFaltanteDefault);
 });

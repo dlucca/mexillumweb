@@ -121,3 +121,13 @@ export function pickLevers(resp, content) {
     descartada: pick(descartadaRule)
   };
 }
+
+// ---- BLOQUE D: el dato que falta ----
+export function pickMissingData(resp, content) {
+  const eq = content.datoFaltante.find((r) => matchesWhen(resp, r.when));
+  let dato;
+  if (eq) dato = eq.text;
+  else if (resp.corte !== 'nada') dato = content.datoFaltanteCorte;
+  else dato = content.datoFaltanteDefault;
+  return { dato, cierre: content.cierreComun };
+}
