@@ -428,7 +428,11 @@ Salida esperada:
   2,500,000×12×0.40×0.35 = **4,200,000**. (2,250,000 → "$2.2" por redondeo medio-a-par.)
 - **C:** frase-gancho (por `demanda=desconoce`) + Principal: Recorte de demanda +
   Secundaria: Continuidad de proceso + No aplica: Solar.
-- **D:** dato faltante = recibos 12 meses (default) + cierre común.
+- **D:** dato faltante = regla `corte != nada` (por `corte=reinicio`): "El dato que
+  cierra el caso de respaldo es cuántos paros por causa eléctrica tuviste y qué costó
+  cada uno — casi nadie lo mide, y suele ser mayor de lo esperado." + cierre común.
+  (Corrección de una contradicción del prompt original, que esperaba el default; la
+  regla `corte != nada` tiene precedencia sobre el default, decidido con el usuario.)
 - **E:** copy multi-planta (dos caminos, sujeto a análisis de viabilidad).
 - **Checklist web:** recibos CFE 12 meses + perfil de carga + historial de paros +
   [viabilidad: perfil de empresa] + quién decide (universal al final) → 4 contenido +
