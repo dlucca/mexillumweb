@@ -1,19 +1,17 @@
 import content from './diagnostico.content.js';
-import { assembleResult } from './diagnostico.engine.js';
+import { assembleResult, plantaLabel } from './diagnostico.engine.js';
 
 const root = document.getElementById('dx-root');
-const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Instancia de cal.diy (self-hosted en Railway, dominio propio) y el event type para la llamada.
+// Instancia self-hosted de cal.diy y el event type para la llamada.
 const CAL_ORIGIN = 'https://cal.mexillum.com';
 const CAL_LINK = 'dlucca/30min';
 
 const estado = {
-  paso: 0,                 // 0..5 = pasos; 'result' (diagnóstico + agenda, sin gate previo)
+  paso: 'intro',            // 'intro' | 0..7 | 'gate' | 'result'
   respuestas: {},
   contacto: {},
-  bookingAgendado: false,  // lo marca el callback de cal.diy; suma +2 al score
-  bookingDatetime: null
+  resultado: null           // cache del assembleResult tras el gate
 };
 
 function el(html) {
@@ -27,17 +25,42 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// Tras navegar de vista, lleva el foco al encabezado de la vista nueva para que
-// AT/teclado no pierdan el lugar (y se anuncie el contexto sin un aria-live ruidoso).
+// Sustituye {planta} en un prompt según el número de sitios.
+function withPlanta(texto) {
+  return texto.replace('{planta}', plantaLabel(estado.respuestas));
+}
+
+// Lleva el foco al encabezado de la vista nueva.
 function focusMain() {
   window.scrollTo(0, 0);
   const h = root.querySelector('[data-dx-focus]');
   if (h) h.focus({ preventScroll: true });
 }
 
+// ---- Pantalla 0: intro --------------------------------------------------------
+function renderIntro() {
+  const view = el(`
+    <div class="dx__view">
+      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(content.intro.titulo)}</h2>
+      <p>${esc(content.intro.cuerpo)}</p>
+      <p class="dx__close">${esc(content.intro.pie)}</p>
+      <div class="dx__nav">
+        <button type="button" class="mx-btn mx-btn--primary" data-act="empezar">${esc(content.intro.cta)}</button>
+      </div>
+    </div>`);
+  view.querySelector('[data-act="empezar"]').addEventListener('click', () => {
+    estado.paso = 0;
+    render();
+  });
+  root.replaceChildren(view);
+  focusMain();
+}
+
+// ---- Pasos --------------------------------------------------------------------
 function renderStep() {
   const idx = estado.paso;
   const paso = content.pasos[idx];
+  const pregunta = withPlanta(paso.pregunta);
 
   const opcionesHtml = paso.opciones.map((o) => {
     const on = estado.respuestas[paso.key] === o.codigo;
@@ -52,15 +75,15 @@ function renderStep() {
       </button>`;
   }).join('');
 
-  const atras = idx > 0
-    ? '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>'
-    : '<span></span>';
+  const hintHtml = paso.hint ? `<p class="dx__col-sub">${esc(paso.hint)}</p>` : '';
+  const atras = '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
 
   const view = el(`
     <div class="dx__view">
       <p class="dx__progress">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</p>
-      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(paso.pregunta)}</h2>
-      <div class="dx__options" role="radiogroup" aria-label="${esc(paso.pregunta)}">${opcionesHtml}</div>
+      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(pregunta)}</h2>
+      ${hintHtml}
+      <div class="dx__options" role="radiogroup" aria-label="${esc(pregunta)}">${opcionesHtml}</div>
       <div class="dx__nav dx__nav--end">
         ${atras}
         <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente" disabled>Siguiente</button>
@@ -70,8 +93,6 @@ function renderStep() {
   const options = [...view.querySelectorAll('.dx__option')];
   const siguiente = view.querySelector('[data-act="siguiente"]');
 
-  // Actualiza la selección en el sitio (sin re-render): así elegir una opción no
-  // reanuncia toda la pregunta ni roba el foco. Gestiona el roving tabindex del radiogroup.
   function paint() {
     const elegido = estado.respuestas[paso.key];
     options.forEach((btn) => {
@@ -84,7 +105,7 @@ function renderStep() {
       if (on && !dot) { dot = document.createElement('span'); dot.className = 'mx-check__dot'; box.appendChild(dot); }
       else if (!on && dot) { dot.remove(); }
     });
-    if (!elegido && options[0]) options[0].tabIndex = 0; // punto de entrada de tabulación
+    if (!elegido && options[0]) options[0].tabIndex = 0;
     siguiente.disabled = !elegido;
   }
 
@@ -104,25 +125,94 @@ function renderStep() {
     });
   });
 
-  view.querySelector('[data-act="atras"]')?.addEventListener('click', () => {
-    estado.paso -= 1;
+  view.querySelector('[data-act="atras"]').addEventListener('click', () => {
+    if (estado.paso === 0) estado.paso = 'intro';
+    else estado.paso -= 1;
     render();
   });
   siguiente.addEventListener('click', () => {
     if (!estado.respuestas[paso.key]) return;
     if (estado.paso < content.pasos.length - 1) estado.paso += 1;
-    else estado.paso = 'result'; // tras la última pregunta, directo al diagnóstico + agenda
+    else estado.paso = 'gate';
     render();
   });
 
-  paint(); // marca la selección previa al volver y fija el tabindex inicial
+  paint();
+  root.replaceChildren(view);
+  focusMain();
+}
+
+// ---- Gate de contacto ---------------------------------------------------------
+function renderGate() {
+  const camposHtml = content.gate.campos.map((c) => {
+    const req = c.required ? ' <span aria-hidden="true">*</span>' : '';
+    const control = c.type === 'select'
+      ? `<select class="mx-select" id="gate-${c.key}" name="${c.key}">
+           <option value="">—</option>
+           ${c.opciones.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
+         </select>`
+      : `<input class="mx-input" id="gate-${c.key}" name="${c.key}" type="${c.type}"
+           autocomplete="${c.autocomplete}" ${c.required ? 'required' : ''}>`;
+    return `
+      <div class="mx-field">
+        <label class="mx-field__label" for="gate-${c.key}">${esc(c.label)}${req}</label>
+        ${control}
+      </div>`;
+  }).join('');
+
+  const view = el(`
+    <div class="dx__view">
+      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(content.gate.titulo)}</h2>
+      <p>${esc(content.gate.cuerpo)}</p>
+      <form class="dx__options" novalidate>
+        ${camposHtml}
+        <input type="text" name="website" tabindex="-1" autocomplete="off"
+          style="position:absolute;left:-9999px" aria-hidden="true">
+        <p class="mx-field__error" data-gate-error hidden></p>
+        <div class="dx__nav dx__nav--end">
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          <button type="submit" class="mx-btn mx-btn--primary">${esc(content.gate.cta)}</button>
+        </div>
+      </form>
+    </div>`);
+
+  const form = view.querySelector('form');
+  const error = view.querySelector('[data-gate-error]');
+
+  view.querySelector('[data-act="atras"]').addEventListener('click', () => {
+    estado.paso = content.pasos.length - 1;
+    render();
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (form.website.value) return; // honeypot
+    const nombre = form.nombre.value.trim();
+    const correo = form.correo.value.trim();
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!nombre || !EMAIL_RE.test(correo)) {
+      error.textContent = 'Necesitamos tu nombre y un email válido.';
+      error.hidden = false;
+      return;
+    }
+    estado.contacto = {
+      nombre,
+      empresa: form.empresa.value.trim(),
+      correo,
+      telefono: form.telefono.value.trim(),
+      rol: form.rol.value
+    };
+    estado.resultado = assembleResult(estado, content);
+    submitLead(estado.resultado.leadPayload); // único envío del lead
+    estado.paso = 'result';
+    render();
+  });
+
   root.replaceChildren(view);
   focusMain();
 }
 
 // ---- Integración cal.diy (embed inline) --------------------------------------
-
-// Carga el loader oficial de Cal una sola vez.
 function loadCal() {
   if (window.Cal) return;
   (function (C, A, L) {
@@ -144,93 +234,37 @@ function loadCal() {
   window.Cal('init', { origin: CAL_ORIGIN });
 }
 
-// Nota que viaja adjunta al evento agendado, para que Mexillum reciba el contexto.
-function buildNote(res, resp) {
-  const legibles = res.leadPayload.respuestas_legibles;
-  const preguntas = [
-    ['Tipo de instalación', legibles.tipo_instalacion],
-    ['Generación propia', legibles.generacion_propia],
-    ['Patrón de operación', legibles.patron_operacion],
-    ['Interrupciones', legibles.interrupciones],
-    ['Diésel/red débil', legibles.diesel_red_debil],
-    ['Exporta excedente', legibles.exporta_excedente]
-  ];
-  return [
-    'Diagnóstico Mexillum',
-    '',
-    res.layerB ? `${res.layerA} ${res.layerB}` : res.layerA,
-    res.layerC.texto,
-    '',
-    'Preparar para la llamada:',
-    ...res.checklist.full.map((b) => `• ${b}`),
-    '',
-    'Respuestas del formulario:',
-    ...preguntas.map(([k, v], i) => `${i + 1}. ${k}: ${v}`)
-  ].join('\n');
-}
-
-// cal.diy manda las preguntas extra del event type en `responses`, con forma
-// variable entre versiones ({campo: valor} o {campo: {value}}). Busca el primer alias
-// que exista y devuelve una cadena, o '' si no hay nada usable.
-function readResponse(booking, alias) {
-  const r = booking && booking.responses;
-  if (!r) return '';
-  for (const k of alias) {
-    const v = r[k];
-    const valor = v && typeof v === 'object' ? v.value : v;
-    if (typeof valor === 'string' && valor.trim()) return valor.trim();
-  }
-  return '';
-}
-
-let calBookingHooked = false;
 function mountCal(selector, res) {
   loadCal();
   window.Cal('inline', {
     elementOrSelector: selector,
     calLink: CAL_LINK,
     layout: 'month_view',
-    config: { notes: buildNote(res, estado.respuestas), theme: 'light' }
+    config: {
+      notes: res.note,
+      name: estado.contacto.nombre || '',
+      email: estado.contacto.correo || '',
+      theme: 'light'
+    }
   });
   window.Cal('ui', { layout: 'month_view', hideEventTypeDetails: false });
-
-  // Costura: cuando la reserva se concreta, registrar el lead (contacto desde cal.diy).
-  if (!calBookingHooked) {
-    calBookingHooked = true;
-    window.Cal('on', {
-      action: 'bookingSuccessful',
-      callback: (e) => {
-        try {
-          const data = e && e.detail && e.detail.data;
-          const booking = data && (data.booking || data.confirmed || data);
-          const at = booking && booking.attendees && booking.attendees[0];
-          if (at) {
-            estado.contacto = {
-              ...estado.contacto,
-              nombre: at.name || '',
-              correo: at.email || '',
-              // cal.diy expone las preguntas extra del event type acá; si configuraste
-              // un campo "empresa"/"company", lo levantamos. Si no, queda vacío.
-              empresa: estado.contacto.empresa || readResponse(booking, ['empresa', 'company']) || '',
-              telefono: estado.contacto.telefono || at.phoneNumber || readResponse(booking, ['telefono', 'phone']) || '',
-              cargo: estado.contacto.cargo || readResponse(booking, ['cargo', 'title', 'role']) || ''
-            };
-          }
-          if (booking && booking.startTime) estado.bookingDatetime = booking.startTime;
-        } catch (_) { /* el formato del evento puede variar entre versiones */ }
-        estado.bookingAgendado = true; // marca el +2 del score y el flag del payload
-        submitLead(assembleResult(estado, content).leadPayload);
-      }
-    });
-  }
 }
 
-// Pantalla final: diagnóstico a la derecha; agenda (calendario cal.diy + checklist) a la izquierda.
+// ---- Pantalla final: diagnóstico (A–E) + agenda ------------------------------
 function renderResult() {
-  const res = assembleResult(estado, content);
+  const res = estado.resultado || assembleResult(estado, content);
+  const p = res.palancas;
 
-  // Ensamblado (§6.4): Capa A + Capa B (si aplica) en un párrafo, luego el cierre de Capa C.
-  const cuerpo = res.layerB ? `${esc(res.layerA)} ${esc(res.layerB)}` : esc(res.layerA);
+  const bloqueBHtml = [res.bloqueB.texto, ...res.bloqueB.notas]
+    .map((t) => `<p>${esc(t).replace(/\n\n/g, '</p><p>')}</p>`).join('');
+
+  const palancasHtml = [
+    p.gancho ? `<p><em>${esc(p.gancho)}</em></p>` : '',
+    `<p><strong>Principal — ${esc(p.principal.nombre)}.</strong> ${esc(p.principal.text)}</p>`,
+    p.secundaria ? `<p><strong>Secundaria — ${esc(p.secundaria.nombre)}.</strong> ${esc(p.secundaria.text)}</p>` : '',
+    p.descartada ? `<p><strong>No aplica — ${esc(p.descartada.nombre)}.</strong> ${esc(p.descartada.text)}</p>` : ''
+  ].join('');
+
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
   const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
 
@@ -238,9 +272,12 @@ function renderResult() {
     <div class="dx__view dx__final">
       <section class="dx__diag" aria-labelledby="dx-diag-h">
         <p class="dx__diag-kicker">Diagnóstico listo</p>
-        <h2 class="dx__col-title" id="dx-diag-h" data-dx-focus tabindex="-1">Tu diagnóstico</h2>
-        <p>${cuerpo}</p>
-        <p class="dx__close">${esc(res.layerC.texto)}</p>
+        <h2 class="dx__col-title" id="dx-diag-h" data-dx-focus tabindex="-1">${esc(res.perfil)}</h2>
+        ${bloqueBHtml}
+        ${palancasHtml}
+        <p>${esc(res.datoFaltante.dato)}</p>
+        <p class="dx__close">${esc(res.datoFaltante.cierre)}</p>
+        <p>${esc(res.financiamiento)}</p>
         <aside class="dx__checklist" aria-label="Preparación para la llamada">
           <h3>${esc(content.checklistTitulo)}</h3>
           <ul>${items}</ul>
@@ -267,46 +304,42 @@ function renderResult() {
     </div>`);
 
   view.querySelector('[data-act="reiniciar"]').addEventListener('click', () => {
-    estado.paso = 0;
+    estado.paso = 'intro';
     estado.respuestas = {};
     estado.contacto = {};
-    estado.bookingAgendado = false;
-    estado.bookingDatetime = null;
+    estado.resultado = null;
+    leadEnviado = false;
     render();
   });
 
   root.replaceChildren(view);
   focusMain();
-  mountCal('#agenda', res); // el elemento #agenda ya está en el DOM
+  mountCal('#agenda', res);
 }
 
 function render() {
+  if (estado.paso === 'intro') return renderIntro();
+  if (estado.paso === 'gate') return renderGate();
   if (estado.paso === 'result') return renderResult();
   return renderStep();
 }
 
 render();
 
-// Envía el lead a /api/lead (Resend). Fire-and-forget deliberado: la reserva ya está
-// confirmada del lado de cal.diy, así que un fallo acá no debe romper la pantalla del
-// usuario — se registra en consola y el lead sigue existiendo en el calendario.
+// Envía el lead a /api/lead (Resend). Fire-and-forget: un fallo no rompe la pantalla.
 let leadEnviado = false;
 export function submitLead(payload) {
-  if (leadEnviado) return Promise.resolve(false); // el evento de Cal puede repetirse
+  if (leadEnviado) return Promise.resolve(false);
   leadEnviado = true;
-
   return fetch('/api/lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    keepalive: true // sobrevive si el usuario cierra la pestaña al terminar de agendar
+    keepalive: true
   })
-    .then((r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return true;
-    })
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return true; })
     .catch((err) => {
-      leadEnviado = false; // permite reintento si el usuario vuelve a disparar el evento
+      leadEnviado = false;
       console.error('[diagnostico] no se pudo registrar el lead', err);
       return false;
     });
