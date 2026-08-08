@@ -31,9 +31,10 @@ de un embed de agenda cal.diy en la pantalla final.
    y las 8 respuestas crudas.
 3. **Gate de contacto = paso nuevo.** No existe hoy (el contacto se captura vía el
    callback de cal.diy). Se agrega un paso de gate entre la P8 y el resultado. El lead
-   se envía a `/api/lead` **al enviar el gate** (captura cada diagnóstico completado,
-   agende o no). Al concretarse una reserva en cal.diy se re-envía con la bandera
-   `booking_agendado: true` + fecha, correlacionado por un `lead_id` estable.
+   se envía a `/api/lead` **una sola vez, al enviar el gate** (captura cada diagnóstico
+   completado, agende o no). La reserva en cal.diy **no** dispara un segundo email: el
+   equipo se entera del booking por el evento de calendario, que lleva adjunta la nota
+   del diagnóstico. Sin re-envío a `/api/lead`.
 
 ## Arquitectura de módulos (se conserva el split content/engine/view)
 
@@ -399,20 +400,20 @@ evento cal.diy y en las versiones email/print. El universal no cuenta contra el 
 
 ## 4. Integración de datos (lead + nota)
 
-- **Lead a `/api/lead` (Resend):** se envía al enviar el gate, con `booking_agendado:
-  false`. `leadPayload` incluye: `lead_id` (estable), `timestamp`, contacto (`nombre`,
-  `empresa`, `correo`, `telefono`, `rol`), `respuestas_legibles` (8), `respuestas_codigos`
-  (8), `perfil` (string del Bloque A), `rango` (`{piso, techo, texto}` o `{sinNumero}`),
-  `checklist_full`, `booking_agendado`, `booking_datetime`.
+- **Lead a `/api/lead` (Resend) — un solo envío, al enviar el gate.** `leadPayload`
+  incluye: `lead_id`, `timestamp`, contacto (`nombre`, `empresa`, `correo`, `telefono`,
+  `rol`), `respuestas_legibles` (8), `respuestas_codigos` (8), `perfil` (string del
+  Bloque A), `rango` (`{piso, techo, texto}` o `{sinNumero}`), `checklist_full`. Sin
+  campos de booking en el payload (el envío ocurre antes de cualquier reserva).
 - **Booking cal.diy:** el embed inline lleva adjunta la **nota del evento** con el
   diagnóstico completo (perfil, rango, palancas, dato faltante, financiamiento),
-  **checklist completo (sin recorte)** y las **8 respuestas crudas**. Al concretarse la
-  reserva (`bookingSuccessful`), se re-envía el lead con `booking_agendado: true` +
-  `booking_datetime`, correlacionado por el mismo `lead_id`. Contacto del gate tiene
-  prioridad sobre el de cal.diy.
+  **checklist completo (sin recorte)** y las **8 respuestas crudas**. La reserva no
+  re-envía el lead: el equipo ve el booking en el calendario con esa nota. No hace
+  falta el callback `bookingSuccessful` para enviar leads (se elimina).
 - **`api/lead.js`:** actualizar `PREGUNTAS` a las 8 keys + `rol`; encabezar el email
   con Perfil + rango (en vez de score/arquetipo/refuerzo); conservar el bloque de
-  checklist. Solo `nombre` + `correo` obligatorios; honeypot `website` intacto.
+  checklist; quitar el manejo de `booking_agendado`/`booking_datetime`. Solo `nombre` +
+  `correo` obligatorios; honeypot `website` intacto.
 
 ## 5. Caso de prueba (fixture — aserción fija en el test del engine)
 
