@@ -5,7 +5,7 @@ const root = document.getElementById('dx-root');
 
 // Instancia self-hosted de cal.diy y el event type para la llamada.
 const CAL_ORIGIN = 'https://cal.mexillum.com';
-const CAL_LINK = 'dlucca/30min';
+const CAL_LINK = 'diagnostico/diagnostico-mexillum';
 
 const estado = {
   paso: 'intro',            // 'intro' | 0..7 | 'gate' | 'result'
