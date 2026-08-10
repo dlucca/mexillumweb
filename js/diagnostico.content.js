@@ -171,11 +171,10 @@ const content = {
         factura: { muyalto: 8, alto: 4 }
       },
       diesel: {
-        disparador: { diesel: 72 },
-        // sólo el corte más severo suma aquí; "reinicio" se excluye a propósito para que
-        // el score quede en 0 cuando disparador !== 'diesel' (ver test "prácticamente binario").
-        corte: { producto: 8 },
-        calidad: { cortes: 8 }
+        // Puro: sin diésel no hay nada que sustituir, así que el score depende sólo
+        // de disparador==='diesel'. Cualquier entrada corte/calidad filtraría puntos
+        // a plantas sin diésel (ver test "prácticamente binario").
+        disparador: { diesel: 72 }
       }
     },
     umbralPotencial: { muyAlto: 75, alto: 60, medio: 40 },
