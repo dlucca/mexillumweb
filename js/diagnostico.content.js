@@ -207,36 +207,42 @@ const content = {
 
   // ---- BLOQUE C ----
   gancho: 'La mayoría de las empresas no sabe que una parte grande de su recibo no es energía que consumió, sino un cargo por su pico de demanda. Eso es exactamente lo primero que revisamos.',
-  palancasPrincipal: [
-    { id: 'estacional', when: { generacion: 'estacional' }, nombre: 'Cobertura fuera de temporada', text: 'Tu generación cubre parte del año; el resto pagas tarifa completa. Ahí está tu mayor hueco, y coincide con la temporada de más sol.' },
-    { id: 'diesel', when: { disparador: 'diesel' }, nombre: 'Sustitución de diésel', text: 'Cada hora de diésel cuesta un múltiplo de la red. Desplazarlo es tu palanca de mayor margen.' },
-    { id: 'capacidad', when: { disparador: 'capacidad' }, nombre: 'Diferimiento de capacidad', text: 'Ampliar tu acometida con CFE puede tomar meses o años. El almacenamiento te deja crecer sin esperar esa ampliación.' },
-    { id: 'continuo', when: { sector: 'continuo' }, nombre: 'Arbitraje horario', text: 'Tu operación no para, así que compras en horario punta todos los días sin alternativa. Trasladar ese consumo a horas baratas es tu palanca más fuerte.' },
-    { id: 'ev', when: { sector: 'ev' }, nombre: 'Diferimiento + pico de carga', text: 'Un cargador rápido dispara un pico de demanda brutal frente a lo que factura. Recortarlo y evitar ampliar acometida es donde está el dinero.' },
-    { id: 'excedente', when: { disparador: 'excedente' }, nombre: 'Arbitraje de excedente', text: 'El excedente que hoy exportas a precio de valle puede venderse en las horas de mayor precio. Es una palanca de ingreso, no de ahorro.' }
-  ],
-  palancaPrincipalDefault: { id: 'demanda', nombre: 'Recorte de demanda', text: 'Tu momento de mayor consumo fija un cargo que pesa sobre toda la factura, aunque dure minutos. Es de lo más fácil y directo de recortar.' },
-  palancasSecundaria: [
-    { id: 'producto', when: { corte: 'producto' }, nombre: 'Respaldo de producto', text: 'Además, un corte te cuesta producto perdido — el respaldo protege ese inventario.' },
-    { id: 'reinicio', when: { corte: 'reinicio' }, nombre: 'Continuidad de proceso', text: 'Además, cada paro te cuesta horas de reinicio; el respaldo evita esa pérdida.' },
-    // Variante frío/logística: va ANTES de la genérica para que .find() la tome primero (Cambio 2).
-    { id: 'servicio_frio', when: { sector: 'frio', corte: 'servicio' }, nombre: 'Continuidad de servicio', text: 'En frío el costo de un corte no es la hora parada, es la excursión de temperatura y la ventana de embarque que no se cumple. El respaldo protege el producto y el despacho del día.' },
-    { id: 'servicio', when: { corte: 'servicio' }, nombre: 'Continuidad de servicio', text: 'Además, cada hora sin energía es ingreso perdido — el respaldo lo sostiene.' },
-    { id: 'continuo', when: { sector: 'continuo' }, nombre: 'Arbitraje horario', text: 'Y como corres 24/7, el arbitraje horario suma sobre el recorte de pico.' },
-    { id: 'capacidad', when: { disparador: 'capacidad' }, nombre: 'Diferimiento de capacidad', text: 'Y te permite crecer sin esperar la ampliación de CFE.' }
-  ],
-  palancasDescartada: [
-    { id: 'fisica', when: { generacion: 'fisica' }, nombre: 'Solar', text: 'Ya tienes generación resuelta; tu cuello de botella es cómo aprovecharla y qué te cuesta la demanda, no generar más.' },
-    { id: 'estacional', when: { generacion: 'estacional' }, nombre: 'Tu cogeneración', text: 'No te proponemos tocarla. Ya generas durante la temporada; el foco es el hueco de los otros meses.' },
-    { id: 'continuo', when: { sector: 'continuo' }, nombre: 'Peak shaving como caso principal', text: 'No te lo vendemos como el gran ahorro: en una operación 24/7 rinde poco. Tu palanca real es el arbitraje.' },
-    { id: 'costo_nada', when: { disparador: 'costo', corte: 'nada' }, nombre: 'Respaldo/continuidad', text: 'Si un corte no te cuesta dinero, pagar por continuidad no tiene sentido — tu caso es puramente de costo.' }
-  ],
-  // Default de descarte: prioridad más baja, solo si ninguna regla 1–5 aplicó. Garantiza
-  // que todo perfil cierre con una línea "No aplica —". `arbitraje` para no-continuo/no-ev;
-  // `solar` para el caso residual ev.
-  palancaDescartadaDefault: {
-    arbitraje: { id: 'default_arbitraje', nombre: 'Arbitraje horario como caso principal', text: 'Salvo que tu consumo esté fuertemente concentrado en horario punta, trasladar consumo entre horarios rinde menos que atacar tu pico directo. Lo verificamos con tu desglose horario; no te lo vendemos como el gran ahorro.' },
-    solar: { id: 'default_solar', nombre: 'Generación solar como prioridad', text: 'Tu cuello de botella es el pico de carga y la capacidad de acometida, no generar energía. Ahí es donde ponemos el foco.' }
+  palancasCopy: {
+    peak_shaving: {
+      nombre: 'Recorte de demanda (peak shaving)',
+      principal: 'Tu momento de mayor consumo fija un cargo que pesa sobre toda la factura, aunque dure minutos. Recortarlo con batería es de lo más directo en tu perfil.',
+      descarte: 'En tu perfil el recorte de pico rinde poco: tu consumo no está concentrado en picos marcados. No te lo vendemos como el gran ahorro.'
+    },
+    arbitraje: {
+      nombre: 'Arbitraje horario',
+      principal: 'Compras energía en horario punta de forma recurrente. Trasladar ese consumo a horas baratas con la batería es tu palanca más fuerte.',
+      descarte: 'Salvo que tu consumo esté concentrado en punta, arbitrar entre horarios rinde menos que atacar el pico directo. Lo verificamos con tu desglose horario.'
+    },
+    bess_solar: {
+      nombre: 'BESS + Solar',
+      principal: 'Tu consumo y tu perfil dan espacio para generar y almacenar: la batería aprovecha la generación y cubre el pico. Ahí está el mayor valor combinado.',
+      descarte: 'Generar energía no es tu cuello de botella hoy; el foco está en la demanda y el pico, no en sumar generación.'
+    },
+    respaldo: {
+      nombre: 'Respaldo',
+      principal: 'Un corte te cuesta caro. La batería sostiene la operación en los momentos críticos y protege lo que un apagón se lleva.',
+      descarte: 'Si un corte no te cuesta dinero relevante, pagar por continuidad no tiene sentido — tu caso es de costo, no de respaldo.'
+    },
+    diferimiento: {
+      nombre: 'Diferimiento de capacidad',
+      principal: 'Ampliar tu acometida con CFE puede tomar meses o años. El almacenamiento te deja crecer sin esperar esa ampliación.',
+      descarte: 'No hay una restricción de capacidad que resolver hoy; el diferimiento no es tu palanca.'
+    },
+    diesel: {
+      nombre: 'Sustitución de diésel',
+      principal: 'Cada hora de diésel cuesta un múltiplo de la red. Desplazarlo con almacenamiento suele ser la palanca de mayor margen.',
+      descarte: 'No dependes de diésel, así que no hay consumo de combustible que desplazar.'
+    }
+  },
+  palancasRespaldoVariantes: {
+    producto: 'Un corte te cuesta producto perdido — la batería protege ese inventario en el momento crítico.',
+    reinicio: 'Cada paro te cuesta horas de reinicio; la batería evita esa pérdida.',
+    servicio: 'Cada hora sin energía es ingreso perdido — la batería lo sostiene.'
   },
   // Palanca secundaria adicional, solo perfil frío/logística (carga dominada por compresores).
   // Cualitativa: NO entra al rango numérico del bloque B (Cambio 3).

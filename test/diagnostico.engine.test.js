@@ -105,65 +105,45 @@ test('renderBlockB: nolose y privado devuelven copy sin número; diésel se suma
   assert.ok(privado.texto.startsWith('Como compras a un suministrador privado'));
 });
 
-// ---- BLOQUE C: palancas jerarquizadas ----
+// ---- BLOQUE C: palancas guiadas por el ranking ----
 
-test('pickLevers: fixture → Recorte de demanda + Continuidad de proceso + Solar (sin gancho: hubo número)', () => {
-  const l = pickLevers(fx, content);
-  assert.equal(l.gancho, null); // Cambio 2: demanda=desconoce pero factura=alto → hubo número, sin gancho
-  assert.equal(l.principal.nombre, 'Recorte de demanda');
-  assert.equal(l.secundaria.nombre, 'Continuidad de proceso');
-  assert.equal(l.descartada.nombre, 'Solar');
+test('pickLevers: principal = tope del ranking; descarte = fondo del ranking', () => {
+  const resp = { ...fx, perfil: 'picos', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
+  const ranking = rankOpportunities(scoreOpportunities(resp, content), content);
+  const l = pickLevers(resp, ranking, content);
+  assert.equal(l.principal.nombre, content.palancasCopy[ranking[0].id].nombre);
+  assert.equal(l.descartada.nombre, content.palancasCopy[ranking[ranking.length - 1].id].nombre);
+  assert.ok(l.descartada.text.length > 0);
+});
+
+test('pickLevers: respaldo usa la variante de copy según el tipo de corte', () => {
+  const resp = { ...fx, corte: 'producto', calidad: 'cortes', disparador: 'costo', perfil: 'plano', generacion: 'fisica' };
+  const ranking = rankOpportunities(scoreOpportunities(resp, content), content);
+  const l = pickLevers(resp, ranking, content);
+  // respaldo debería quedar arriba; si es principal o secundaria, su texto es la variante de producto
+  const usaVariante = [l.principal, l.secundaria].some((p) => p && p.text === content.palancasRespaldoVariantes.producto);
+  assert.ok(usaVariante, 'debe usar la variante de respaldo por producto');
+});
+
+test('pickLevers: secundaria null cuando la 2a oportunidad no supera el umbral', () => {
+  const resp = { sector: 'manufactura', perfil: 'plano', generacion: 'fisica', calidad: 'no', tarifa: 'otra', factura: 'bajo', corte: 'nada', disparador: 'costo' };
+  const ranking = rankOpportunities(scoreOpportunities(resp, content), content);
+  const l = pickLevers(resp, ranking, content);
+  if (ranking[1].score < content.scoring.umbralSecundaria) assert.equal(l.secundaria, null);
 });
 
 test('pickLevers: gancho solo en salidas sin número', () => {
-  assert.equal(pickLevers({ ...fx, factura: 'alto', tarifa: 'gdmth' }, content).gancho, null);
-  assert.equal(pickLevers({ ...fx, factura: 'nolose' }, content).gancho, content.gancho);
-  assert.equal(pickLevers({ ...fx, tarifa: 'privado' }, content).gancho, content.gancho);
+  const rk = (r) => rankOpportunities(scoreOpportunities(r, content), content);
+  assert.equal(pickLevers({ ...fx }, rk(fx), content).gancho, null);
+  const nolose = { ...fx, factura: 'nolose' };
+  assert.equal(pickLevers(nolose, rk(nolose), content).gancho, content.gancho);
 });
 
-test('pickLevers: principal por precedencia (estacional > diesel > capacidad > continuo)', () => {
-  assert.equal(pickLevers({ ...fx, generacion: 'estacional', disparador: 'diesel' }, content).principal.nombre, 'Cobertura fuera de temporada');
-  assert.equal(pickLevers({ ...fx, generacion: 'no', disparador: 'diesel' }, content).principal.nombre, 'Sustitución de diésel');
-  assert.equal(pickLevers({ ...fx, generacion: 'no', disparador: 'capacidad' }, content).principal.nombre, 'Diferimiento de capacidad');
-  assert.equal(pickLevers({ ...fx, sector: 'continuo', generacion: 'no', disparador: 'costo' }, content).principal.nombre, 'Arbitraje horario');
-});
-
-test('pickLevers: secundaria excluye la que ganó como principal', () => {
-  // continuo gana principal (Arbitraje horario); la secundaria continuo NO debe repetirse.
-  const r = { ...fx, sector: 'continuo', generacion: 'no', corte: 'nada', disparador: 'costo' };
-  const l = pickLevers(r, content);
-  assert.equal(l.principal.nombre, 'Arbitraje horario');
-  assert.equal(l.secundaria, null); // no hay corte útil y continuo ya fue principal
-});
-
-test('pickLevers: descarte SIEMPRE presente vía default cuando ninguna regla 1–5 aplica (Cambio 1)', () => {
-  // manufactura sin señales → default arbitraje; secundaria sí sigue pudiendo ser null
-  const r = { sector: 'manufactura', sitios: 'uno', generacion: 'no', demanda: 'mide', tarifa: 'gdmth', factura: 'alto', corte: 'nada', disparador: 'excedente' };
-  const l = pickLevers(r, content);
-  assert.equal(l.principal.nombre, 'Arbitraje de excedente');
-  assert.equal(l.secundaria, null);
-  assert.equal(l.descartada.nombre, 'Arbitraje horario como caso principal');
-  // ev residual (ninguna regla 1–5 aplica) → default solar
-  const rev = { sector: 'ev', sitios: 'uno', generacion: 'no', demanda: 'mide', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' };
-  assert.equal(pickLevers(rev, content).descartada.nombre, 'Generación solar como prioridad');
-});
-
-test('pickLevers: continuidad de servicio usa variante frío solo en perfil frío (Cambio 2)', () => {
-  const frio = pickLevers({ ...fx, sector: 'frio', corte: 'servicio', calidad: 'no' }, content);
-  assert.equal(frio.secundaria.nombre, 'Continuidad de servicio');
-  assert.ok(frio.secundaria.text.startsWith('En frío el costo de un corte'));
-  // Otros perfiles conservan el string genérico.
-  const otro = pickLevers({ ...fx, sector: 'manufactura', corte: 'servicio' }, content);
-  assert.equal(otro.secundaria.nombre, 'Continuidad de servicio');
-  assert.ok(otro.secundaria.text.startsWith('Además, cada hora sin energía'));
-});
-
-test('pickLevers: factor de potencia como secundaria adicional solo con calidad=factor', () => {
-  const conFactor = pickLevers({ ...fx, calidad: 'factor' }, content);
-  assert.ok(conFactor.factorPotencia, 'calidad=factor debe traer factor de potencia');
-  assert.equal(conFactor.factorPotencia.nombre, 'Corrección de factor de potencia');
-  assert.equal(pickLevers({ ...fx, calidad: 'no' }, content).factorPotencia, null);
-  assert.equal(pickLevers({ ...fx, calidad: 'cortes' }, content).factorPotencia, null);
+test('pickLevers: factor de potencia aditivo solo con calidad=factor', () => {
+  const con = { ...fx, calidad: 'factor' };
+  assert.ok(pickLevers(con, rankOpportunities(scoreOpportunities(con, content), content), content).factorPotencia);
+  const sin = { ...fx, calidad: 'no' };
+  assert.equal(pickLevers(sin, rankOpportunities(scoreOpportunities(sin, content), content), content).factorPotencia, null);
 });
 
 // ---- BLOQUE D: datos que faltan ----
@@ -288,9 +268,8 @@ test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () =>
   assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
   assert.ok(res.calculo.cadena.includes('$2.5 millones'));
   assert.equal(res.gancho, null); // Cambio 2: hubo número
-  assert.equal(res.palancas.principal.nombre, 'Recorte de demanda');
-  assert.equal(res.palancas.secundaria.nombre, 'Continuidad de proceso');
-  assert.equal(res.palancas.descarte.nombre, 'Solar');
+  assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
+  assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
   assert.equal(res.dato_faltante, content.datoFaltanteCorte);
   assert.equal(res.cierre_llamada, content.cierreComun);
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
@@ -309,11 +288,9 @@ test('assembleResult: fixture del parche → descarte presente y gancho null', (
   assert.equal(res.perfil, 'Perfil: frío y logística con exposición a cargo por demanda.');
   assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
   assert.equal(res.gancho, null); // Cambio 2: demanda=desconoce pero hubo número
-  assert.equal(res.palancas.principal.nombre, 'Recorte de demanda');
-  assert.equal(res.palancas.secundaria.nombre, 'Continuidad de proceso'); // corte=reinicio
+  assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
   assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1
-  assert.equal(res.palancas.descarte.nombre, 'Arbitraje horario como caso principal');
-  assert.ok(res.palancas.descarte.text.startsWith('Salvo que tu consumo esté fuertemente concentrado'));
+  assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
   assert.equal(res.dato_faltante, content.datoFaltanteCorte); // corte=reinicio
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
 });

@@ -113,27 +113,30 @@ export function renderBlockB(resp, content) {
   return { sinNumero: null, piso, techo, cadena, rangoTexto, disclaimer: b.disclaimer, notaContinuo, texto, notas };
 }
 
-// ---- BLOQUE C: palancas jerarquizadas ----
-const pick = (r) => (r ? { nombre: r.nombre, text: r.text } : null);
+// ---- BLOQUE C: palancas guiadas por el ranking ----
+function textoPalanca(id, resp, content) {
+  if (id === 'respaldo') {
+    const v = content.palancasRespaldoVariantes[resp.corte];
+    if (v) return v;
+  }
+  return content.palancasCopy[id].principal;
+}
 
-export function pickLevers(resp, content) {
-  // Gancho educativo solo cuando el bloque B no calculó número.
+export function pickLevers(resp, ranking, content) {
+  const copy = content.palancasCopy;
+  const palancaDe = (o) => ({ nombre: copy[o.id].nombre, text: textoPalanca(o.id, resp, content) });
+
+  const principal = palancaDe(ranking[0]);
+  const segundo = ranking.find((o, i) => i > 0 && o.score >= content.scoring.umbralSecundaria);
+  const secundaria = segundo ? palancaDe(segundo) : null;
+  const factorPotencia = resp.calidad === 'factor'
+    ? { nombre: content.palancaFactorPotencia.nombre, text: content.palancaFactorPotencia.text }
+    : null;
+  const ultimo = ranking[ranking.length - 1];
+  const descartada = { nombre: copy[ultimo.id].nombre, text: copy[ultimo.id].descarte };
   const gancho = (resp.factura === 'nolose' || resp.tarifa === 'privado') ? content.gancho : null;
-  const principalRule = content.palancasPrincipal.find((r) => matchesWhen(resp, r.when)) || content.palancaPrincipalDefault;
-  const secundariaRule = content.palancasSecundaria.find((r) => matchesWhen(resp, r.when) && r.id !== principalRule.id) || null;
-  // Cambio 1: 6º nivel de precedencia — default de descarte, solo si ninguna regla 1–5 aplicó.
-  // Así ningún resultado queda sin línea "No aplica —".
-  const descartadaRule = content.palancasDescartada.find((r) => matchesWhen(resp, r.when))
-    || (resp.sector === 'ev' ? content.palancaDescartadaDefault.solar : content.palancaDescartadaDefault.arbitraje);
-  // Factor de potencia: aditiva, disparada por la señal de calidad correcta.
-  const factorPotencia = resp.calidad === 'factor' ? content.palancaFactorPotencia : null;
-  return {
-    gancho,
-    principal: pick(principalRule),
-    secundaria: pick(secundariaRule),
-    factorPotencia: pick(factorPotencia),
-    descartada: pick(descartadaRule)
-  };
+
+  return { gancho, principal, secundaria, factorPotencia, descartada };
 }
 
 // ---- BLOQUE D: el dato que falta ----
@@ -300,7 +303,7 @@ export function assembleResult(estado, content) {
   const recomendacion_solucion = recommendSolution(resp, scores, content);
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content);
-  const palancas = pickLevers(resp, content);
+  const palancas = pickLevers(resp, ranking, content);
   const datoFaltante = pickMissingData(resp, content);
   const financiamiento = pickFinancing(resp, content);
   const checklist = buildChecklist(resp, content);
