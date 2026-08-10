@@ -101,8 +101,6 @@ export function renderBlockB(resp, content) {
     facturaLegible: formatMoney(factura),
     tarifaLegible: content.tarifaLegible[resp.tarifa],
     pctDemandaPiso: pct(dem[0]), pctDemandaTecho: pct(dem[1]),
-    montoDemandaPiso: formatMoney(factura * 12 * dem[0]),
-    montoDemandaTecho: formatMoney(factura * 12 * dem[1]),
     pctRecortePiso: pct(rec[0]), pctRecorteTecho: pct(rec[1])
   });
   const rangoTexto = formatRango(piso, techo);

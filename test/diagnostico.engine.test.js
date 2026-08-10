@@ -23,17 +23,17 @@ test('buildProfile: fixture arma el perfil esperado', () => {
 });
 
 test('buildProfile: exposición estacional tiene máxima prioridad', () => {
-  const r = { sector: 'continuo', sitios: 'uno', generacion: 'estacional', disparador: 'diesel' };
+  const r = { sector: 'continuo', generacion: 'estacional', disparador: 'diesel' };
   assert.equal(buildProfile(r, content), 'Perfil: proceso continuo con generación estacional y hueco fuera de temporada.');
 });
 
 test('buildProfile: continuo sin estacional usa la exposición de proceso continuo', () => {
-  const r = { sector: 'continuo', sitios: 'uno', generacion: 'no', disparador: 'costo' };
+  const r = { sector: 'continuo', generacion: 'no', disparador: 'costo' };
   assert.equal(buildProfile(r, content), 'Perfil: proceso continuo de proceso continuo con exposición estructural a horario punta.');
 });
 
 test('buildProfile: capacidad y diesel como exposición cuando no hay estacional ni continuo', () => {
-  const rc = { sector: 'manufactura', sitios: 'uno', generacion: 'no', disparador: 'capacidad' };
+  const rc = { sector: 'manufactura', generacion: 'no', disparador: 'capacidad' };
   assert.equal(buildProfile(rc, content), 'Perfil: manufactura con restricción de capacidad eléctrica.');
   const rd = { sector: 'frio', generacion: 'no', disparador: 'diesel' };
   assert.equal(buildProfile(rd, content), 'Perfil: frío y logística con dependencia de diésel.');
@@ -278,18 +278,18 @@ test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () =>
   assert.equal(res.checklist.web[res.checklist.web.length - 1], content.checklistUniversal);
 });
 
-// Fixture del parche §Verificación: frío/uno/no/desconoce/gdmth/alto/reinicio/costo.
+// Fixture del parche §Verificación: frío/diurno/no/gdmth/alto/reinicio/costo.
 // Antes del parche: dos palancas (sin descarte) y frase-gancho redundante.
 // Tras el parche: tres palancas (con descarte default) y gancho null.
 test('assembleResult: fixture del parche → descarte presente y gancho null', () => {
   const estado = {
-    respuestas: { sector: 'frio', perfil: 'diurno', sitios: 'uno', generacion: 'no', demanda: 'desconoce', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' },
+    respuestas: { sector: 'frio', perfil: 'diurno', generacion: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' },
     contacto: {}
   };
   const res = assembleResult(estado, content);
   assert.equal(res.perfil, 'Perfil: frío y logística con exposición a cargo por demanda.');
   assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
-  assert.equal(res.gancho, null); // Cambio 2: demanda=desconoce pero hubo número
+  assert.equal(res.gancho, null); // Cambio 2: gancho depende solo de factura==='nolose' || tarifa==='privado'; aquí ninguna aplica
   assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
   assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1

@@ -25,7 +25,7 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// Sustituye {planta} en un prompt según el número de sitios.
+// Sustituye {planta} en un prompt. Valor constante: instalación única, siempre 'tu operación'.
 function withPlanta(texto) {
   return texto.replace('{planta}', plantaLabel(estado.respuestas));
 }

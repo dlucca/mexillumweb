@@ -61,11 +61,17 @@ export default async function handler(req, res) {
     : [];
 
   const potencial = clean(body.potencial_general, 20);
-  const recomendacion = (body.recomendacion_solucion && typeof body.recomendacion_solucion === 'object')
+  const recomendacionRaw = (body.recomendacion_solucion && typeof body.recomendacion_solucion === 'object'
+    && !Array.isArray(body.recomendacion_solucion))
     ? { tipo: clean(body.recomendacion_solucion.tipo, 40), razon: clean(body.recomendacion_solucion.razon, 300) }
     : null;
+  const recomendacion = (recomendacionRaw && recomendacionRaw.tipo) ? recomendacionRaw : null;
   const ranking = Array.isArray(body.ranking)
-    ? body.ranking.slice(0, 6).map((o) => ({ nombre: clean(o?.nombre, 40), score: Number(o?.score) || 0 }))
+    ? body.ranking
+        .filter((o) => o && typeof o === 'object' && !Array.isArray(o))
+        .map((o) => ({ nombre: clean(o.nombre, 40), score: Number(o.score) || 0 }))
+        .filter((o) => o.nombre)
+        .slice(0, 6)
     : [];
 
   const respuestas = PREGUNTAS.map(([key, label]) => {

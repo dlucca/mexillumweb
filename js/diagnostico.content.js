@@ -4,7 +4,7 @@
 const content = {
   intro: {
     titulo: 'Diagnóstico energético en 2 minutos',
-    cuerpo: 'Ocho preguntas sobre tu operación. Al final vas a ver qué palancas de ahorro aplican a tu caso, un rango estimado de lo que hay en juego, y qué datos preparar para volverlo un número exacto.',
+    cuerpo: 'Ocho preguntas sobre tu operación. Al final vas a ver qué palancas de ahorro aplican a tu caso, un orden de magnitud de lo que hay en juego, y qué datos preparar para volverlo un número exacto.',
     pie: 'Sin costo. Sin compromiso.',
     cta: 'Empezar'
   },
