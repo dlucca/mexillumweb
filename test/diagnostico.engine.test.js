@@ -5,7 +5,7 @@ import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
   pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
-  scoreOpportunities, rankOpportunities, potencialGeneral
+  scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -381,4 +381,38 @@ test('assembleResult: expone scores, ranking y potencial_general', () => {
   assert.equal(res.ranking.length, 6);
   assert.ok(['Muy Alto', 'Alto', 'Medio', 'Bajo'].includes(res.potencial_general));
   assert.equal(res.leadPayload.potencial_general, res.potencial_general);
+});
+
+// ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
+
+test('recommendSolution: generacion fisica sin excedente → No recomendar Solar', () => {
+  const resp = { ...fx, generacion: 'fisica', disparador: 'costo' };
+  const rec = recommendSolution(resp, scoreOpportunities(resp, content), content);
+  assert.equal(rec.tipo, 'No recomendar Solar');
+});
+
+test('recommendSolution: estacional → BESS + Solar', () => {
+  const resp = { ...fx, generacion: 'estacional' };
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS + Solar');
+});
+
+test('recommendSolution: consumo diurno sin generación y bess_solar alto → BESS + Solar', () => {
+  const resp = { ...fx, generacion: 'no', perfil: 'diurno' };
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS + Solar');
+});
+
+test('recommendSolution: diurno sin generación y tarifa desconocida → Solar primero', () => {
+  const resp = { ...fx, generacion: 'no', perfil: 'diurno', tarifa: 'nolose', factura: 'nolose' };
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar primero');
+});
+
+test('recommendSolution: default → BESS', () => {
+  const resp = { ...fx, generacion: 'no', perfil: 'plano', tarifa: 'gdmth' };
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS');
+});
+
+test('assembleResult: expone recomendacion_solucion con tipo válido', () => {
+  const res = assembleResult(estadoFx, content);
+  assert.ok(['BESS', 'BESS + Solar', 'Solar primero', 'No recomendar Solar'].includes(res.recomendacion_solucion.tipo));
+  assert.equal(typeof res.recomendacion_solucion.razon, 'string');
 });

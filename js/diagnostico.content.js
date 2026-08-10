@@ -281,6 +281,15 @@ const content = {
   checklistTitulo: 'Antes de tu llamada, te sirve tener a mano:',
   checklistPie: 'No hace falta tenerlo todo listo — con lo que tengas alcanza para empezar.',
 
+  // ---- RECOMENDACIÓN de solución ----
+  recomendaciones: {
+    noSolar: { tipo: 'No recomendar Solar', razon: 'Ya tienes generación resuelta; sumar más Solar no es tu cuello de botella. El foco es cuánto te cuesta la demanda y cómo aprovechas mejor lo que ya generas — ahí entra el BESS.' },
+    estacional: { tipo: 'BESS + Solar', razon: 'Generas parte del año y el resto pagas tarifa completa. La Solar llena ese hueco —coincide con la temporada de más sol— y la batería firma esa generación y ataca el pico.' },
+    bessSolarDiurno: { tipo: 'BESS + Solar', razon: 'Tu consumo de día encaja con la generación solar, y la batería te cubre el pico y la tarde-noche. La combinación rinde más que cualquiera de las dos por separado.' },
+    solarPrimero: { tipo: 'Solar primero', razon: 'Con consumo diurno y sin datos de tarifa todavía, Solar es la apuesta más robusta para empezar a bajar el recibo; el BESS se dimensiona después con tu perfil real.' },
+    bess: { tipo: 'BESS', razon: 'Tu mayor oportunidad está en el pico de demanda y el arbitraje horario, no en generar energía. El BESS ataca eso directo; Solar queda como una fase 2 a evaluar sobre tus números.' }
+  },
+
   resultado: { reiniciar: 'Reiniciar diagnóstico' },
   progresoLabel: (n, total) => `Paso ${n} de ${total}`
 };

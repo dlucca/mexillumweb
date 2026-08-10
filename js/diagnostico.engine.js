@@ -254,6 +254,22 @@ export function potencialGeneral(scores, resp, content) {
   return niveles[idx];
 }
 
+// ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
+export function recommendSolution(resp, scores, content) {
+  const rec = content.recomendaciones;
+  const bs = scores.bess_solar;
+  const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando';
+  const tarifaCiega = resp.tarifa === 'nolose' || resp.tarifa === 'privado';
+  let key;
+  if (resp.generacion === 'fisica' && resp.disparador !== 'excedente') key = 'noSolar';
+  else if (resp.generacion === 'estacional') key = 'estacional';
+  // Solar primero va ANTES que BESS+Solar: sin datos de tarifa no comprometemos la combinación.
+  else if (resp.perfil === 'diurno' && sinGeneracion && tarifaCiega) key = 'solarPrimero';
+  else if (bs >= 60 && sinGeneracion && resp.perfil === 'diurno') key = 'bessSolarDiurno';
+  else key = 'bess';
+  return { tipo: rec[key].tipo, razon: rec[key].razon };
+}
+
 // ---- Orquestador ----
 export function assembleResult(estado, content) {
   const resp = estado.respuestas;
@@ -261,6 +277,7 @@ export function assembleResult(estado, content) {
   const scores = scoreOpportunities(resp, content);
   const ranking = rankOpportunities(scores, content);
   const potencial_general = potencialGeneral(scores, resp, content);
+  const recomendacion_solucion = recommendSolution(resp, scores, content);
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content);
   const palancas = pickLevers(resp, content);
@@ -291,7 +308,8 @@ export function assembleResult(estado, content) {
     checklist_full: checklist.full,
     scores,
     ranking,
-    potencial_general
+    potencial_general,
+    recomendacion_solucion
   };
 
   // Cambio 4: salida como objeto estructurado para que el HTML jerarquice cada parte.
@@ -319,6 +337,7 @@ export function assembleResult(estado, content) {
     scores,                                  // scoring 0-100 por oportunidad
     ranking,                                 // oportunidades ordenadas desc
     potencial_general,                       // 'Muy Alto'|'Alto'|'Medio'|'Bajo'
+    recomendacion_solucion,                  // { tipo, razon } BESS vs Solar
     leadPayload
   };
   res.note = buildEventNote(res, resp, content, bloqueB.texto);
