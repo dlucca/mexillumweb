@@ -154,6 +154,27 @@ test('pickLevers: descarte SIEMPRE presente vía default cuando ninguna regla 1�
   assert.equal(pickLevers(rev, content).descartada.nombre, 'Generación solar como prioridad');
 });
 
+test('pickLevers: continuidad de servicio usa variante frío solo en perfil frío (Cambio 2)', () => {
+  const frio = pickLevers({ ...fx, sector: 'frio', corte: 'servicio' }, content);
+  assert.equal(frio.secundaria.nombre, 'Continuidad de servicio');
+  assert.ok(frio.secundaria.text.startsWith('En frío el costo de un corte'));
+  // Otros perfiles conservan el string genérico.
+  const otro = pickLevers({ ...fx, sector: 'manufactura', corte: 'servicio' }, content);
+  assert.equal(otro.secundaria.nombre, 'Continuidad de servicio');
+  assert.ok(otro.secundaria.text.startsWith('Además, cada hora sin energía'));
+});
+
+test('pickLevers: factor de potencia como secundaria adicional solo en frío (Cambio 3)', () => {
+  const frio = pickLevers({ ...fx, sector: 'frio' }, content);
+  assert.ok(frio.factorPotencia, 'frío debe traer factor de potencia');
+  assert.equal(frio.factorPotencia.nombre, 'Corrección de factor de potencia');
+  // No reemplaza a la secundaria basada en corte (fx.corte === 'reinicio').
+  assert.equal(frio.secundaria.nombre, 'Continuidad de proceso');
+  // Otros perfiles no la traen.
+  assert.equal(pickLevers({ ...fx, sector: 'manufactura' }, content).factorPotencia, null);
+  assert.equal(pickLevers({ ...fx, sector: 'continuo' }, content).factorPotencia, null);
+});
+
 // ---- BLOQUE D: datos que faltan ----
 
 test('pickMissingData: fixture (corte=reinicio, sin señales de igualdad) → regla corte!=nada', () => {
@@ -287,7 +308,7 @@ test('assembleResult: fixture del parche → descarte presente y gancho null', (
   assert.equal(res.palancas.secundaria.nombre, 'Continuidad de proceso'); // corte=reinicio
   assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1
   assert.equal(res.palancas.descarte.nombre, 'Arbitraje horario como caso principal');
-  assert.ok(res.palancas.descarte.text.startsWith('Tu operación no corre 24/7'));
+  assert.ok(res.palancas.descarte.text.startsWith('Salvo que tu consumo esté fuertemente concentrado'));
   assert.equal(res.dato_faltante, content.datoFaltanteCorte); // corte=reinicio
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
 });

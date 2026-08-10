@@ -152,6 +152,8 @@ const content = {
   palancasSecundaria: [
     { id: 'producto', when: { corte: 'producto' }, nombre: 'Respaldo de producto', text: 'Además, un corte te cuesta producto perdido — el respaldo protege ese inventario.' },
     { id: 'reinicio', when: { corte: 'reinicio' }, nombre: 'Continuidad de proceso', text: 'Además, cada paro te cuesta horas de reinicio; el respaldo evita esa pérdida.' },
+    // Variante frío/logística: va ANTES de la genérica para que .find() la tome primero (Cambio 2).
+    { id: 'servicio_frio', when: { sector: 'frio', corte: 'servicio' }, nombre: 'Continuidad de servicio', text: 'En frío el costo de un corte no es la hora parada, es la excursión de temperatura y la ventana de embarque que no se cumple. El respaldo protege el producto y el despacho del día.' },
     { id: 'servicio', when: { corte: 'servicio' }, nombre: 'Continuidad de servicio', text: 'Además, cada hora sin energía es ingreso perdido — el respaldo lo sostiene.' },
     { id: 'continuo', when: { sector: 'continuo' }, nombre: 'Arbitraje horario', text: 'Y como corres 24/7, el arbitraje horario suma sobre el recorte de pico.' },
     { id: 'capacidad', when: { disparador: 'capacidad' }, nombre: 'Diferimiento de capacidad', text: 'Y te permite crecer sin esperar la ampliación de CFE.' }
@@ -167,9 +169,12 @@ const content = {
   // que todo perfil cierre con una línea "No aplica —". `arbitraje` para no-continuo/no-ev;
   // `solar` para el caso residual ev.
   palancaDescartadaDefault: {
-    arbitraje: { id: 'default_arbitraje', nombre: 'Arbitraje horario como caso principal', text: 'Tu operación no corre 24/7, así que trasladar consumo entre horarios rinde menos que atacar tu pico directo. No te lo vendemos como el gran ahorro.' },
+    arbitraje: { id: 'default_arbitraje', nombre: 'Arbitraje horario como caso principal', text: 'Salvo que tu consumo esté fuertemente concentrado en horario punta, trasladar consumo entre horarios rinde menos que atacar tu pico directo. Lo verificamos con tu desglose horario; no te lo vendemos como el gran ahorro.' },
     solar: { id: 'default_solar', nombre: 'Generación solar como prioridad', text: 'Tu cuello de botella es el pico de carga y la capacidad de acometida, no generar energía. Ahí es donde ponemos el foco.' }
   },
+  // Palanca secundaria adicional, solo perfil frío/logística (carga dominada por compresores).
+  // Cualitativa: NO entra al rango numérico del bloque B (Cambio 3).
+  palancaFactorPotencia: { id: 'factor_potencia', nombre: 'Corrección de factor de potencia', text: 'El inversor del sistema aporta reactiva. Si tu recibo trae penalización por bajo factor de potencia, es ahorro que no requiere capacidad de batería adicional. Se lee directo de la factura.' },
 
   // ---- BLOQUE D ----
   datoFaltante: [

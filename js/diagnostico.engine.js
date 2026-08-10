@@ -129,10 +129,13 @@ export function pickLevers(resp, content) {
   // Así ningún resultado queda sin línea "No aplica —".
   const descartadaRule = content.palancasDescartada.find((r) => matchesWhen(resp, r.when))
     || (resp.sector === 'ev' ? content.palancaDescartadaDefault.solar : content.palancaDescartadaDefault.arbitraje);
+  // Cambio 3: palanca secundaria adicional para frío/logística. Aditiva, no reemplaza a `secundaria`.
+  const factorPotencia = resp.sector === 'frio' ? content.palancaFactorPotencia : null;
   return {
     gancho,
     principal: pick(principalRule),
     secundaria: pick(secundariaRule),
+    factorPotencia: pick(factorPotencia),
     descartada: pick(descartadaRule)
   };
 }
@@ -189,6 +192,7 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
     ...(res.gancho ? [res.gancho] : []),
     `Principal — ${p.principal.nombre}: ${p.principal.text}`,
     ...(p.secundaria ? [`Secundaria — ${p.secundaria.nombre}: ${p.secundaria.text}`] : []),
+    ...(p.factorPotencia ? [`Secundaria — ${p.factorPotencia.nombre}: ${p.factorPotencia.text}`] : []),
     // descarte: siempre presente tras el Cambio 1.
     ...(p.descarte ? [`No aplica — ${p.descarte.nombre}: ${p.descarte.text}`] : [])
   ];
@@ -265,6 +269,7 @@ export function assembleResult(estado, content) {
     palancas: {                              // Bloque C
       principal: palancas.principal,
       secundaria: palancas.secundaria,
+      factorPotencia: palancas.factorPotencia, // secundaria adicional, solo frío (Cambio 3)
       descarte: palancas.descartada          // SIEMPRE presente (Cambio 1)
     },
     dato_faltante: datoFaltante.dato,        // Bloque D

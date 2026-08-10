@@ -256,6 +256,7 @@ function renderResult() {
         <ul class="dx__palancas">
           ${palancaLi('Principal', '', p.principal.nombre, p.principal.text)}
           ${p.secundaria ? palancaLi('Secundaria', '', p.secundaria.nombre, p.secundaria.text) : ''}
+          ${p.factorPotencia ? palancaLi('Secundaria', '', p.factorPotencia.nombre, p.factorPotencia.text) : ''}
           ${palancaLi('No aplica', ' dx__palanca-tag--off', p.descarte.nombre, p.descarte.text)}
         </ul>`;
 
