@@ -8,10 +8,10 @@ const CAL_ORIGIN = 'https://cal.mexillum.com';
 const CAL_LINK = 'diagnostico/diagnostico-mexillum';
 
 const estado = {
-  paso: 'intro',            // 'intro' | 0..7 | 'gate' | 'result'
+  paso: 'intro',            // 'intro' | 0..7 | 'result'
   respuestas: {},
   contacto: {},
-  resultado: null           // cache del assembleResult tras el gate
+  resultado: null           // cache del assembleResult
 };
 
 function el(html) {
@@ -133,7 +133,7 @@ function renderStep() {
   siguiente.addEventListener('click', () => {
     if (!estado.respuestas[paso.key]) return;
     if (estado.paso < content.pasos.length - 1) estado.paso += 1;
-    else estado.paso = 'gate';
+    else estado.paso = 'result';
     render();
   });
 
@@ -142,9 +142,9 @@ function renderStep() {
   focusMain();
 }
 
-// ---- Gate de contacto ---------------------------------------------------------
-function renderGate() {
-  const camposHtml = content.gate.campos.map((c) => {
+// ---- Formulario de contacto (dentro del resultado, junto a la agenda) ---------
+function contactFieldsHtml() {
+  return content.gate.campos.map((c) => {
     const req = c.required ? ' <span aria-hidden="true">*</span>' : '';
     const control = c.type === 'select'
       ? `<select class="mx-select" id="gate-${c.key}" name="${c.key}">
@@ -159,57 +159,6 @@ function renderGate() {
         ${control}
       </div>`;
   }).join('');
-
-  const view = el(`
-    <div class="dx__view">
-      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(content.gate.titulo)}</h2>
-      <p>${esc(content.gate.cuerpo)}</p>
-      <form class="dx__options" novalidate>
-        ${camposHtml}
-        <input type="text" name="website" tabindex="-1" autocomplete="off"
-          style="position:absolute;left:-9999px" aria-hidden="true">
-        <p class="mx-field__error" data-gate-error hidden></p>
-        <div class="dx__nav dx__nav--end">
-          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
-          <button type="submit" class="mx-btn mx-btn--primary">${esc(content.gate.cta)}</button>
-        </div>
-      </form>
-    </div>`);
-
-  const form = view.querySelector('form');
-  const error = view.querySelector('[data-gate-error]');
-
-  view.querySelector('[data-act="atras"]').addEventListener('click', () => {
-    estado.paso = content.pasos.length - 1;
-    render();
-  });
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (form.website.value) return; // honeypot
-    const nombre = form.nombre.value.trim();
-    const correo = form.correo.value.trim();
-    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!nombre || !EMAIL_RE.test(correo)) {
-      error.textContent = 'Necesitamos tu nombre y un email válido.';
-      error.hidden = false;
-      return;
-    }
-    estado.contacto = {
-      nombre,
-      empresa: form.empresa.value.trim(),
-      correo,
-      telefono: form.telefono.value.trim(),
-      rol: form.rol.value
-    };
-    estado.resultado = assembleResult(estado, content);
-    submitLead(estado.resultado.leadPayload); // único envío del lead
-    estado.paso = 'result';
-    render();
-  });
-
-  root.replaceChildren(view);
-  focusMain();
 }
 
 // ---- Integración cal.diy (embed inline) --------------------------------------
@@ -236,6 +185,7 @@ function loadCal() {
 
 function mountCal(selector, res) {
   loadCal();
+  registerBookingListener();
   window.Cal('inline', {
     elementOrSelector: selector,
     calLink: CAL_LINK,
@@ -248,6 +198,32 @@ function mountCal(selector, res) {
     }
   });
   window.Cal('ui', { layout: 'month_view', hideEventTypeDetails: false });
+}
+
+// Si la persona agenda sin haber llenado el formulario, tomamos su nombre/email
+// de la reserva y registramos el lead igual (submitLead se de-duplica solo).
+let bookingListenerReady = false;
+function registerBookingListener() {
+  if (bookingListenerReady) return;
+  bookingListenerReady = true;
+  window.Cal('on', {
+    action: 'bookingSuccessful',
+    callback: (e) => {
+      if (leadEnviado) return;
+      const data = e?.detail?.data || {};
+      const booking = data.booking || data;
+      const attendee = (booking.attendees && booking.attendees[0]) || {};
+      estado.contacto = {
+        nombre: estado.contacto.nombre || attendee.name || '',
+        empresa: estado.contacto.empresa || '',
+        correo: estado.contacto.correo || attendee.email || '',
+        telefono: estado.contacto.telefono || '',
+        rol: estado.contacto.rol || ''
+      };
+      estado.resultado = assembleResult(estado, content);
+      submitLead(estado.resultado.leadPayload);
+    }
+  });
 }
 
 // ---- Pantalla final: diagnóstico (A–E) + agenda ------------------------------
@@ -308,7 +284,17 @@ function renderResult() {
 
       <section class="dx__book" aria-labelledby="dx-book-h">
         <h2 class="dx__col-title" id="dx-book-h">Agenda una conversación</h2>
-        <p class="dx__col-sub">Elige un horario y coordinamos una llamada para revisar tu diagnóstico a fondo. Adjuntamos automáticamente tu diagnóstico a la reunión.</p>
+        <p class="dx__col-sub">${esc(content.gate.cuerpo)}</p>
+        <form class="dx__book-form" novalidate>
+          ${contactFieldsHtml()}
+          <input type="text" name="website" tabindex="-1" autocomplete="off"
+            style="position:absolute;left:-9999px" aria-hidden="true">
+          <p class="mx-field__error" data-gate-error hidden></p>
+          <div class="dx__nav dx__nav--end">
+            <button type="submit" class="mx-btn mx-btn--primary">${esc(content.gate.cta)}</button>
+          </div>
+          <p class="dx__book-ok" data-book-ok hidden>${esc(content.gate.okMsg)}</p>
+        </form>
         <div class="dx__cal" id="agenda"></div>
       </section>
 
@@ -330,6 +316,37 @@ function renderResult() {
     render();
   });
 
+  // Formulario junto a la agenda: al enviarlo registramos el lead y reprellenamos
+  // el calendario con el nombre/email. Agendar sin enviarlo también manda el lead
+  // (registerBookingListener), así que el formulario es un atajo, no un gate.
+  const bookForm = view.querySelector('.dx__book-form');
+  const bookErr = view.querySelector('[data-gate-error]');
+  const bookOk = view.querySelector('[data-book-ok]');
+  bookForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (bookForm.website.value) return; // honeypot
+    const nombre = bookForm.nombre.value.trim();
+    const correo = bookForm.correo.value.trim();
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!nombre || !EMAIL_RE.test(correo)) {
+      bookErr.textContent = 'Necesitamos tu nombre y un email válido.';
+      bookErr.hidden = false;
+      return;
+    }
+    bookErr.hidden = true;
+    estado.contacto = {
+      nombre,
+      empresa: bookForm.empresa.value.trim(),
+      correo,
+      telefono: bookForm.telefono.value.trim(),
+      rol: bookForm.rol.value
+    };
+    estado.resultado = assembleResult(estado, content);
+    submitLead(estado.resultado.leadPayload); // envío del lead (de-duplicado)
+    bookOk.hidden = false;
+    mountCal('#agenda', estado.resultado); // reprellenar el calendario
+  });
+
   root.replaceChildren(view);
   focusMain();
   mountCal('#agenda', res);
@@ -337,7 +354,6 @@ function renderResult() {
 
 function render() {
   if (estado.paso === 'intro') return renderIntro();
-  if (estado.paso === 'gate') return renderGate();
   if (estado.paso === 'result') return renderResult();
   return renderStep();
 }

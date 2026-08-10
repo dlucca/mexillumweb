@@ -97,8 +97,9 @@ const content = {
 
   gate: {
     titulo: 'Tu diagnóstico está listo.',
-    cuerpo: 'Déjanos dónde enviártelo con el rango estimado y el checklist de datos.',
-    cta: 'Ver mi diagnóstico',
+    cuerpo: 'Déjanos tus datos y elige un horario. Coordinamos una llamada para revisar tu diagnóstico a fondo y lo adjuntamos automáticamente a la reunión.',
+    cta: 'Enviar mis datos',
+    okMsg: '¡Listo! Recibimos tus datos. Elige un horario abajo para agendar la llamada.',
     campos: [
       { key: 'nombre', label: 'Nombre', type: 'text', required: true, autocomplete: 'name' },
       { key: 'empresa', label: 'Empresa', type: 'text', required: false, autocomplete: 'organization' },
