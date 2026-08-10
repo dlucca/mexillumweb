@@ -67,7 +67,7 @@ export function computeRange(resp, content) {
   if (resp.factura === 'nolose') return { sinNumero: 'nolose', piso: null, techo: null };
   const factura = content.tablaFactura[resp.factura];
   const dem = content.tablaDemanda[resp.tarifa];
-  const rec = content.tablaRecorte[resp.sector];
+  const rec = content.tablaRecorte[resp.perfil];
   if (factura == null || dem == null || rec == null) {
     return { sinNumero: 'nolose', piso: null, techo: null }; // defensivo
   }
@@ -95,7 +95,7 @@ export function renderBlockB(resp, content) {
 
   const factura = content.tablaFactura[resp.factura];
   const dem = content.tablaDemanda[resp.tarifa];
-  const rec = content.tablaRecorte[resp.sector];
+  const rec = content.tablaRecorte[resp.perfil];
   const pct = (x) => Math.round(x * 100);
   const cadena = b.plantilla({
     facturaLegible: formatMoney(factura),
@@ -106,7 +106,7 @@ export function renderBlockB(resp, content) {
     pctRecortePiso: pct(rec[0]), pctRecorteTecho: pct(rec[1])
   });
   const rangoTexto = formatRango(piso, techo);
-  const notaContinuo = resp.sector === 'continuo' ? b.continuoExtra : null;
+  const notaContinuo = resp.perfil === 'plano' ? b.continuoExtra : null;
   // `texto`: versión concatenada plana, para la nota del evento cal.diy (sin jerarquía visual).
   let texto = `${cadena}\n\n${b.rango(rangoTexto)}\n\n${b.disclaimer}`;
   if (notaContinuo) texto += `\n\n${notaContinuo}`;

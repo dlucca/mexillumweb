@@ -66,7 +66,7 @@ test('formatRango: sufijo "millones" compartido cuando ambos ≥1M', () => {
 });
 
 test('computeRange: fixture da piso 2,250,000 y techo 4,200,000', () => {
-  const fixture = { sector: 'manufactura', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
+  const fixture = { sector: 'manufactura', perfil: 'diurno', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
   const r = computeRange(fixture, content);
   assert.equal(r.sinNumero, null);
   assert.equal(r.piso, 2250000);
@@ -79,25 +79,25 @@ test('computeRange: privado tiene precedencia sobre nolose', () => {
 });
 
 test('renderBlockB: caso con número incluye cadena, rango exacto y disclaimer', () => {
-  const fixture = { sector: 'manufactura', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
+  const fixture = { sector: 'manufactura', perfil: 'diurno', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
   const b = renderBlockB(fixture, content);
   assert.ok(b.texto.includes('$2.5 millones'));
   assert.ok(b.texto.includes('30% y 40%'));
-  assert.ok(b.texto.includes('25% y 35%'));
-  assert.ok(b.texto.includes('Rango estimado: $2.2 a $4.2 millones de MXN al año.'));
-  assert.ok(b.texto.includes('no es una propuesta') || b.texto.includes('no una propuesta'));
+  assert.ok(b.texto.includes('25% a 35%'));
+  assert.ok(b.texto.includes('Orden de magnitud: $2.2 a $4.2 millones de MXN al año.'));
+  assert.ok(b.texto.includes('No es una estimación precisa'));
   assert.deepEqual(b.notas, []); // disparador=costo → sin nota de diésel
 });
 
-test('renderBlockB: sector continuo agrega el extra de arbitraje', () => {
-  const r = { sector: 'continuo', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
-  assert.ok(renderBlockB(r, content).texto.includes('el arbitraje horario suele serlo'));
+test('renderBlockB: perfil plano (24/7) agrega el extra de arbitraje', () => {
+  const r = { sector: 'continuo', perfil: 'plano', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
+  assert.ok(renderBlockB(r, content).texto.includes('el arbitraje horario lo es'));
 });
 
 test('renderBlockB: nolose y privado devuelven copy sin número; diésel se suma como nota', () => {
   const nolose = renderBlockB({ sector: 'manufactura', tarifa: 'gdmth', factura: 'nolose', disparador: 'diesel' }, content);
   assert.equal(nolose.sinNumero, 'nolose');
-  assert.ok(nolose.texto.startsWith('Para estimar tu ahorro'));
+  assert.ok(nolose.texto.startsWith('Para dar un orden de magnitud'));
   assert.equal(nolose.notas.length, 1); // nota de diésel se suma
   const privado = renderBlockB({ sector: 'manufactura', tarifa: 'privado', factura: 'alto', disparador: 'costo' }, content);
   assert.equal(privado.sinNumero, 'privado');
@@ -281,7 +281,7 @@ test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () =>
 // Tras el parche: tres palancas (con descarte default) y gancho null.
 test('assembleResult: fixture del parche → descarte presente y gancho null', () => {
   const estado = {
-    respuestas: { sector: 'frio', sitios: 'uno', generacion: 'no', demanda: 'desconoce', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' },
+    respuestas: { sector: 'frio', perfil: 'diurno', sitios: 'uno', generacion: 'no', demanda: 'desconoce', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' },
     contacto: {}
   };
   const res = assembleResult(estado, content);

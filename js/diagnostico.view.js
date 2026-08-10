@@ -236,7 +236,7 @@ function renderResult() {
   // y matices como texto secundario. El único número que debe grabarse es el rango.
   const rangoHtml = c.sin_numero ? '' : `
         <figure class="dx__rango">
-          <figcaption class="dx__rango-label">Rango estimado de ahorro</figcaption>
+          <figcaption class="dx__rango-label">Orden de magnitud (referencia)</figcaption>
           <p class="dx__rango-figure">${esc(c.rango_texto)}</p>
         </figure>`;
   const bloqueBHtml = [

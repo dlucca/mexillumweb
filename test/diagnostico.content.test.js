@@ -35,8 +35,8 @@ test('las tablas del bloque B cubren todos los códigos', () => {
   assert.equal(content.tablaFactura.nolose, null);
   assert.deepEqual(content.tablaDemanda.gdmth, [0.30, 0.40]);
   assert.equal(content.tablaDemanda.privado, null);
-  assert.deepEqual(content.tablaRecorte.manufactura, [0.25, 0.35]);
-  assert.deepEqual(content.tablaRecorte.continuo, [0.12, 0.20]);
+  assert.deepEqual(content.tablaRecorte.diurno, [0.25, 0.35]);
+  assert.deepEqual(content.tablaRecorte.plano, [0.10, 0.18]);
 });
 
 test('perfilSector cubre los 5 sectores', () => {

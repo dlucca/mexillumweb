@@ -130,14 +130,21 @@ const content = {
   // ---- BLOQUE B ----
   tablaFactura: { bajo: 120000, medio: 500000, alto: 2500000, muyalto: 7000000, nolose: null },
   tablaDemanda: { gdmth: [0.30, 0.40], dist: [0.35, 0.45], otra: [0.20, 0.35], nolose: [0.20, 0.35], privado: null },
-  tablaRecorte: { manufactura: [0.25, 0.35], frio: [0.25, 0.35], ev: [0.30, 0.45], continuo: [0.12, 0.20], publico: [0.20, 0.30] },
+  // %recorte del cargo por demanda según el PERFIL de carga (comportamiento), no el sector.
+  tablaRecorte: {
+    picos: [0.28, 0.42],
+    diurno: [0.25, 0.35],
+    punta: [0.20, 0.32],
+    plano: [0.10, 0.18],
+    nolose: [0.15, 0.30]
+  },
   tarifaLegible: { gdmth: 'GDMTH', dist: 'DIST/DIT', otra: 'tu tarifa actual', nolose: 'tu tarifa actual' },
   bloqueB: {
-    plantilla: (v) => `Con una factura de ~${v.facturaLegible} al mes en tarifa ${v.tarifaLegible}, el cargo por demanda suele pesar entre ${v.pctDemandaPiso}% y ${v.pctDemandaTecho}% de tu recibo — unos ${v.montoDemandaPiso} a ${v.montoDemandaTecho} al año, solo por tu momento pico. Un sistema de almacenamiento bien dimensionado recorta típicamente entre ${v.pctRecortePiso}% y ${v.pctRecorteTecho}% de ese cargo.`,
-    rango: (rangoTexto) => `Rango estimado: ${rangoTexto}.`,
-    disclaimer: 'Es un rango de industria sobre los datos que diste, no una propuesta. Con tus recibos de 12 meses se vuelve un número exacto.',
-    continuoExtra: 'Pero en una operación 24/7 como la tuya, el recorte de pico no es tu palanca más fuerte — el arbitraje horario suele serlo, porque compras en punta obligadamente todos los días. Eso se suma a este rango y lo calculamos con tu desglose horario.',
-    noloseFactura: 'Para estimar tu ahorro necesitamos el orden de magnitud de tu factura — es el primer dato del checklist. Lo que sí podemos decirte desde ya es qué palancas aplican a tu perfil:',
+    plantilla: (v) => `Con una factura de ~${v.facturaLegible} al mes en tarifa ${v.tarifaLegible}, el cargo por demanda suele pesar entre ${v.pctDemandaPiso}% y ${v.pctDemandaTecho}% del recibo. En operaciones con un perfil de carga como el tuyo, un sistema de almacenamiento bien dimensionado suele recortar del orden de ${v.pctRecortePiso}% a ${v.pctRecorteTecho}% de ese cargo.`,
+    rango: (rangoTexto) => `Orden de magnitud: ${rangoTexto}.`,
+    disclaimer: 'No es una estimación precisa ni una propuesta: en empresas con un perfil similar solemos encontrar oportunidades económicas de este orden de magnitud. El número real se calcula con tus recibos de los últimos 12 meses.',
+    continuoExtra: 'Y en una operación que no para como la tuya, el recorte de pico no suele ser la palanca más fuerte — el arbitraje horario lo es, porque compras en punta todos los días. Eso se suma y se calcula con tu desglose horario.',
+    noloseFactura: 'Para dar un orden de magnitud necesitamos la escala de tu factura — es el primer dato del checklist. Lo que sí podemos adelantarte es qué palancas aplican a tu perfil:',
     privado: 'Como compras a un suministrador privado, tu ahorro depende de la estructura de tu contrato — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.',
     dieselNota: 'Y ojo: la sustitución de diésel ahorra por peso desplazado, no por porcentaje de factura — suele ser el de mayor margen del análisis, y lo dimensionamos con tus horas de operación.'
   },
