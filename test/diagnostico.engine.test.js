@@ -5,7 +5,7 @@ import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
   pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
-  scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution
+  scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution, detectLimitations
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -254,6 +254,26 @@ test('buildChecklist: viabilidad publico para sector publico', () => {
   assert.ok(buildChecklist(r, content).full.includes(content.checklistViabilidad.publico));
 });
 
+// ---- LIMITACIONES ----
+
+test('detectLimitations: factura nolose marca la limitación económica', () => {
+  const resp = { ...fx, factura: 'nolose' };
+  const lim = detectLimitations(resp, scoreOpportunities(resp, content), content);
+  assert.ok(lim.some((l) => /factura/i.test(l.dato)));
+  assert.ok(lim.every((l) => l.dato && l.porque && l.no_se_puede));
+});
+
+test('detectLimitations: sin datos faltantes → arreglo vacío', () => {
+  const resp = { sector: 'manufactura', perfil: 'diurno', generacion: 'fisica', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' };
+  assert.deepEqual(detectLimitations(resp, scoreOpportunities(resp, content), content), []);
+});
+
+test('detectLimitations: tarifa privado usa la limitación de contrato, no la de tarifa', () => {
+  const resp = { ...fx, tarifa: 'privado' };
+  const lim = detectLimitations(resp, scoreOpportunities(resp, content), content);
+  assert.ok(lim.some((l) => /contrato/i.test(l.dato)));
+});
+
 // ---- ASSEMBLER + NOTA DEL EVENTO ----
 
 const estadoFx = {
@@ -296,6 +316,11 @@ test('assembleResult: fixture del parche → descarte presente y gancho null', (
   assert.ok(res.palancas.descarte.text.startsWith('Salvo que tu consumo esté fuertemente concentrado'));
   assert.equal(res.dato_faltante, content.datoFaltanteCorte); // corte=reinicio
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
+});
+
+test('assembleResult: limitaciones vacías cuando hay datos completos', () => {
+  const estado = { respuestas: { sector: 'manufactura', perfil: 'diurno', generacion: 'fisica', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' }, contacto: {} };
+  assert.deepEqual(assembleResult(estado, content).limitaciones, []);
 });
 
 test('assembleResult: leadPayload expone las keys que consume /api/lead', () => {

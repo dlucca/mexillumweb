@@ -271,7 +271,8 @@ const content = {
     paros: 'Historial de paros por causa eléctrica: cuántos y qué costó cada uno',
     horario: 'Desglose de consumo por horario (base, intermedia, punta) de tu recibo GDMTH',
     contrato: 'Estructura de tu contrato de suministro (precio fijo o exposición a precios horarios)',
-    techo: 'Superficie de techo o terreno disponible para generación'
+    techo: 'Superficie de techo o terreno disponible para generación',
+    factorPotencia: 'Recibo con el detalle de penalización por bajo factor de potencia, si aplica'
   },
   checklistViabilidad: {
     publico: 'Marco de contratación aplicable — si te interesa la estructura de contrato de servicio, conviene identificar bajo qué figura de adquisición puede la entidad contratarlo. Lo revisamos juntos.',
@@ -288,6 +289,17 @@ const content = {
     bessSolarDiurno: { tipo: 'BESS + Solar', razon: 'Tu consumo de día encaja con la generación solar, y la batería te cubre el pico y la tarde-noche. La combinación rinde más que cualquiera de las dos por separado.' },
     solarPrimero: { tipo: 'Solar primero', razon: 'Con consumo diurno y sin datos de tarifa todavía, Solar es la apuesta más robusta para empezar a bajar el recibo; el BESS se dimensiona después con tu perfil real.' },
     bess: { tipo: 'BESS', razon: 'Tu mayor oportunidad está en el pico de demanda y el arbitraje horario, no en generar energía. El BESS ataca eso directo; Solar queda como una fase 2 a evaluar sobre tus números.' }
+  },
+
+  // ---- LIMITACIONES del diagnóstico ----
+  limitaciones: {
+    factura: { dato: 'Orden de magnitud de tu factura mensual', porque: 'Sin la escala del recibo no hay base para estimar el rango económico.', no_se_puede: 'Cuantificar el ahorro; sólo priorizar qué palancas aplican.' },
+    tarifa: { dato: 'Tu tarifa de CFE', porque: 'Define cuánto pesa el cargo por demanda y si hay diferenciación horaria.', no_se_puede: 'Separar peak shaving de arbitraje ni confirmar elegibilidad de arbitraje.' },
+    contrato: { dato: 'Estructura de tu contrato de suministro', porque: 'El arbitraje depende de si hay exposición a precios horarios del mercado.', no_se_puede: 'Confirmar si el margen es tuyo o de tu suministrador.' },
+    perfil: { dato: 'Tu perfil horario de consumo', porque: 'Sin saber cuándo consumes no se distingue recortar pico de arbitrar.', no_se_puede: 'Fijar la palanca principal con confianza.' },
+    techo: { dato: 'Superficie de techo o terreno disponible', porque: 'Define si la generación solar es viable en el sitio.', no_se_puede: 'Dimensionar un proyecto BESS + Solar.' },
+    diesel: { dato: 'Horas al año que corre tu diésel y su costo', porque: 'Es lo que dimensiona el mayor margen del análisis.', no_se_puede: 'Cuantificar la sustitución de diésel.' },
+    calidad: { dato: 'Comportamiento de tu calidad eléctrica', porque: 'Define si hay penalización por factor de potencia o riesgo a equipos.', no_se_puede: 'Valorar la palanca de calidad/factor de potencia.' }
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

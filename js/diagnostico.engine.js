@@ -156,6 +156,21 @@ export function pickFinancing(resp, content) {
   return regla ? regla.text : content.financiamientoDefault;
 }
 
+// ---- LIMITACIONES: datos faltantes que impiden conclusiones firmes ----
+export function detectLimitations(resp, scores, content) {
+  const L = content.limitaciones;
+  const out = [];
+  if (resp.factura === 'nolose') out.push(L.factura);
+  if (resp.tarifa === 'nolose') out.push(L.tarifa);
+  else if (resp.tarifa === 'privado') out.push(L.contrato);
+  if (resp.perfil === 'nolose') out.push(L.perfil);
+  const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando';
+  if (sinGeneracion && scores.bess_solar >= content.scoring.umbralFuerte) out.push(L.techo);
+  if (resp.disparador === 'diesel') out.push(L.diesel);
+  if (resp.calidad === 'nolose') out.push(L.calidad);
+  return out;
+}
+
 // ---- CHECKLIST ----
 export function buildChecklist(resp, content) {
   const ref = content.checklistRefuerzos;
@@ -165,6 +180,11 @@ export function buildChecklist(resp, content) {
   if (resp.sector === 'continuo') tecnicos.push(ref.horario);
   if (resp.tarifa === 'privado') tecnicos.push(ref.contrato);
   if (resp.generacion === 'estacional') tecnicos.push(ref.techo);
+  if (resp.perfil === 'plano' || resp.perfil === 'punta' || resp.perfil === 'nolose') {
+    if (!tecnicos.includes(ref.horario)) tecnicos.push(ref.horario);
+  }
+  if (resp.generacion === 'evaluando' && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
+  if (resp.calidad === 'factor') tecnicos.push(ref.factorPotencia);
 
   const viabilidad = ofreceServicio(resp)
     ? (resp.sector === 'publico' ? content.checklistViabilidad.publico : content.checklistViabilidad.privado)
@@ -285,6 +305,7 @@ export function assembleResult(estado, content) {
   const financiamiento = pickFinancing(resp, content);
   const checklist = buildChecklist(resp, content);
   const legibles = toReadable(resp, content);
+  const limitaciones = detectLimitations(resp, scores, content);
 
   // rango_texto del lead: mensaje legible incluso sin número (mail a ventas).
   const rango_texto = bloqueB.sinNumero
@@ -309,7 +330,8 @@ export function assembleResult(estado, content) {
     scores,
     ranking,
     potencial_general,
-    recomendacion_solucion
+    recomendacion_solucion,
+    limitaciones
   };
 
   // Cambio 4: salida como objeto estructurado para que el HTML jerarquice cada parte.
@@ -338,6 +360,7 @@ export function assembleResult(estado, content) {
     ranking,                                 // oportunidades ordenadas desc
     potencial_general,                       // 'Muy Alto'|'Alto'|'Medio'|'Bajo'
     recomendacion_solucion,                  // { tipo, razon } BESS vs Solar
+    limitaciones,                            // datos faltantes que impiden conclusiones firmes
     leadPayload
   };
   res.note = buildEventNote(res, resp, content, bloqueB.texto);
