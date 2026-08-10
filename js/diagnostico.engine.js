@@ -216,10 +216,51 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
   ].join('\n');
 }
 
+// ---- SCORING de oportunidades ----
+export function scoreOpportunities(resp, content) {
+  const { oportunidades, pesos } = content.scoring;
+  const out = {};
+  for (const { id } of oportunidades) {
+    let total = 0;
+    const tabla = pesos[id] || {};
+    for (const [campo, mapa] of Object.entries(tabla)) {
+      const pts = mapa[resp[campo]];
+      if (typeof pts === 'number') total += pts;
+    }
+    out[id] = Math.max(0, Math.min(100, total));
+  }
+  return out;
+}
+
+export function rankOpportunities(scores, content) {
+  const orden = content.scoring.oportunidades;
+  const prioridad = new Map(orden.map((o, i) => [o.id, i]));
+  return orden
+    .map((o) => ({ id: o.id, nombre: o.nombre, score: scores[o.id] }))
+    .sort((a, b) => (b.score - a.score) || (prioridad.get(a.id) - prioridad.get(b.id)));
+}
+
+export function potencialGeneral(scores, resp, content) {
+  const u = content.scoring.umbralPotencial;
+  const valores = Object.values(scores);
+  const s1 = Math.max(...valores);
+  const niveles = ['Bajo', 'Medio', 'Alto', 'Muy Alto'];
+  let idx = s1 >= u.muyAlto ? 3 : s1 >= u.alto ? 2 : s1 >= u.medio ? 1 : 0;
+  const fuertes = valores.filter((v) => v >= content.scoring.umbralFuerte).length;
+  if (fuertes >= content.scoring.minFuertesParaSubir) idx = Math.min(3, idx + 1);
+  if (resp.factura === 'nolose' && (resp.tarifa === 'nolose' || resp.tarifa === 'privado')) {
+    idx = Math.min(idx, 1);
+  }
+  return niveles[idx];
+}
+
 // ---- Orquestador ----
 export function assembleResult(estado, content) {
   const resp = estado.respuestas;
   const contacto = estado.contacto || {};
+  const scores = scoreOpportunities(resp, content);
+  const ranking = rankOpportunities(scores, content);
+  const potencial_general = potencialGeneral(scores, resp, content);
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content);
   const palancas = pickLevers(resp, content);
@@ -247,7 +288,10 @@ export function assembleResult(estado, content) {
     respuestas_codigos: { ...resp },
     perfil,
     rango_texto,
-    checklist_full: checklist.full
+    checklist_full: checklist.full,
+    scores,
+    ranking,
+    potencial_general
   };
 
   // Cambio 4: salida como objeto estructurado para que el HTML jerarquice cada parte.
@@ -272,6 +316,9 @@ export function assembleResult(estado, content) {
     cierre_llamada: datoFaltante.cierre,     // Bloque D cierre común
     financiamiento,                          // Bloque E
     checklist,                               // interno: consumo por vista/nota/lead
+    scores,                                  // scoring 0-100 por oportunidad
+    ranking,                                 // oportunidades ordenadas desc
+    potencial_general,                       // 'Muy Alto'|'Alto'|'Medio'|'Bajo'
     leadPayload
   };
   res.note = buildEventNote(res, resp, content, bloqueB.texto);

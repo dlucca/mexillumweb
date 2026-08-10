@@ -4,7 +4,8 @@ import content from '../js/diagnostico.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
-  pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote
+  pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
+  scoreOpportunities, rankOpportunities, potencialGeneral
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -328,4 +329,56 @@ test('buildEventNote: incluye perfil, checklist completo y las 8 respuestas', ()
   assert.ok(note.includes(content.checklistViabilidad.privado)); // full, sin recorte
   // 8 respuestas crudas (una por notaLabel)
   for (const paso of content.pasos) assert.ok(note.includes(paso.notaLabel), `falta ${paso.notaLabel} en la nota`);
+});
+
+// ---- SCORING de oportunidades ----
+
+test('scoreOpportunities: diésel es prácticamente binario en disparador=diesel', () => {
+  const conDiesel = scoreOpportunities({ ...fx, disparador: 'diesel', corte: 'reinicio', calidad: 'no' }, content);
+  const sinDiesel = scoreOpportunities({ ...fx, disparador: 'costo' }, content);
+  assert.ok(conDiesel.diesel >= 72);
+  assert.equal(sinDiesel.diesel, 0);
+});
+
+test('scoreOpportunities: perfil punta favorece arbitraje sobre peak shaving', () => {
+  const s = scoreOpportunities({ ...fx, perfil: 'punta', tarifa: 'gdmth' }, content);
+  assert.ok(s.arbitraje > s.peak_shaving);
+  assert.ok(s.arbitraje <= 100 && s.peak_shaving >= 0);
+});
+
+test('scoreOpportunities: perfil picos favorece peak shaving', () => {
+  const s = scoreOpportunities({ ...fx, perfil: 'picos', tarifa: 'gdmth', factura: 'alto' }, content);
+  assert.ok(s.peak_shaving >= 80);
+});
+
+test('scoreOpportunities: todo score queda en [0,100]', () => {
+  const s = scoreOpportunities({ sector: 'ev', perfil: 'picos', generacion: 'estacional', calidad: 'cortes', tarifa: 'gdmth', factura: 'muyalto', corte: 'producto', disparador: 'capacidad' }, content);
+  for (const v of Object.values(s)) assert.ok(v >= 0 && v <= 100, `fuera de rango: ${v}`);
+});
+
+test('rankOpportunities: devuelve 6 ordenadas desc con nombre', () => {
+  const r = rankOpportunities(scoreOpportunities(fx, content), content);
+  assert.equal(r.length, 6);
+  for (let i = 1; i < r.length; i++) assert.ok(r[i - 1].score >= r[i].score);
+  assert.ok(typeof r[0].nombre === 'string');
+});
+
+test('potencialGeneral: tope Medio cuando faltan factura y tarifa', () => {
+  const resp = { ...fx, factura: 'nolose', tarifa: 'nolose', corte: 'producto', calidad: 'cortes' };
+  const scores = scoreOpportunities(resp, content);
+  assert.equal(potencialGeneral(scores, resp, content), 'Medio');
+});
+
+test('potencialGeneral: Muy Alto con score líder >=75', () => {
+  const resp = { sector: 'manufactura', perfil: 'picos', generacion: 'no', calidad: 'factor', tarifa: 'gdmth', factura: 'muyalto', corte: 'producto', disparador: 'costo' };
+  const scores = scoreOpportunities(resp, content);
+  assert.equal(potencialGeneral(scores, resp, content), 'Muy Alto');
+});
+
+test('assembleResult: expone scores, ranking y potencial_general', () => {
+  const res = assembleResult(estadoFx, content);
+  assert.equal(typeof res.scores.peak_shaving, 'number');
+  assert.equal(res.ranking.length, 6);
+  assert.ok(['Muy Alto', 'Alto', 'Medio', 'Bajo'].includes(res.potencial_general));
+  assert.equal(res.leadPayload.potencial_general, res.potencial_general);
 });

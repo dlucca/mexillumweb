@@ -127,6 +127,63 @@ const content = {
   ],
   perfilExposicionDefault: 'con exposición a cargo por demanda',
 
+  // ---- SCORING (datos; engine.js sólo suma) ----
+  scoring: {
+    oportunidades: [
+      { id: 'peak_shaving', nombre: 'Peak Shaving' },
+      { id: 'arbitraje', nombre: 'Arbitraje tarifario' },
+      { id: 'bess_solar', nombre: 'BESS + Solar' },
+      { id: 'respaldo', nombre: 'Respaldo' },
+      { id: 'diferimiento', nombre: 'Diferimiento de capacidad' },
+      { id: 'diesel', nombre: 'Sustitución de diésel' }
+    ],
+    pesos: {
+      peak_shaving: {
+        perfil: { picos: 50, diurno: 38, punta: 32, plano: 8, nolose: 18 },
+        tarifa: { gdmth: 25, dist: 25, otra: 12, nolose: 8, privado: 0 },
+        factura: { muyalto: 18, alto: 14, medio: 9, bajo: 4, nolose: 6 },
+        sector: { frio: 7, ev: 7, manufactura: 4, continuo: 0, publico: 0 },
+        calidad: { factor: 5 }
+      },
+      arbitraje: {
+        tarifa: { gdmth: 38, dist: 18, privado: 12, otra: 6, nolose: 8 },
+        perfil: { plano: 34, punta: 34, diurno: 14, picos: 8, nolose: 14 },
+        sector: { continuo: 14 },
+        disparador: { excedente: 14 },
+        factura: { muyalto: 10, alto: 7, medio: 4 }
+      },
+      bess_solar: {
+        generacion: { no: 26, evaluando: 26, estacional: 34, fisica: 6 },
+        perfil: { diurno: 34, plano: 16, picos: 10, punta: 8, nolose: 14 },
+        disparador: { excedente: 16 },
+        sector: { publico: 6, ev: 6, frio: 6 }
+      },
+      respaldo: {
+        corte: { producto: 52, reinicio: 42, servicio: 40, nada: 0 },
+        calidad: { cortes: 20, variaciones: 14 },
+        sector: { frio: 12, continuo: 10 },
+        disparador: { diesel: 8 }
+      },
+      diferimiento: {
+        disparador: { capacidad: 62 },
+        sector: { ev: 26 },
+        perfil: { picos: 12, punta: 6 },
+        factura: { muyalto: 8, alto: 4 }
+      },
+      diesel: {
+        disparador: { diesel: 72 },
+        // sólo el corte más severo suma aquí; "reinicio" se excluye a propósito para que
+        // el score quede en 0 cuando disparador !== 'diesel' (ver test "prácticamente binario").
+        corte: { producto: 8 },
+        calidad: { cortes: 8 }
+      }
+    },
+    umbralPotencial: { muyAlto: 75, alto: 60, medio: 40 },
+    umbralFuerte: 60,
+    minFuertesParaSubir: 3,
+    umbralSecundaria: 40
+  },
+
   // ---- BLOQUE B ----
   tablaFactura: { bajo: 120000, medio: 500000, alto: 2500000, muyalto: 7000000, nolose: null },
   tablaDemanda: { gdmth: [0.30, 0.40], dist: [0.35, 0.45], otra: [0.20, 0.35], nolose: [0.20, 0.35], privado: null },
