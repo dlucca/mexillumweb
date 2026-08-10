@@ -163,12 +163,11 @@ Reglas, primera que aplica:
 1. `generacion=fisica` y `disparador≠excedente` → **No recomendar Solar** (ya tienen
    generación resuelta; el foco BESS es demanda/arbitraje).
 2. `generacion=estacional` → **BESS + Solar** (llenar el hueco fuera de temporada).
-3. `bess_solar ≥ 60`, `generacion∈{no,evaluando}` y `perfil=diurno` → **BESS + Solar**.
-4. `perfil=diurno`, `generacion∈{no,evaluando}` y `tarifa∈{nolose,privado}` →
-   **Solar primero** (lo más robusto sin datos de tarifa/demanda).
-5. Líder del ranking es `peak_shaving` o `arbitraje` y `bess_solar < 50` →
-   **BESS** (solo).
-6. Default → **BESS** (la `razon` menciona Solar como fase 2 a evaluar).
+3. `perfil=diurno`, `generacion∈{no,evaluando}` y `tarifa∈{nolose,privado}` →
+   **Solar primero** (lo más robusto sin datos de tarifa/demanda). Va **antes** que la
+   regla de BESS+Solar: sin datos de tarifa no comprometemos la combinación.
+4. `bess_solar ≥ 60`, `generacion∈{no,evaluando}` y `perfil=diurno` → **BESS + Solar**.
+5. Default → **BESS** (la `razon` menciona Solar como fase 2 a evaluar).
 
 Cada regla produce una `razon` en el estilo de copy actual, es-MX.
 
