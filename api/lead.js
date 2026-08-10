@@ -60,6 +60,14 @@ export default async function handler(req, res) {
     ? body.checklist_full.slice(0, 12).map((b) => clean(b, 240)).filter(Boolean)
     : [];
 
+  const potencial = clean(body.potencial_general, 20);
+  const recomendacion = (body.recomendacion_solucion && typeof body.recomendacion_solucion === 'object')
+    ? { tipo: clean(body.recomendacion_solucion.tipo, 40), razon: clean(body.recomendacion_solucion.razon, 300) }
+    : null;
+  const ranking = Array.isArray(body.ranking)
+    ? body.ranking.slice(0, 6).map((o) => ({ nombre: clean(o?.nombre, 40), score: Number(o?.score) || 0 }))
+    : [];
+
   const respuestas = PREGUNTAS.map(([key, label]) => {
     const visible = clean(legibles[key], 240);
     const codigo = clean(codigos[key], 40);
@@ -88,6 +96,9 @@ export default async function handler(req, res) {
     '',
     perfil,
     `Rango estimado: ${rangoTexto}`,
+    potencial ? `Potencial general: ${potencial}` : null,
+    recomendacion ? `Recomendación: ${recomendacion.tipo}` : null,
+    ranking.length ? 'Ranking: ' + ranking.map((o) => `${o.nombre} ${o.score}`).join(' · ') : null,
     '',
     'Respuestas:',
     ...respuestas.map((r, i) => `${i + 1}. ${r.label}: ${r.visible}`),
@@ -107,6 +118,14 @@ export default async function handler(req, res) {
     `<h2 style="margin:0 0 4px;font-size:18px;color:#080A08">Nuevo diagnóstico completado</h2>` +
     `<p style="margin:0 0 16px;font-size:13px;color:#1F7A3D"><strong>${esc(perfil)}</strong><br>` +
     `Rango estimado: <strong>${esc(rangoTexto)}</strong></p>` +
+
+    (potencial || recomendacion || ranking.length
+      ? `<p style="margin:0 0 16px;font-size:13px;color:#16221A">` +
+        (potencial ? `Potencial general: <strong>${esc(potencial)}</strong><br>` : '') +
+        (recomendacion ? `Recomendación: <strong>${esc(recomendacion.tipo)}</strong><br>` : '') +
+        (ranking.length ? `Ranking: ${esc(ranking.map((o) => `${o.nombre} ${o.score}`).join(' · '))}` : '') +
+        `</p>`
+      : '') +
 
     `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
     fila('Nombre', nombre) +

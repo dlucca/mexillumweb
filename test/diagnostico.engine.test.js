@@ -421,3 +421,11 @@ test('assembleResult: expone recomendacion_solucion con tipo válido', () => {
   assert.ok(['BESS', 'BESS + Solar', 'Solar primero', 'No recomendar Solar'].includes(res.recomendacion_solucion.tipo));
   assert.equal(typeof res.recomendacion_solucion.razon, 'string');
 });
+
+test('buildEventNote: incluye potencial, ranking y recomendación', () => {
+  const res = assembleResult(estadoFx, content);
+  assert.ok(res.note.includes('Potencial general'));
+  assert.ok(res.note.includes(res.potencial_general));
+  assert.ok(res.note.includes(res.recomendacion_solucion.tipo));
+  assert.ok(res.note.includes(res.ranking[0].nombre));
+});

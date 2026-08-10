@@ -216,6 +216,19 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
     ...(p.descarte ? [`No aplica — ${p.descarte.nombre}: ${p.descarte.text}`] : [])
   ];
   const legibles = res.leadPayload.respuestas_legibles;
+  const priorizacion = [
+    '',
+    `Potencial general: ${res.potencial_general}`,
+    `Recomendación de solución: ${res.recomendacion_solucion.tipo}`,
+    res.recomendacion_solucion.razon,
+    '',
+    'Ranking de oportunidades:',
+    ...res.ranking.map((o, i) => `${i + 1}. ${o.nombre} — ${o.score}`),
+    ...(res.limitaciones.length
+      ? ['', 'Datos que faltan para cerrar el número:',
+         ...res.limitaciones.map((l) => `• ${l.dato}: ${l.no_se_puede}`)]
+      : [])
+  ];
   return [
     'Diagnóstico Mexillum',
     '',
@@ -225,6 +238,7 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
     ...res.calculo.notas.map((n) => `\n${n}`),
     '',
     ...palancasLines,
+    ...priorizacion,
     '',
     res.dato_faltante,
     res.cierre_llamada,
