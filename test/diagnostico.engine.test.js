@@ -129,7 +129,8 @@ test('pickLevers: secundaria null cuando la 2a oportunidad no supera el umbral',
   const resp = { sector: 'manufactura', perfil: 'plano', generacion: 'fisica', calidad: 'no', tarifa: 'otra', factura: 'bajo', corte: 'nada', disparador: 'costo' };
   const ranking = rankOpportunities(scoreOpportunities(resp, content), content);
   const l = pickLevers(resp, ranking, content);
-  if (ranking[1].score < content.scoring.umbralSecundaria) assert.equal(l.secundaria, null);
+  assert.ok(ranking[1].score < content.scoring.umbralSecundaria, 'fixture debe mantener la 2a oportunidad bajo el umbral');
+  assert.equal(l.secundaria, null);
 });
 
 test('pickLevers: gancho solo en salidas sin número', () => {
@@ -269,6 +270,7 @@ test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () =>
   assert.ok(res.calculo.cadena.includes('$2.5 millones'));
   assert.equal(res.gancho, null); // Cambio 2: hubo número
   assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
+  assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
   assert.equal(res.dato_faltante, content.datoFaltanteCorte);
   assert.equal(res.cierre_llamada, content.cierreComun);
@@ -289,6 +291,7 @@ test('assembleResult: fixture del parche → descarte presente y gancho null', (
   assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
   assert.equal(res.gancho, null); // Cambio 2: demanda=desconoce pero hubo número
   assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
+  assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1
   assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
   assert.equal(res.dato_faltante, content.datoFaltanteCorte); // corte=reinicio
