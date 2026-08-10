@@ -6,18 +6,17 @@ export function matchesWhen(resp, when) {
   return Object.entries(when).every(([campo, valor]) => resp[campo] === valor);
 }
 
-// Fraseo de planta: "tu operación" si hay un solo sitio, "esa planta" si hay varios.
-export function plantaLabel(resp) {
-  return resp.sitios === 'uno' ? 'tu operación' : 'esa planta';
+// Una sola instalación siempre: fraseo fijo.
+export function plantaLabel() {
+  return 'tu operación';
 }
 
 // BLOQUE A — línea de perfil.
 export function buildProfile(resp, content) {
   const sector = content.perfilSector[resp.sector] || resp.sector;
-  const multi = resp.sitios !== 'uno' ? ' multi-planta' : '';
   const exp = content.perfilExposicion.find((r) => matchesWhen(resp, r.when));
   const exposicion = exp ? exp.text : content.perfilExposicionDefault;
-  return `Perfil: ${sector}${multi} ${exposicion}.`;
+  return `Perfil: ${sector} ${exposicion}.`;
 }
 
 // Códigos internos → labels visibles, para las 8 keys.
@@ -118,19 +117,16 @@ export function renderBlockB(resp, content) {
 const pick = (r) => (r ? { nombre: r.nombre, text: r.text } : null);
 
 export function pickLevers(resp, content) {
-  // Cambio 2: la frase-gancho solo cuando el bloque B NO calculó número (nolose/privado);
-  // con número, el bloque B ya educó con aritmética y repetirla sería redundante.
-  const demandaCiega = resp.demanda === 'desconoce' || resp.demanda === 'visto';
-  const sinNumeroB = resp.factura === 'nolose' || resp.tarifa === 'privado';
-  const gancho = (demandaCiega && sinNumeroB) ? content.gancho : null;
+  // Gancho educativo solo cuando el bloque B no calculó número.
+  const gancho = (resp.factura === 'nolose' || resp.tarifa === 'privado') ? content.gancho : null;
   const principalRule = content.palancasPrincipal.find((r) => matchesWhen(resp, r.when)) || content.palancaPrincipalDefault;
   const secundariaRule = content.palancasSecundaria.find((r) => matchesWhen(resp, r.when) && r.id !== principalRule.id) || null;
   // Cambio 1: 6º nivel de precedencia — default de descarte, solo si ninguna regla 1–5 aplicó.
   // Así ningún resultado queda sin línea "No aplica —".
   const descartadaRule = content.palancasDescartada.find((r) => matchesWhen(resp, r.when))
     || (resp.sector === 'ev' ? content.palancaDescartadaDefault.solar : content.palancaDescartadaDefault.arbitraje);
-  // Cambio 3: palanca secundaria adicional para frío/logística. Aditiva, no reemplaza a `secundaria`.
-  const factorPotencia = resp.sector === 'frio' ? content.palancaFactorPotencia : null;
+  // Factor de potencia: aditiva, disparada por la señal de calidad correcta.
+  const factorPotencia = resp.calidad === 'factor' ? content.palancaFactorPotencia : null;
   return {
     gancho,
     principal: pick(principalRule),

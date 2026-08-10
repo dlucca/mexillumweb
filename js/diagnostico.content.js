@@ -22,12 +22,15 @@ const content = {
       ]
     },
     {
-      key: 'sitios', notaLabel: 'Instalaciones',
-      pregunta: 'Antes de empezar: si operas varias plantas, vamos a enfocar este diagnóstico en una sola — la que quieras mejorar primero. ¿Cuántas instalaciones opera tu empresa en total?',
+      key: 'perfil', notaLabel: 'Perfil de carga / horario',
+      pregunta: 'Pensando en un día típico de tu operación, ¿cómo se comporta el consumo eléctrico?',
+      hint: 'No necesitas números — elige la opción que mejor lo describa.',
       opciones: [
-        { label: 'Una sola', codigo: 'uno' },
-        { label: '2 a 5', codigo: 'pocos' },
-        { label: 'Más de 5', codigo: 'muchos' }
+        { label: 'Bastante parejo las 24 horas — la operación no para (proceso continuo)', codigo: 'plano' },
+        { label: 'Sube durante el día y baja de noche (turno diurno u horario de oficina)', codigo: 'diurno' },
+        { label: 'Tiene picos cortos e intensos (arranques de motores, cargas puntuales)', codigo: 'picos' },
+        { label: 'Se concentra en la tarde-noche, entre las 6 y las 10 pm', codigo: 'punta' },
+        { label: 'No lo tengo claro', codigo: 'nolose' }
       ]
     },
     {
@@ -41,13 +44,14 @@ const content = {
       ]
     },
     {
-      key: 'demanda', notaLabel: 'Conoce el cargo por demanda',
-      pregunta: '¿Sabes qué parte de tu factura es cargo por demanda, y no la energía que consumiste?',
-      hint: 'Es un cargo aparte, por tu momento de mayor consumo del mes — a veces solo 15 minutos.',
+      key: 'calidad', notaLabel: 'Calidad eléctrica',
+      pregunta: '¿Reconoces problemas de calidad o confiabilidad eléctrica en tu operación?',
       opciones: [
-        { label: 'Sí, lo tenemos identificado y medido', codigo: 'mide' },
-        { label: 'Lo he visto en la factura, pero no lo analizamos', codigo: 'visto' },
-        { label: 'No sabía que se facturaba por separado', codigo: 'desconoce' }
+        { label: 'Sí — nos penalizan por bajo factor de potencia en el recibo', codigo: 'factor' },
+        { label: 'Sí — variaciones de voltaje, parpadeos o daño a equipos sensibles', codigo: 'variaciones' },
+        { label: 'Sí — microcortes o interrupciones frecuentes de CFE', codigo: 'cortes' },
+        { label: 'No, el suministro es estable', codigo: 'no' },
+        { label: 'No lo sé', codigo: 'nolose' }
       ]
     },
     {
@@ -162,8 +166,7 @@ const content = {
     { id: 'fisica', when: { generacion: 'fisica' }, nombre: 'Solar', text: 'Ya tienes generación resuelta; tu cuello de botella es cómo aprovecharla y qué te cuesta la demanda, no generar más.' },
     { id: 'estacional', when: { generacion: 'estacional' }, nombre: 'Tu cogeneración', text: 'No te proponemos tocarla. Ya generas durante la temporada; el foco es el hueco de los otros meses.' },
     { id: 'continuo', when: { sector: 'continuo' }, nombre: 'Peak shaving como caso principal', text: 'No te lo vendemos como el gran ahorro: en una operación 24/7 rinde poco. Tu palanca real es el arbitraje.' },
-    { id: 'costo_nada', when: { disparador: 'costo', corte: 'nada' }, nombre: 'Respaldo/continuidad', text: 'Si un corte no te cuesta dinero, pagar por continuidad no tiene sentido — tu caso es puramente de costo.' },
-    { id: 'megaproyecto', when: { sitios: 'muchos' }, nombre: 'El megaproyecto', text: 'No te proponemos un megaproyecto multi-planta. Se empieza por un sitio piloto medido y se replica solo si el número se cumple.' }
+    { id: 'costo_nada', when: { disparador: 'costo', corte: 'nada' }, nombre: 'Respaldo/continuidad', text: 'Si un corte no te cuesta dinero, pagar por continuidad no tiene sentido — tu caso es puramente de costo.' }
   ],
   // Default de descarte: prioridad más baja, solo si ninguna regla 1–5 aplicó. Garantiza
   // que todo perfil cierre con una línea "No aplica —". `arbitraje` para no-continuo/no-ev;
@@ -191,11 +194,9 @@ const content = {
   financiamiento: [
     { when: { sector: 'publico' }, text: 'Para entidades públicas, nuestros proyectos suelen poder estructurarse como contrato de servicio en lugar de inversión directa — lo que permite tratarlo como gasto corriente. La viabilidad de ese esquema depende de un análisis de tu caso, y es parte de lo que evaluamos juntos en la llamada.' },
     { when: { sector: 'ev' }, text: 'Nuestros proyectos pueden estructurarse sin inversión inicial, con el activo de nuestro lado — sujeto a una evaluación de viabilidad. También puedes adquirirlo directamente si prefieres evaluarlo por retorno. Vemos cuál te conviene según tus números.' },
-    { when: { factura: 'muyalto' }, text: 'A tu escala, la pregunta no suele ser si hay capital, sino dónde rinde mejor. Nuestros proyectos pueden estructurarse como inversión propia o como esquema de servicio que mantiene el activo fuera de tu balance —esto último sujeto a evaluación de viabilidad. Definimos cuál encaja con tu política de capital.' },
-    { when: { sitios: 'pocos' }, text: 'Nuestros proyectos pueden estructurarse de dos formas: adquirir el sistema y evaluarlo por retorno sobre tu capital, o un esquema de servicio sin inversión inicial —sujeto a análisis de viabilidad— donde ponemos el activo. Con varias plantas, lo natural es probar uno primero y definir el modelo con datos reales antes de replicar.' },
-    { when: { sitios: 'muchos' }, text: 'Nuestros proyectos pueden estructurarse de dos formas: adquirir el sistema y evaluarlo por retorno sobre tu capital, o un esquema de servicio sin inversión inicial —sujeto a análisis de viabilidad— donde ponemos el activo. Con varias plantas, lo natural es probar uno primero y definir el modelo con datos reales antes de replicar.' }
+    { when: { factura: 'muyalto' }, text: 'A tu escala, la pregunta no suele ser si hay capital, sino dónde rinde mejor. Nuestros proyectos pueden estructurarse como inversión propia o como esquema de servicio que mantiene el activo fuera de tu balance —esto último sujeto a evaluación de viabilidad. Definimos cuál encaja con tu política de capital.' }
   ],
-  financiamientoDefault: 'Nuestros proyectos pueden estructurarse de dos formas: adquisición directa evaluada por retorno, o esquema de servicio sin inversión inicial, sujeto a un análisis de viabilidad del proyecto. En la llamada vemos cuál se ajusta mejor a tu caso.',
+  financiamientoDefault: 'Nuestros proyectos pueden estructurarse de dos formas: adquisición directa evaluada por retorno, o esquema de servicio sin inversión inicial, sujeto a un análisis de viabilidad del proyecto. Lo natural es empezar por un proyecto piloto medido en esta instalación y replicar solo si el número se cumple. En la llamada vemos cuál se ajusta mejor a tu caso.',
 
   // ---- CHECKLIST ----
   checklistBase: [

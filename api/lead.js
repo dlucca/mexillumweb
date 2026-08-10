@@ -16,9 +16,9 @@ const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 // Etiquetas visibles de cada paso del funnel v2, en orden.
 const PREGUNTAS = [
   ['sector', 'Sector / operación'],
-  ['sitios', 'Instalaciones'],
+  ['perfil', 'Perfil de carga / horario'],
   ['generacion', 'Generación propia'],
-  ['demanda', 'Conoce el cargo por demanda'],
+  ['calidad', 'Calidad eléctrica'],
   ['tarifa', 'Tarifa CFE'],
   ['factura', 'Factura mensual'],
   ['corte', 'Impacto de un corte'],

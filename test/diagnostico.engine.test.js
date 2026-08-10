@@ -9,18 +9,16 @@ import {
 
 // Fixture canónico del spec §5.
 const fx = {
-  sector: 'manufactura', sitios: 'pocos', generacion: 'fisica', demanda: 'desconoce',
+  sector: 'manufactura', perfil: 'diurno', generacion: 'fisica', calidad: 'no',
   tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo'
 };
 
-test('plantaLabel: "tu operación" para un solo sitio, "esa planta" para varios', () => {
-  assert.equal(plantaLabel({ sitios: 'uno' }), 'tu operación');
-  assert.equal(plantaLabel({ sitios: 'pocos' }), 'esa planta');
-  assert.equal(plantaLabel({ sitios: 'muchos' }), 'esa planta');
+test('plantaLabel: una sola instalación siempre → "tu operación"', () => {
+  assert.equal(plantaLabel(), 'tu operación');
 });
 
 test('buildProfile: fixture arma el perfil esperado', () => {
-  assert.equal(buildProfile(fx, content), 'Perfil: manufactura multi-planta con exposición a cargo por demanda.');
+  assert.equal(buildProfile(fx, content), 'Perfil: manufactura con exposición a cargo por demanda.');
 });
 
 test('buildProfile: exposición estacional tiene máxima prioridad', () => {
@@ -36,8 +34,8 @@ test('buildProfile: continuo sin estacional usa la exposición de proceso contin
 test('buildProfile: capacidad y diesel como exposición cuando no hay estacional ni continuo', () => {
   const rc = { sector: 'manufactura', sitios: 'uno', generacion: 'no', disparador: 'capacidad' };
   assert.equal(buildProfile(rc, content), 'Perfil: manufactura con restricción de capacidad eléctrica.');
-  const rd = { sector: 'frio', sitios: 'muchos', generacion: 'no', disparador: 'diesel' };
-  assert.equal(buildProfile(rd, content), 'Perfil: frío y logística multi-planta con dependencia de diésel.');
+  const rd = { sector: 'frio', generacion: 'no', disparador: 'diesel' };
+  assert.equal(buildProfile(rd, content), 'Perfil: frío y logística con dependencia de diésel.');
 });
 
 test('toReadable: mapea códigos a labels visibles', () => {
@@ -116,15 +114,10 @@ test('pickLevers: fixture → Recorte de demanda + Continuidad de proceso + Sola
   assert.equal(l.descartada.nombre, 'Solar');
 });
 
-test('pickLevers: gancho solo en salidas sin número (Cambio 2)', () => {
-  // demanda ciega + hubo número → sin gancho
-  assert.equal(pickLevers({ ...fx, demanda: 'desconoce', factura: 'alto', tarifa: 'gdmth' }, content).gancho, null);
-  assert.equal(pickLevers({ ...fx, demanda: 'visto', factura: 'alto', tarifa: 'gdmth' }, content).gancho, null);
-  // demanda ciega + sin número (factura nolose o tarifa privado) → con gancho
-  assert.equal(pickLevers({ ...fx, demanda: 'desconoce', factura: 'nolose' }, content).gancho, content.gancho);
-  assert.equal(pickLevers({ ...fx, demanda: 'visto', tarifa: 'privado' }, content).gancho, content.gancho);
-  // demanda conocida → nunca hay gancho, aun sin número
-  assert.equal(pickLevers({ ...fx, demanda: 'mide', factura: 'nolose' }, content).gancho, null);
+test('pickLevers: gancho solo en salidas sin número', () => {
+  assert.equal(pickLevers({ ...fx, factura: 'alto', tarifa: 'gdmth' }, content).gancho, null);
+  assert.equal(pickLevers({ ...fx, factura: 'nolose' }, content).gancho, content.gancho);
+  assert.equal(pickLevers({ ...fx, tarifa: 'privado' }, content).gancho, content.gancho);
 });
 
 test('pickLevers: principal por precedencia (estacional > diesel > capacidad > continuo)', () => {
@@ -155,7 +148,7 @@ test('pickLevers: descarte SIEMPRE presente vía default cuando ninguna regla 1�
 });
 
 test('pickLevers: continuidad de servicio usa variante frío solo en perfil frío (Cambio 2)', () => {
-  const frio = pickLevers({ ...fx, sector: 'frio', corte: 'servicio' }, content);
+  const frio = pickLevers({ ...fx, sector: 'frio', corte: 'servicio', calidad: 'no' }, content);
   assert.equal(frio.secundaria.nombre, 'Continuidad de servicio');
   assert.ok(frio.secundaria.text.startsWith('En frío el costo de un corte'));
   // Otros perfiles conservan el string genérico.
@@ -164,15 +157,12 @@ test('pickLevers: continuidad de servicio usa variante frío solo en perfil frí
   assert.ok(otro.secundaria.text.startsWith('Además, cada hora sin energía'));
 });
 
-test('pickLevers: factor de potencia como secundaria adicional solo en frío (Cambio 3)', () => {
-  const frio = pickLevers({ ...fx, sector: 'frio' }, content);
-  assert.ok(frio.factorPotencia, 'frío debe traer factor de potencia');
-  assert.equal(frio.factorPotencia.nombre, 'Corrección de factor de potencia');
-  // No reemplaza a la secundaria basada en corte (fx.corte === 'reinicio').
-  assert.equal(frio.secundaria.nombre, 'Continuidad de proceso');
-  // Otros perfiles no la traen.
-  assert.equal(pickLevers({ ...fx, sector: 'manufactura' }, content).factorPotencia, null);
-  assert.equal(pickLevers({ ...fx, sector: 'continuo' }, content).factorPotencia, null);
+test('pickLevers: factor de potencia como secundaria adicional solo con calidad=factor', () => {
+  const conFactor = pickLevers({ ...fx, calidad: 'factor' }, content);
+  assert.ok(conFactor.factorPotencia, 'calidad=factor debe traer factor de potencia');
+  assert.equal(conFactor.factorPotencia.nombre, 'Corrección de factor de potencia');
+  assert.equal(pickLevers({ ...fx, calidad: 'no' }, content).factorPotencia, null);
+  assert.equal(pickLevers({ ...fx, calidad: 'cortes' }, content).factorPotencia, null);
 });
 
 // ---- BLOQUE D: datos que faltan ----
@@ -202,27 +192,21 @@ test('ofreceServicio: true salvo factura=muyalto', () => {
   assert.equal(ofreceServicio({ factura: 'muyalto' }), false);
 });
 
-test('pickFinancing: fixture (sitios=pocos) → copy multi-planta (dos caminos)', () => {
-  const t = pickFinancing(fx, content);
-  assert.ok(t.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
-  assert.ok(t.includes('sujeto a análisis de viabilidad'));
+test('pickFinancing: fixture (un solo sitio, sin segmento especial) → default con piloto', () => {
+  assert.equal(pickFinancing(fx, content), content.financiamientoDefault);
+  assert.ok(content.financiamientoDefault.includes('proyecto piloto'));
 });
 
-test('pickFinancing: precedencia publico > ev > muyalto > sitios', () => {
+test('pickFinancing: precedencia publico > ev > muyalto', () => {
   assert.ok(pickFinancing({ ...fx, sector: 'publico' }, content).startsWith('Para entidades públicas'));
   assert.ok(pickFinancing({ ...fx, sector: 'ev' }, content).startsWith('Nuestros proyectos pueden estructurarse sin inversión inicial'));
-  assert.ok(pickFinancing({ ...fx, sector: 'manufactura', sitios: 'uno', factura: 'muyalto' }, content).startsWith('A tu escala'));
+  assert.ok(pickFinancing({ ...fx, sector: 'manufactura', factura: 'muyalto' }, content).startsWith('A tu escala'));
 });
 
 test('pickFinancing: todas las variantes del Bloque E arrancan apropiadas por Mexillum o por escala (Cambio 3)', () => {
   const arranques = /^(Nuestros proyectos|Para entidades públicas|A tu escala)/;
   const todos = [...content.financiamiento.map((r) => r.text), content.financiamientoDefault];
   for (const t of todos) assert.match(t, arranques, `arranque impersonal: ${t}`);
-});
-
-test('pickFinancing: default cuando un solo sitio y sin segmento especial', () => {
-  const r = { sector: 'manufactura', sitios: 'uno', factura: 'alto' };
-  assert.equal(pickFinancing(r, content), content.financiamientoDefault);
 });
 
 test('pickFinancing: nunca usa lenguaje de promesa prohibido', () => {
@@ -278,7 +262,7 @@ const estadoFx = {
 
 test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () => {
   const res = assembleResult(estadoFx, content);
-  assert.equal(res.perfil, 'Perfil: manufactura multi-planta con exposición a cargo por demanda.');
+  assert.equal(res.perfil, 'Perfil: manufactura con exposición a cargo por demanda.');
   assert.equal(res.calculo.sin_numero, false);
   assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
   assert.ok(res.calculo.cadena.includes('$2.5 millones'));

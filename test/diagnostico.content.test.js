@@ -4,7 +4,7 @@ import content from '../js/diagnostico.content.js';
 
 test('hay 8 pasos con las keys esperadas', () => {
   assert.deepEqual(content.pasos.map((p) => p.key), [
-    'sector', 'sitios', 'generacion', 'demanda', 'tarifa', 'factura', 'corte', 'disparador'
+    'sector', 'perfil', 'generacion', 'calidad', 'tarifa', 'factura', 'corte', 'disparador'
   ]);
 });
 
