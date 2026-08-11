@@ -5,7 +5,8 @@ import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
   pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
-  scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution, detectLimitations
+  scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution, detectLimitations,
+  asList, hasSignal, matchesWhen
 } from '../js/diagnostico.engine.js';
 
 // Fixture canónico del spec §5.
@@ -428,4 +429,80 @@ test('buildEventNote: incluye potencial, ranking y recomendación', () => {
   assert.ok(res.note.includes(res.potencial_general));
   assert.ok(res.note.includes(res.recomendacion_solucion.tipo));
   assert.ok(res.note.includes(res.ranking[0].nombre));
+});
+
+// ---- v2.2: disparador multi-select (array de señales) ----
+
+test('asList / hasSignal: aceptan array y string legado', () => {
+  assert.deepEqual(asList(['diesel', 'capacidad']), ['diesel', 'capacidad']);
+  assert.deepEqual(asList('diesel'), ['diesel']);
+  assert.deepEqual(asList(undefined), []);
+  assert.deepEqual(asList(''), []);
+  assert.equal(hasSignal(['diesel', 'capacidad'], 'capacidad'), true);
+  assert.equal(hasSignal(['costo'], 'diesel'), false);
+  assert.equal(hasSignal('diesel', 'diesel'), true); // compat string
+});
+
+test('matchesWhen: campo array cumple por inclusión', () => {
+  assert.equal(matchesWhen({ disparador: ['diesel', 'capacidad'] }, { disparador: 'capacidad' }), true);
+  assert.equal(matchesWhen({ disparador: ['costo'] }, { disparador: 'diesel' }), false);
+  assert.equal(matchesWhen({ disparador: 'diesel' }, { disparador: 'diesel' }), true); // compat string
+});
+
+test('scoreOpportunities: array suma cada señal y respeta la precedencia diesel>capacidad>excedente', () => {
+  const base = { sector: 'manufactura', perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'medio', corte: 'nada' };
+  const s = scoreOpportunities({ ...base, disparador: ['diesel', 'capacidad'] }, content);
+  assert.equal(s.diesel, 72);        // señal diesel
+  assert.equal(s.diferimiento, 62);  // señal capacidad
+  assert.ok(s.diesel > s.diferimiento, 'diesel gana entre las palancas de disparador');
+  // excedente alimenta arbitraje y bess_solar, no diesel/diferimiento
+  const soloExc = scoreOpportunities({ ...base, disparador: ['excedente'] }, content);
+  assert.equal(soloExc.diesel, 0);
+  assert.equal(soloExc.diferimiento, 0);
+  const conExc = scoreOpportunities({ ...base, disparador: ['costo'] }, content);
+  assert.ok(soloExc.bess_solar > conExc.bess_solar, 'excedente sube bess_solar');
+});
+
+test('renderBlockB / detectLimitations / buildChecklist: reconocen diesel dentro del array', () => {
+  const r = { sector: 'frio', perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'nada', disparador: ['diesel', 'capacidad'] };
+  assert.equal(renderBlockB(r, content).notas.length, 1); // nota de diésel
+  assert.ok(detectLimitations(r, scoreOpportunities(r, content), content).some((l) => /diésel/i.test(l.dato)));
+  assert.ok(buildChecklist(r, content).full.includes(content.checklistRefuerzos.diesel));
+});
+
+test('recommendSolution: excedente dentro del array evita "No recomendar Solar"', () => {
+  const resp = { ...fx, generacion: 'fisica', disparador: ['excedente', 'diesel'] };
+  assert.notEqual(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'No recomendar Solar');
+});
+
+test('toReadable: array une labels; vacío → "Ninguna"', () => {
+  const leg = toReadable({ ...fx, disparador: ['diesel', 'capacidad'] }, content);
+  assert.ok(leg.disparador.includes('diésel'));
+  assert.ok(leg.disparador.includes('crecer'));
+  assert.ok(leg.disparador.includes(';'));
+  assert.equal(toReadable({ ...fx, disparador: [] }, content).disparador, 'Ninguna, nuestro tema es puramente el costo');
+});
+
+// Fixture Caso A del parche (adaptado a esquema v3): dos señales, sin corte.
+test('parche Caso A: ["diesel","capacidad"] → nota diésel, diesel>diferimiento, secundaria presente', () => {
+  const estado = {
+    respuestas: { sector: 'manufactura', perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'medio', corte: 'nada', disparador: ['diesel', 'capacidad'] },
+    contacto: {}
+  };
+  const res = assembleResult(estado, content);
+  assert.equal(res.scores.diesel, 72);
+  assert.equal(res.scores.diferimiento, 62);
+  assert.ok(res.calculo.notas.length >= 1); // nota de diésel presente
+  assert.ok(res.palancas.secundaria, 'secundaria presente (2a del ranking sobre umbral)');
+  assert.ok(res.leadPayload.respuestas_codigos.disparador.length === 2, 'CRM conserva el array completo');
+});
+
+// Fixture Caso C del parche: solo "Ninguna" (["costo"]) == string legado 'costo'.
+test('parche Caso C: ["costo"] equivale al string legado "costo"', () => {
+  const arr = assembleResult({ respuestas: { ...fx, disparador: ['costo'] }, contacto: {} }, content);
+  const str = assembleResult({ respuestas: { ...fx, disparador: 'costo' }, contacto: {} }, content);
+  assert.equal(arr.perfil, str.perfil);
+  assert.deepEqual(arr.scores, str.scores);
+  assert.equal(arr.palancas.principal.nombre, str.palancas.principal.nombre);
+  assert.equal(arr.calculo.rango_texto, str.calculo.rango_texto);
 });

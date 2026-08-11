@@ -61,6 +61,7 @@ function renderStep() {
   const idx = estado.paso;
   const paso = content.pasos[idx];
   const pregunta = withPlanta(paso.pregunta);
+  if (paso.multi) return renderStepMulti(idx, paso, pregunta);
 
   const opcionesHtml = paso.opciones.map((o) => {
     const on = estado.respuestas[paso.key] === o.codigo;
@@ -140,6 +141,111 @@ function renderStep() {
   paint();
   root.replaceChildren(view);
   focusMain();
+}
+
+// ---- Paso multi-select (disparador, v2.2) ------------------------------------
+// Checkboxes para las señales operativas + una opción excluyente ("Ninguna").
+// Marcar la excluyente limpia el resto; marcar cualquier señal limpia la excluyente.
+function renderStepMulti(idx, paso, pregunta) {
+  if (!Array.isArray(estado.respuestas[paso.key])) estado.respuestas[paso.key] = [];
+  const exclusivas = paso.opciones.filter((o) => o.exclusiva).map((o) => o.codigo);
+  const esExclusiva = (cod) => exclusivas.includes(cod);
+
+  const opcionesHtml = paso.opciones.map((o) => {
+    const on = estado.respuestas[paso.key].includes(o.codigo);
+    const box = o.exclusiva
+      ? `<span class="mx-check__box mx-check__box--radio ${on ? 'mx-check__box--on' : ''}">${on ? '<span class="mx-check__dot"></span>' : ''}</span>`
+      : `<span class="mx-check__box ${on ? 'mx-check__box--on' : ''}">${on ? tickSvg() : ''}</span>`;
+    return `
+      <button type="button" class="dx__option" data-codigo="${esc(o.codigo)}" role="checkbox" aria-checked="${on}" tabindex="-1">
+        <span class="mx-check">
+          ${box}
+          <span>${esc(o.label)}</span>
+        </span>
+      </button>`;
+  }).join('');
+
+  const hintHtml = paso.hint ? `<p class="dx__col-sub">${esc(paso.hint)}</p>` : '';
+  const atras = '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
+
+  const view = el(`
+    <div class="dx__view">
+      <p class="dx__progress">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</p>
+      <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(pregunta)}</h2>
+      ${hintHtml}
+      <div class="dx__options" role="group" aria-label="${esc(pregunta)}">${opcionesHtml}</div>
+      <div class="dx__nav dx__nav--end">
+        ${atras}
+        <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente" disabled>Siguiente</button>
+      </div>
+    </div>`);
+
+  const options = [...view.querySelectorAll('.dx__option')];
+  const siguiente = view.querySelector('[data-act="siguiente"]');
+
+  function paint() {
+    const sel = estado.respuestas[paso.key];
+    options.forEach((btn, i) => {
+      const cod = btn.dataset.codigo;
+      const on = sel.includes(cod);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      btn.tabIndex = on ? 0 : -1;
+      const box = btn.querySelector('.mx-check__box');
+      box.classList.toggle('mx-check__box--on', on);
+      const radio = esExclusiva(cod);
+      const marca = box.querySelector(radio ? '.mx-check__dot' : '.mx-check__tick');
+      // el() parsea HTML estático de confianza (mismo patrón que el resto de la vista).
+      if (on && !marca) box.appendChild(el(radio ? '<span class="mx-check__dot"></span>' : tickSvg()));
+      else if (!on && marca) marca.remove();
+    });
+    if (!sel.length && options[0]) options[0].tabIndex = 0;
+    siguiente.disabled = sel.length === 0;
+  }
+
+  function toggle(btn) {
+    const cod = btn.dataset.codigo;
+    let sel = estado.respuestas[paso.key];
+    if (esExclusiva(cod)) {
+      sel = sel.includes(cod) ? [] : [cod];              // excluyente: reemplaza / limpia
+    } else if (sel.includes(cod)) {
+      sel = sel.filter((c) => c !== cod);
+    } else {
+      sel = [...sel.filter((c) => !esExclusiva(c)), cod]; // añade señal, quita excluyente
+    }
+    estado.respuestas[paso.key] = sel;
+    paint();
+    btn.focus();
+  }
+
+  options.forEach((btn, i) => {
+    btn.addEventListener('click', () => toggle(btn));
+    btn.addEventListener('keydown', (e) => {
+      let next = null;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (i + 1) % options.length;
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (i - 1 + options.length) % options.length;
+      if (next !== null) { e.preventDefault(); options[next].tabIndex = 0; btn.tabIndex = -1; options[next].focus(); }
+    });
+  });
+
+  view.querySelector('[data-act="atras"]').addEventListener('click', () => {
+    estado.paso -= 1;
+    render();
+  });
+  siguiente.addEventListener('click', () => {
+    if (!estado.respuestas[paso.key].length) return;
+    if (estado.paso < content.pasos.length - 1) estado.paso += 1;
+    else estado.paso = 'result';
+    render();
+  });
+
+  paint();
+  root.replaceChildren(view);
+  focusMain();
+}
+
+function tickSvg() {
+  return '<svg class="mx-check__tick" viewBox="0 0 12 12" fill="none" aria-hidden="true">'
+    + '<path d="M2.5 6.3l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
 
 // ---- Formulario de contacto (dentro del resultado, junto a la agenda) ---------

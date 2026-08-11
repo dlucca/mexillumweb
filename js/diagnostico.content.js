@@ -88,13 +88,14 @@ const content = {
       ]
     },
     {
-      key: 'disparador', notaLabel: 'Disparador',
-      pregunta: '¿Reconoces alguna de estas situaciones?',
+      key: 'disparador', notaLabel: 'Disparador', multi: true,
+      pregunta: 'Además de la factura, ¿algo de esto te suena familiar?',
+      hint: 'Cada una señala una palanca de ahorro distinta — puedes marcar más de una.',
       opciones: [
         { label: 'Queremos crecer o ampliar carga, y CFE no da capacidad (o tarda)', codigo: 'capacidad' },
         { label: 'Usamos diésel o planta de emergencia con frecuencia', codigo: 'diesel' },
         { label: 'Generamos excedente que exportamos o se desperdicia', codigo: 'excedente' },
-        { label: 'Ninguna — nuestro tema es puramente el costo', codigo: 'costo' }
+        { label: 'Ninguna, nuestro tema es puramente el costo', codigo: 'costo', exclusiva: true }
       ]
     }
   ],

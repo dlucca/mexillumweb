@@ -1,9 +1,22 @@
 // Motor de reglas del funnel v2. Funciones puras, sin DOM. Importable en navegador
 // y en Node (tests). Lee prioridades, condiciones y copy desde content.js.
 
-// ¿La respuesta cumple todas las igualdades de `when`?
+// `disparador` es multi-select (array de códigos) desde v2.2. Estos helpers aceptan
+// tanto el array como el string legado, para no romper llamadas ni fixtures previos.
+export function asList(v) {
+  return Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);
+}
+export function hasSignal(v, code) {
+  return asList(v).includes(code);
+}
+
+// ¿La respuesta cumple todas las igualdades de `when`? Un campo con valor array
+// (p. ej. disparador) cumple si el array incluye el valor buscado.
 export function matchesWhen(resp, when) {
-  return Object.entries(when).every(([campo, valor]) => resp[campo] === valor);
+  return Object.entries(when).every(([campo, valor]) => {
+    const actual = resp[campo];
+    return Array.isArray(actual) ? actual.includes(valor) : actual === valor;
+  });
 }
 
 // Una sola instalación siempre: fraseo fijo.
@@ -22,9 +35,19 @@ export function buildProfile(resp, content) {
 // Códigos internos → labels visibles, para las 8 keys.
 export function toReadable(resp, content) {
   const legibles = {};
+  const labelDe = (paso, cod) => {
+    const o = paso.opciones.find((op) => op.codigo === cod);
+    return o ? o.label : cod;
+  };
   for (const paso of content.pasos) {
-    const opcion = paso.opciones.find((o) => o.codigo === resp[paso.key]);
-    legibles[paso.key] = opcion ? opcion.label : resp[paso.key];
+    const val = resp[paso.key];
+    if (Array.isArray(val)) {
+      // Multi-select: array vacío se trata como ['costo'] (salvaguarda defensiva, v2.2).
+      const codes = val.length ? val : (paso.multi ? ['costo'] : val);
+      legibles[paso.key] = codes.map((cod) => labelDe(paso, cod)).join('; ');
+    } else {
+      legibles[paso.key] = labelDe(paso, val);
+    }
   }
   return legibles;
 }
@@ -83,7 +106,7 @@ export function renderBlockB(resp, content) {
   const b = content.bloqueB;
   const { sinNumero, piso, techo } = computeRange(resp, content);
   const notas = [];
-  if (resp.disparador === 'diesel') notas.push(b.dieselNota);
+  if (hasSignal(resp.disparador, 'diesel')) notas.push(b.dieselNota);
 
   // Salidas sin número: la `cadena` es el copy explicativo, sin rango/disclaimer/nota destacables.
   if (sinNumero === 'privado') {
@@ -167,7 +190,7 @@ export function detectLimitations(resp, scores, content) {
   if (resp.perfil === 'nolose') out.push(L.perfil);
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando';
   if (sinGeneracion && scores.bess_solar >= content.scoring.umbralFuerte) out.push(L.techo);
-  if (resp.disparador === 'diesel') out.push(L.diesel);
+  if (hasSignal(resp.disparador, 'diesel')) out.push(L.diesel);
   if (resp.calidad === 'nolose') out.push(L.calidad);
   return out;
 }
@@ -176,7 +199,7 @@ export function detectLimitations(resp, scores, content) {
 export function buildChecklist(resp, content) {
   const ref = content.checklistRefuerzos;
   const tecnicos = [...content.checklistBase];
-  if (resp.disparador === 'diesel') tecnicos.push(ref.diesel);
+  if (hasSignal(resp.disparador, 'diesel')) tecnicos.push(ref.diesel);
   if (resp.corte !== 'nada') tecnicos.push(ref.paros);
   if (resp.sector === 'continuo') tecnicos.push(ref.horario);
   if (resp.tarifa === 'privado') tecnicos.push(ref.contrato);
@@ -259,8 +282,13 @@ export function scoreOpportunities(resp, content) {
     let total = 0;
     const tabla = pesos[id] || {};
     for (const [campo, mapa] of Object.entries(tabla)) {
-      const pts = mapa[resp[campo]];
-      if (typeof pts === 'number') total += pts;
+      // Campo multi-select (disparador): suma los puntos de cada señal presente.
+      // Cada mapa de disparador tiene a lo sumo una clave relevante por oportunidad,
+      // así que no hay doble conteo dentro de una misma oportunidad.
+      for (const cod of asList(resp[campo])) {
+        const pts = mapa[cod];
+        if (typeof pts === 'number') total += pts;
+      }
     }
     out[id] = Math.max(0, Math.min(100, total));
   }
@@ -296,7 +324,7 @@ export function recommendSolution(resp, scores, content) {
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando';
   const tarifaCiega = resp.tarifa === 'nolose' || resp.tarifa === 'privado';
   let key;
-  if (resp.generacion === 'fisica' && resp.disparador !== 'excedente') key = 'noSolar';
+  if (resp.generacion === 'fisica' && !hasSignal(resp.disparador, 'excedente')) key = 'noSolar';
   else if (resp.generacion === 'estacional') key = 'estacional';
   // Solar primero va ANTES que BESS+Solar: sin datos de tarifa no comprometemos la combinación.
   else if (resp.perfil === 'diurno' && sinGeneracion && tarifaCiega) key = 'solarPrimero';
