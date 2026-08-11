@@ -10,6 +10,13 @@ export function hasSignal(v, code) {
   return asList(v).includes(code);
 }
 
+// ¿La respuesta satisface un `requiere` de cap? Cada campo debe tener al menos uno
+// de los valores admisibles (campo array como disparador: basta una coincidencia).
+function satisfiesRequire(resp, requiere) {
+  return Object.entries(requiere).every(([campo, permitidos]) =>
+    asList(resp[campo]).some((v) => permitidos.includes(v)));
+}
+
 // ¿La respuesta cumple todas las igualdades de `when`? Un campo con valor array
 // (p. ej. disparador) cumple si el array incluye el valor buscado.
 export function matchesWhen(resp, when) {
@@ -161,10 +168,16 @@ export function pickLevers(resp, ranking, content) {
 }
 
 // ---- BLOQUE D: el dato que falta ----
-export function pickMissingData(resp, content) {
-  const eq = content.datoFaltante.find((r) => matchesWhen(resp, r.when));
+// El dato principal se guía por la oportunidad mejor rankeada (mejora #5); los
+// hard-gaps (factura/tarifa sin dato) tienen prioridad porque bloquean cualquier número.
+// `ranking` es opcional: sin él, cae a los fallbacks legados (corte / default).
+export function pickMissingData(resp, content, ranking) {
+  const hardGap = content.datoFaltante.find((r) => matchesWhen(resp, r.when));
+  const porOp = content.datoFaltantePorOportunidad || {};
+  const top = ranking && ranking[0] ? ranking[0].id : null;
   let dato;
-  if (eq) dato = eq.text;
+  if (hardGap) dato = hardGap.text;
+  else if (top && porOp[top]) dato = porOp[top];
   else if (resp.corte !== 'nada') dato = content.datoFaltanteCorte;
   else dato = content.datoFaltanteDefault;
   return { dato, cierre: content.cierreComun };
@@ -188,7 +201,7 @@ export function detectLimitations(resp, scores, content) {
   if (resp.tarifa === 'nolose') out.push(L.tarifa);
   else if (resp.tarifa === 'privado') out.push(L.contrato);
   if (resp.perfil === 'nolose') out.push(L.perfil);
-  const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando';
+  const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
   if (sinGeneracion && scores.bess_solar >= content.scoring.umbralFuerte) out.push(L.techo);
   if (hasSignal(resp.disparador, 'diesel')) out.push(L.diesel);
   if (resp.calidad === 'nolose') out.push(L.calidad);
@@ -204,6 +217,8 @@ export function buildChecklist(resp, content) {
   if (resp.sector === 'continuo') tecnicos.push(ref.horario);
   if (resp.tarifa === 'privado') tecnicos.push(ref.contrato);
   if (resp.generacion === 'estacional') tecnicos.push(ref.techo);
+  if (resp.generacion === 'solar_sitio') tecnicos.push(ref.solar);
+  if (resp.generacion === 'contrato' && !tecnicos.includes(ref.contrato)) tecnicos.push(ref.contrato);
   if (resp.perfil === 'plano' || resp.perfil === 'punta' || resp.perfil === 'nolose') {
     if (!tecnicos.includes(ref.horario)) tecnicos.push(ref.horario);
   }
@@ -276,7 +291,7 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
 
 // ---- SCORING de oportunidades ----
 export function scoreOpportunities(resp, content) {
-  const { oportunidades, pesos } = content.scoring;
+  const { oportunidades, pesos, boosts = [], caps = [] } = content.scoring;
   const out = {};
   for (const { id } of oportunidades) {
     let total = 0;
@@ -290,7 +305,16 @@ export function scoreOpportunities(resp, content) {
         if (typeof pts === 'number') total += pts;
       }
     }
-    out[id] = Math.max(0, Math.min(100, total));
+    // Boosts (mejora #4): combinaciones que suman puntos extra.
+    for (const b of boosts) {
+      if (b.id === id && matchesWhen(resp, b.when)) total += b.pts;
+    }
+    total = Math.min(100, total);
+    // Caps (mejora #4): techo cuando falta una condición crítica.
+    for (const c of caps) {
+      if (c.id === id && !satisfiesRequire(resp, c.requiere)) total = Math.min(total, c.max);
+    }
+    out[id] = Math.max(0, total);
   }
   return out;
 }
@@ -321,10 +345,14 @@ export function potencialGeneral(scores, resp, content) {
 export function recommendSolution(resp, scores, content) {
   const rec = content.recomendaciones;
   const bs = scores.bess_solar;
-  const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando';
+  // Contrato renovable/privado NO implica generación detrás del medidor: elegible para
+  // solar nueva, igual que "no generamos" o "evaluando". Solar en sitio sí tiene generación.
+  const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
   const tarifaCiega = resp.tarifa === 'nolose' || resp.tarifa === 'privado';
   let key;
-  if (resp.generacion === 'fisica' && !hasSignal(resp.disparador, 'excedente')) key = 'noSolar';
+  // Solar en sitio: ya hay generación → el foco es BESS para aprovechar generación/excedentes,
+  // no sumar más solar.
+  if (resp.generacion === 'solar_sitio') key = 'noSolar';
   else if (resp.generacion === 'estacional') key = 'estacional';
   // Solar primero va ANTES que BESS+Solar: sin datos de tarifa no comprometemos la combinación.
   else if (resp.perfil === 'diurno' && sinGeneracion && tarifaCiega) key = 'solarPrimero';
@@ -344,7 +372,7 @@ export function assembleResult(estado, content) {
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content);
   const palancas = pickLevers(resp, ranking, content);
-  const datoFaltante = pickMissingData(resp, content);
+  const datoFaltante = pickMissingData(resp, content, ranking);
   const financiamiento = pickFinancing(resp, content);
   const checklist = buildChecklist(resp, content);
   const legibles = toReadable(resp, content);

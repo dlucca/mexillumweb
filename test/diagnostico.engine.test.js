@@ -11,7 +11,7 @@ import {
 
 // Fixture canónico del spec §5.
 const fx = {
-  sector: 'manufactura', perfil: 'diurno', generacion: 'fisica', calidad: 'no',
+  sector: 'manufactura', perfil: 'diurno', generacion: 'no', calidad: 'no',
   tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo'
 };
 
@@ -118,7 +118,7 @@ test('pickLevers: principal = tope del ranking; descarte = fondo del ranking', (
 });
 
 test('pickLevers: respaldo usa la variante de copy según el tipo de corte', () => {
-  const resp = { ...fx, corte: 'producto', calidad: 'cortes', disparador: 'costo', perfil: 'plano', generacion: 'fisica' };
+  const resp = { ...fx, corte: 'producto', calidad: 'cortes', disparador: 'costo', perfil: 'plano', generacion: 'no' };
   const ranking = rankOpportunities(scoreOpportunities(resp, content), content);
   const l = pickLevers(resp, ranking, content);
   // respaldo debería quedar arriba; si es principal o secundaria, su texto es la variante de producto
@@ -156,16 +156,23 @@ test('pickMissingData: fixture (corte=reinicio, sin señales de igualdad) → re
   assert.equal(d.cierre, content.cierreComun);
 });
 
-test('pickMissingData: precedencia de igualdad sobre corte!=nada', () => {
-  assert.equal(pickMissingData({ ...fx, factura: 'nolose' }, content).dato, content.datoFaltante[0].text);
-  assert.equal(pickMissingData({ ...fx, tarifa: 'privado' }, content).dato, content.datoFaltante[1].text);
-  assert.equal(pickMissingData({ ...fx, disparador: 'diesel' }, content).dato, content.datoFaltante[2].text);
-  assert.equal(pickMissingData({ ...fx, sector: 'continuo' }, content).dato, content.datoFaltante[3].text);
+test('pickMissingData: hard-gaps (factura/tarifa) tienen prioridad sobre el ranking', () => {
+  const rk = (r) => rankOpportunities(scoreOpportunities(r, content), content);
+  const nolose = { ...fx, factura: 'nolose' };
+  const priv = { ...fx, tarifa: 'privado' };
+  assert.equal(pickMissingData(nolose, content, rk(nolose)).dato, content.datoFaltante[0].text);
+  assert.equal(pickMissingData(priv, content, rk(priv)).dato, content.datoFaltante[1].text);
 });
 
-test('pickMissingData: default cuando corte=nada y sin señales', () => {
-  const r = { sector: 'manufactura', tarifa: 'gdmth', factura: 'alto', disparador: 'costo', corte: 'nada' };
-  assert.equal(pickMissingData(r, content).dato, content.datoFaltanteDefault);
+test('pickMissingData: dato principal guiado por la oportunidad mejor rankeada (mejora #5)', () => {
+  const porOp = content.datoFaltantePorOportunidad;
+  // diésel domina el ranking (perfil plano no favorece peak shaving) → dato de horas de diésel
+  const diesel = { sector: 'manufactura', perfil: 'plano', generacion: 'no', calidad: 'no', tarifa: 'otra', factura: 'bajo', corte: 'nada', disparador: ['diesel'] };
+  const rkD = rankOpportunities(scoreOpportunities(diesel, content), content);
+  assert.equal(rkD[0].id, 'diesel');
+  assert.equal(pickMissingData(diesel, content, rkD).dato, porOp.diesel);
+  // sin ranking → fallbacks legados (corte / default)
+  assert.equal(pickMissingData({ ...fx, corte: 'nada', disparador: 'costo' }, content).dato, content.datoFaltanteDefault);
 });
 
 // ---- BLOQUE E: financiamiento (opción sujeta a evaluación) ----
@@ -246,7 +253,7 @@ test('detectLimitations: factura nolose marca la limitación económica', () => 
 });
 
 test('detectLimitations: sin datos faltantes → arreglo vacío', () => {
-  const resp = { sector: 'manufactura', perfil: 'diurno', generacion: 'fisica', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' };
+  const resp = { sector: 'manufactura', perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' };
   assert.deepEqual(detectLimitations(resp, scoreOpportunities(resp, content), content), []);
 });
 
@@ -273,7 +280,7 @@ test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () =>
   assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
   assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
-  assert.equal(res.dato_faltante, content.datoFaltanteCorte);
+  assert.equal(res.dato_faltante, content.datoFaltantePorOportunidad[res.ranking[0].id]); // mejora #5
   assert.equal(res.cierre_llamada, content.cierreComun);
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
   assert.equal(res.checklist.web[res.checklist.web.length - 1], content.checklistUniversal);
@@ -295,12 +302,12 @@ test('assembleResult: fixture del parche → descarte presente y gancho null', (
   assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1
   assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
-  assert.equal(res.dato_faltante, content.datoFaltanteCorte); // corte=reinicio
+  assert.equal(res.dato_faltante, content.datoFaltantePorOportunidad[res.ranking[0].id]); // mejora #5, guiado por ranking
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
 });
 
 test('assembleResult: limitaciones vacías cuando hay datos completos', () => {
-  const estado = { respuestas: { sector: 'manufactura', perfil: 'diurno', generacion: 'fisica', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' }, contacto: {} };
+  const estado = { respuestas: { sector: 'manufactura', perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' }, contacto: {} };
   assert.deepEqual(assembleResult(estado, content).limitaciones, []);
 });
 
@@ -391,10 +398,17 @@ test('assembleResult: expone scores, ranking y potencial_general', () => {
 
 // ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
 
-test('recommendSolution: generacion fisica sin excedente → No recomendar Solar', () => {
-  const resp = { ...fx, generacion: 'fisica', disparador: 'costo' };
-  const rec = recommendSolution(resp, scoreOpportunities(resp, content), content);
-  assert.equal(rec.tipo, 'No recomendar Solar');
+test('recommendSolution: solar en sitio → No recomendar Solar (foco BESS), aun con excedente', () => {
+  const sin = { ...fx, generacion: 'solar_sitio', disparador: 'costo' };
+  assert.equal(recommendSolution(sin, scoreOpportunities(sin, content), content).tipo, 'No recomendar Solar');
+  const con = { ...fx, generacion: 'solar_sitio', disparador: ['excedente'] };
+  assert.equal(recommendSolution(con, scoreOpportunities(con, content), content).tipo, 'No recomendar Solar');
+});
+
+test('recommendSolution: contrato renovable se trata como sin generación detrás del medidor (mejora #3)', () => {
+  // diurno + contrato + tarifa ciega → Solar primero (elegible para solar nueva)
+  const resp = { ...fx, generacion: 'contrato', perfil: 'diurno', tarifa: 'nolose', factura: 'nolose' };
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar primero');
 });
 
 test('recommendSolution: estacional → BESS + Solar', () => {
@@ -402,8 +416,14 @@ test('recommendSolution: estacional → BESS + Solar', () => {
   assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS + Solar');
 });
 
-test('recommendSolution: consumo diurno sin generación y bess_solar alto → BESS + Solar', () => {
+test('recommendSolution: consumo diurno sin generación NO fuerza BESS + Solar (mejora #2)', () => {
+  // Antes bastaba diurno; ahora el cap de bess_solar por falta de señal solar lo evita.
   const resp = { ...fx, generacion: 'no', perfil: 'diurno' };
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS');
+});
+
+test('recommendSolution: solar en evaluación + diurno + excedente → BESS + Solar', () => {
+  const resp = { ...fx, generacion: 'evaluando', perfil: 'diurno', disparador: ['excedente'] };
   assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS + Solar');
 });
 
@@ -505,4 +525,55 @@ test('parche Caso C: ["costo"] equivale al string legado "costo"', () => {
   assert.deepEqual(arr.scores, str.scores);
   assert.equal(arr.palancas.principal.nombre, str.palancas.principal.nombre);
   assert.equal(arr.calculo.rango_texto, str.calculo.rango_texto);
+});
+
+// ---- Mejora #4: boosts y caps declarativos ----
+
+test('boosts: picos+GDMTH suma exactamente 8 a peak shaving', () => {
+  // dist y gdmth pesan igual (25) en peak_shaving, pero el boost solo aplica con gdmth.
+  const base = { sector: 'manufactura', perfil: 'picos', generacion: 'no', calidad: 'no', factura: 'bajo', corte: 'nada', disparador: 'costo' };
+  const conBoost = scoreOpportunities({ ...base, tarifa: 'gdmth' }, content).peak_shaving;
+  const sinBoost = scoreOpportunities({ ...base, tarifa: 'dist' }, content).peak_shaving;
+  assert.equal(conBoost - sinBoost, 8);
+  assert.ok(content.scoring.boosts.some((b) => b.id === 'arbitraje')); // boost de arbitraje declarado
+});
+
+test('caps: bess_solar se limita sin señal de solar; no se limita con solar/estacional/evaluando', () => {
+  const base = { sector: 'frio', perfil: 'diurno', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'nada', disparador: 'costo' };
+  const noGen = scoreOpportunities({ ...base, generacion: 'no' }, content).bess_solar;
+  const evalu = scoreOpportunities({ ...base, generacion: 'evaluando' }, content).bess_solar;
+  assert.ok(noGen <= 45, `bess_solar sin solar debe estar capado a 45, fue ${noGen}`);
+  assert.ok(evalu > 45, `bess_solar con evaluación no se capa, fue ${evalu}`);
+});
+
+test('caps: arbitraje se limita con tarifa desconocida', () => {
+  const base = { sector: 'continuo', perfil: 'punta', generacion: 'no', calidad: 'no', factura: 'alto', corte: 'nada', disparador: 'costo' };
+  const ciega = scoreOpportunities({ ...base, tarifa: 'nolose' }, content).arbitraje;
+  const conocida = scoreOpportunities({ ...base, tarifa: 'gdmth' }, content).arbitraje;
+  assert.ok(ciega <= 40, `arbitraje con tarifa desconocida capado a 40, fue ${ciega}`);
+  assert.ok(conocida > 40, `arbitraje con tarifa conocida no se capa, fue ${conocida}`);
+});
+
+// ---- Mejora #3: separación solar en sitio / contrato renovable ----
+
+test('generacion split: solar_sitio agrega refuerzo de solar al checklist; contrato agrega contrato', () => {
+  const solar = buildChecklist({ ...fx, generacion: 'solar_sitio' }, content).full;
+  assert.ok(solar.includes(content.checklistRefuerzos.solar));
+  const contrato = buildChecklist({ ...fx, generacion: 'contrato', tarifa: 'gdmth' }, content).full;
+  assert.ok(contrato.includes(content.checklistRefuerzos.contrato));
+});
+
+test('content: generacion tiene las 5 opciones separadas (mejora #3)', () => {
+  const gen = content.pasos.find((p) => p.key === 'generacion');
+  assert.deepEqual(gen.opciones.map((o) => o.codigo), ['solar_sitio', 'contrato', 'estacional', 'no', 'evaluando']);
+});
+
+// ---- Mejora #1: el payload sigue exponiendo ranking/recomendación/limitaciones ----
+
+test('leadPayload: conserva scores, ranking, potencial, recomendación y limitaciones', () => {
+  const p = assembleResult(estadoFx, content).leadPayload;
+  for (const k of ['scores', 'ranking', 'potencial_general', 'recomendacion_solucion', 'limitaciones']) {
+    assert.ok(k in p, `falta ${k} en el payload`);
+  }
+  assert.ok(Array.isArray(p.ranking) && p.ranking.length === 6);
 });

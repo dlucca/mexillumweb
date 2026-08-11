@@ -37,9 +37,10 @@ const content = {
       key: 'generacion', notaLabel: 'Generación propia',
       pregunta: '¿Generan parte de su propia energía?',
       opciones: [
-        { label: 'No, compramos todo de CFE o de un suministrador', codigo: 'no' },
-        { label: 'Sí — solar o contrato renovable vigente', codigo: 'fisica' },
+        { label: 'Sí — tenemos solar en sitio (detrás del medidor)', codigo: 'solar_sitio' },
+        { label: 'Tenemos contrato renovable o suministro privado', codigo: 'contrato' },
         { label: 'Generamos parte del año (cogeneración, zafra, estacional)', codigo: 'estacional' },
+        { label: 'No, compramos todo de CFE o de un suministrador', codigo: 'no' },
         { label: 'Lo estamos evaluando', codigo: 'evaluando' }
       ]
     },
@@ -154,7 +155,10 @@ const content = {
         factura: { muyalto: 10, alto: 7, medio: 4 }
       },
       bess_solar: {
-        generacion: { no: 26, evaluando: 26, estacional: 34, fisica: 6 },
+        // Recalibrado (mejora #2): sube por señales explícitas de generación/solar,
+        // baja por "no generamos". Evita recomendar BESS+Solar solo por consumo diurno
+        // (el cap de más abajo se encarga de eso).
+        generacion: { solar_sitio: 22, contrato: 6, estacional: 34, evaluando: 24, no: 10 },
         perfil: { diurno: 34, plano: 16, picos: 10, punta: 8, nolose: 14 },
         disparador: { excedente: 16 },
         sector: { publico: 6, ev: 6, frio: 6 }
@@ -178,6 +182,25 @@ const content = {
         disparador: { diesel: 72 }
       }
     },
+    // Capa declarativa (mejora #4): puntos extra por combinaciones y techos por
+    // condición crítica ausente. El engine las aplica sobre la suma base.
+    // boosts: puntos extra si la respuesta cumple TODAS las igualdades de `when`.
+    boosts: [
+      { id: 'peak_shaving', when: { perfil: 'picos', tarifa: 'gdmth' }, pts: 8 },
+      { id: 'arbitraje', when: { perfil: 'punta', tarifa: 'gdmth' }, pts: 8 },
+      { id: 'bess_solar', when: { generacion: 'solar_sitio', disparador: 'excedente' }, pts: 14 }
+    ],
+    // caps: si `requiere` NO se cumple (falta la condición crítica), el score de esa
+    // oportunidad se limita a `max`. `requiere` lista los valores admisibles por campo.
+    caps: [
+      // BESS + Solar necesita señal real de solar/generación; sin solar en sitio, sin
+      // evaluación de solar y sin estacionalidad, se limita (el funnel no captura techo/terreno).
+      { id: 'bess_solar', max: 45, requiere: { generacion: ['solar_sitio', 'estacional', 'evaluando'] } },
+      // Arbitraje depende de conocer la tarifa (diferenciación horaria).
+      { id: 'arbitraje', max: 40, requiere: { tarifa: ['gdmth', 'dist', 'otra', 'privado'] } },
+      // Sustitución de diésel: sin la señal de diésel no hay combustible que desplazar.
+      { id: 'diesel', max: 0, requiere: { disparador: ['diesel'] } }
+    ],
     umbralPotencial: { muyAlto: 75, alto: 60, medio: 40 },
     umbralFuerte: 60,
     minFuertesParaSubir: 3,
@@ -250,12 +273,20 @@ const content = {
   palancaFactorPotencia: { id: 'factor_potencia', nombre: 'Corrección de factor de potencia', text: 'El inversor del sistema aporta reactiva. Si tu recibo trae penalización por bajo factor de potencia, es ahorro que no requiere capacidad de batería adicional. Se lee directo de la factura.' },
 
   // ---- BLOQUE D ----
+  // Hard-gaps: datos que bloquean cualquier número; tienen prioridad sobre el ranking.
   datoFaltante: [
     { when: { factura: 'nolose' }, text: 'Para volver esto un número exacto, el dato clave es tu recibo de CFE — con 12 meses vemos tu cargo por demanda real y tu perfil horario.' },
-    { when: { tarifa: 'privado' }, text: 'El dato que define tu caso es la estructura de tu contrato de suministro — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.' },
-    { when: { disparador: 'diesel' }, text: 'El dato que dimensiona tu ahorro son las horas al año que corre tu diésel — ahí está el mayor margen del análisis.' },
-    { when: { sector: 'continuo' }, text: 'El dato que define tu arbitraje es tu desglose de consumo por horario (base, intermedia, punta) — se lee de tu recibo GDMTH.' }
+    { when: { tarifa: 'privado' }, text: 'El dato que define tu caso es la estructura de tu contrato de suministro — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.' }
   ],
+  // Dato faltante principal según la oportunidad mejor rankeada (mejora #5).
+  datoFaltantePorOportunidad: {
+    peak_shaving: 'El dato que dimensiona tu ahorro es tu demanda máxima y cuánto pesa el cargo por demanda en tu recibo — se lee de tus últimos 12 meses de CFE.',
+    arbitraje: 'El dato que define tu arbitraje es tu desglose de consumo por horario (base, intermedia, punta) — se lee de tu recibo GDMTH.',
+    bess_solar: 'El dato que dimensiona un proyecto BESS + Solar es tu superficie de techo o terreno disponible y el excedente que hoy inyectas o desperdicias — con eso vemos cuánto puedes generar y almacenar.',
+    respaldo: 'El dato que cierra el caso de respaldo es cuántos paros por causa eléctrica tuviste y qué costó cada uno — casi nadie lo mide, y suele ser mayor de lo esperado.',
+    diferimiento: 'El dato que define tu diferimiento es cuánta capacidad tienes contratada, cuánta necesitas para crecer y si ya hay una solicitud de aumento con CFE.',
+    diesel: 'El dato que dimensiona tu ahorro son las horas al año que corre tu diésel y su costo — ahí está el mayor margen del análisis.'
+  },
   datoFaltanteCorte: 'El dato que cierra el caso de respaldo es cuántos paros por causa eléctrica tuviste y qué costó cada uno — casi nadie lo mide, y suele ser mayor de lo esperado.',
   datoFaltanteDefault: 'El dato que vuelve esto exacto son tus recibos de CFE de los últimos 12 meses — sobre tus propios números, no estimaciones.',
   cierreComun: 'Ese es exactamente el diagnóstico gratuito que hacemos en la llamada: sobre tus datos reales, sin costo y sin compromiso.',
@@ -279,6 +310,7 @@ const content = {
     horario: 'Desglose de consumo por horario (base, intermedia, punta) de tu recibo GDMTH',
     contrato: 'Estructura de tu contrato de suministro (precio fijo o exposición a precios horarios)',
     techo: 'Superficie de techo o terreno disponible para generación',
+    solar: 'Capacidad de tu sistema solar en sitio y cuánto excedente inyectas o se desperdicia',
     factorPotencia: 'Recibo con el detalle de penalización por bajo factor de potencia, si aplica'
   },
   checklistViabilidad: {
@@ -307,6 +339,14 @@ const content = {
     techo: { dato: 'Superficie de techo o terreno disponible', porque: 'Define si la generación solar es viable en el sitio.', no_se_puede: 'Dimensionar un proyecto BESS + Solar.' },
     diesel: { dato: 'Horas al año que corre tu diésel y su costo', porque: 'Es lo que dimensiona el mayor margen del análisis.', no_se_puede: 'Cuantificar la sustitución de diésel.' },
     calidad: { dato: 'Comportamiento de tu calidad eléctrica', porque: 'Define si hay penalización por factor de potencia o riesgo a equipos.', no_se_puede: 'Valorar la palanca de calidad/factor de potencia.' }
+  },
+
+  // ---- Resumen comercial en el resultado (mejora #1) ----
+  resumen: {
+    potencialLabel: 'Potencial de ahorro',
+    recomendacionLabel: 'Recomendación',
+    rankingLabel: 'Dónde está tu mayor oportunidad',
+    limitacionesLabel: 'Para cerrar el número, todavía falta'
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

@@ -366,6 +366,29 @@ function renderResult() {
           ${palancaLi('No aplica', ' dx__palanca-tag--off', p.descarte.nombre, p.descarte.text)}
         </ul>`;
 
+  // Resumen comercial discreto (mejora #1): potencial + recomendación + top 3 del
+  // ranking + hasta 2 limitaciones críticas. Parte del diagnóstico, no un dashboard.
+  const rz = content.resumen;
+  const top3 = res.ranking.slice(0, 3);
+  const rankingLis = top3.map((o) =>
+    `<li><span class="dx__rank-name">${esc(o.nombre)}</span><span class="dx__rank-score">${esc(o.score)}</span></li>`).join('');
+  const limCriticas = res.limitaciones.slice(0, 2);
+  const limHtml = limCriticas.length
+    ? `<p class="dx__resumen-k">${esc(rz.limitacionesLabel)}:</p>
+       <ul class="dx__resumen-lim">${limCriticas.map((l) => `<li>${esc(l.dato)}</li>`).join('')}</ul>`
+    : '';
+  const resumenHtml = `
+        <aside class="dx__resumen" aria-label="Resumen del diagnóstico">
+          <div class="dx__resumen-heads">
+            <p class="dx__resumen-line"><span class="dx__resumen-k">${esc(rz.potencialLabel)}</span><strong>${esc(res.potencial_general)}</strong></p>
+            <p class="dx__resumen-line"><span class="dx__resumen-k">${esc(rz.recomendacionLabel)}</span><strong>${esc(res.recomendacion_solucion.tipo)}</strong></p>
+          </div>
+          <p class="dx__resumen-razon">${esc(res.recomendacion_solucion.razon)}</p>
+          <p class="dx__resumen-k">${esc(rz.rankingLabel)}</p>
+          <ol class="dx__ranking">${rankingLis}</ol>
+          ${limHtml}
+        </aside>`;
+
   const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
   const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
 
@@ -376,6 +399,7 @@ function renderResult() {
         <h2 class="dx__col-title" id="dx-diag-h" data-dx-focus tabindex="-1">${esc(res.perfil)}</h2>
         ${bloqueBHtml}
         ${palancasHtml}
+        ${resumenHtml}
         <p>${esc(res.dato_faltante)}</p>
         <p class="dx__close">${esc(res.cierre_llamada)}</p>
         <p class="dx__fin">${esc(res.financiamiento)}</p>
