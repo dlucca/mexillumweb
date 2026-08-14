@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<title>Fuente de assets/og-diagnostico.jpg</title>
+<!--
+  Fuente de la tarjeta Open Graph de /diagnostico/ (1200x630).
+  No se despliega ni se enlaza: es el original editable del asset.
+  PNG y no JPEG: es texto sobre fondo plano, donde JPEG produce halos.
+
+  Regenerar tras editar (desde la raíz del repo):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless --disable-gpu --hide-scrollbars \
+      --window-size=1200,630 \
+      --virtual-time-budget=10000 --allow-file-access-from-files \
+      --screenshot=assets/og-diagnostico.png \
+      docs/og-diagnostico.card.html
+
+  Si cambia el titular, actualizar también og:title/og:image:alt en diagnostico/index.html.
+
+  Tokens copiados a mano (no se importa tokens.css: el @import de Google Fonts
+  compite con --virtual-time-budget y a veces rasteriza con la fuente fallback).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Nunito:wght@700&family=JetBrains+Mono:wght@500&display=block" rel="stylesheet">
+<style>
+  :root{
+    --negro:#080A08;
+    --lima-circuito:#4FE070;
+    --blanco:#F0F2EC;
+    --text-body:#C2CCC4;
+    --text-muted:#8C978E;
+    --grid-line:rgba(240,242,236,.06);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    width:1200px;height:630px;overflow:hidden;
+    background:var(--negro);
+    -webkit-font-smoothing:antialiased;
+    font-family:"Barlow Semi Condensed",system-ui,sans-serif;
+  }
+
+  .card{
+    position:relative;width:1200px;height:630px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    /* Margen de seguridad: LinkedIn recorta unos pixeles en algunos viewports. */
+    padding:64px 72px;
+  }
+
+  /* Retícula de instrumentación, del design system. Se desvanece hacia la derecha
+     para no competir con el texto. */
+  .card::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+    background-size:48px 48px;
+    -webkit-mask-image:linear-gradient(105deg,rgba(0,0,0,1) 0%,rgba(0,0,0,.35) 55%,rgba(0,0,0,0) 88%);
+  }
+  /* Halo tenue del acento, abajo a la izquierda: da profundidad sin ser degradado. */
+  .card::after{
+    content:"";position:absolute;left:-120px;bottom:-220px;
+    width:720px;height:560px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(79,224,112,.16),rgba(79,224,112,0));
+  }
+  .card > *{position:relative;z-index:1}
+
+  /* ---- cabecera: wordmark ---- */
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{height:34px;width:auto;display:block}
+  .brand span{
+    font-family:"Nunito",system-ui,sans-serif;font-weight:700;
+    font-size:31px;letter-spacing:.02em;color:var(--blanco);
+    text-transform:lowercase;line-height:1;
+  }
+
+  /* ---- bloque central ---- */
+  .kicker{
+    font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:500;
+    font-size:15px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--lima-circuito);
+    margin:0 0 26px;
+  }
+  .rule{
+    width:64px;height:3px;background:var(--lima-circuito);
+    margin:0 0 26px;
+  }
+  h1{
+    margin:0;
+    font-weight:700;font-size:84px;line-height:.98;letter-spacing:-.02em;
+    color:var(--blanco);
+    max-width:15ch;
+  }
+  h1 em{font-style:normal;color:var(--lima-circuito)}
+
+  /* ---- pie ---- */
+  .foot{display:flex;align-items:flex-end;justify-content:space-between;gap:32px}
+  .sub{
+    margin:0;font-size:27px;font-weight:500;line-height:1.3;
+    color:var(--text-body);max-width:30ch;
+  }
+  .sub b{color:var(--blanco);font-weight:600}
+  .url{
+    font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:500;
+    font-size:15px;letter-spacing:.04em;color:var(--text-muted);
+    white-space:nowrap;padding-bottom:4px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <div class="brand">
+    <img src="../assets/logo-mark-white.png" alt="">
+    <span>mexillum</span>
+  </div>
+
+  <div>
+    <p class="kicker">Diagnóstico energético · 2 minutos</p>
+    <div class="rule"></div>
+    <h1>¿Qué parte de tu factura de CFE es <em>evitable</em>?</h1>
+  </div>
+
+  <div class="foot">
+    <p class="sub">Ocho preguntas sobre tu operación. <b>Sin costo y sin formulario.</b></p>
+    <span class="url">mexillum.com/diagnostico</span>
+  </div>
+
+</div>
+</body>
+</html>

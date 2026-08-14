@@ -4,8 +4,10 @@
 const content = {
   intro: {
     titulo: 'Diagnóstico energético en 2 minutos',
-    cuerpo: 'Ocho preguntas sobre tu operación. Al final vas a ver qué palancas de ahorro aplican a tu caso, un orden de magnitud de lo que hay en juego, y qué datos preparar para volverlo un número exacto.',
-    pie: 'Sin costo. Sin compromiso.',
+    cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué palancas de ahorro aplican a tu planta, cuál atacar primero, un orden de magnitud de lo que hay en juego, y qué datos preparar para volverlo un número exacto.',
+    // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
+    // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
+    pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres agendar la llamada.',
     cta: 'Empezar'
   },
 
