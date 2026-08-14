@@ -66,6 +66,15 @@ export default async function handler(req, res) {
     ? { tipo: clean(body.recomendacion_solucion.tipo, 40), razon: clean(body.recomendacion_solucion.razon, 300) }
     : null;
   const recomendacion = (recomendacionRaw && recomendacionRaw.tipo) ? recomendacionRaw : null;
+  const aplicacionRaw = (body.aplicacion_principal && typeof body.aplicacion_principal === 'object'
+    && !Array.isArray(body.aplicacion_principal))
+    ? body.aplicacion_principal
+    : null;
+  const aplicacionNombre = aplicacionRaw ? clean(aplicacionRaw.nombre, 40) : '';
+  // El motor la marca preliminar cuando las respuestas no alcanzan para fijarla.
+  const aplicacion = (aplicacionNombre && aplicacionRaw.preliminar === true)
+    ? `${aplicacionNombre} (preliminar)`
+    : aplicacionNombre;
   const ranking = Array.isArray(body.ranking)
     ? body.ranking
         .filter((o) => o && typeof o === 'object' && !Array.isArray(o))
@@ -104,6 +113,7 @@ export default async function handler(req, res) {
     `Rango estimado: ${rangoTexto}`,
     potencial ? `Potencial general: ${potencial}` : null,
     recomendacion ? `Recomendación: ${recomendacion.tipo}` : null,
+    aplicacion ? `Aplicación principal: ${aplicacion}` : null,
     ranking.length ? 'Ranking: ' + ranking.map((o) => `${o.nombre} ${o.score}`).join(' · ') : null,
     '',
     'Respuestas:',
@@ -125,10 +135,11 @@ export default async function handler(req, res) {
     `<p style="margin:0 0 16px;font-size:13px;color:#1F7A3D"><strong>${esc(perfil)}</strong><br>` +
     `Rango estimado: <strong>${esc(rangoTexto)}</strong></p>` +
 
-    (potencial || recomendacion || ranking.length
+    (potencial || recomendacion || aplicacion || ranking.length
       ? `<p style="margin:0 0 16px;font-size:13px;color:#16221A">` +
         (potencial ? `Potencial general: <strong>${esc(potencial)}</strong><br>` : '') +
         (recomendacion ? `Recomendación: <strong>${esc(recomendacion.tipo)}</strong><br>` : '') +
+        (aplicacion ? `Aplicación principal: <strong>${esc(aplicacion)}</strong><br>` : '') +
         (ranking.length ? `Ranking: ${esc(ranking.map((o) => `${o.nombre} ${o.score}`).join(' · '))}` : '') +
         `</p>`
       : '') +

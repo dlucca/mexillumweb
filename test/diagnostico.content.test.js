@@ -45,6 +45,34 @@ test('perfilSector cubre los 5 sectores', () => {
   }
 });
 
+// api/lead.js sanea con clean(tipo, 40) y clean(razon, 300): pasarse trunca el correo
+// que lee ventas a media frase, sin error visible.
+test('recomendaciones: tipo y razón caben en los límites que sanea /api/lead', () => {
+  for (const [k, r] of Object.entries(content.recomendaciones)) {
+    assert.ok(r.tipo && r.tipo.length <= 40, `tipo fuera del límite en ${k}: ${r.tipo.length}`);
+    assert.ok(r.razon && r.razon.length <= 300, `razón fuera del límite en ${k}: ${r.razon.length}`);
+  }
+});
+
+test('recomendaciones: ningún tipo se enuncia en negativo (contradice al ranking)', () => {
+  for (const [k, r] of Object.entries(content.recomendaciones)) {
+    assert.ok(!/^no\b/i.test(r.tipo), `tipo en negativo en ${k}: ${r.tipo}`);
+  }
+});
+
+test('aplicacionPrincipal: cada regla apunta a una oportunidad declarada', () => {
+  const ids = new Set(content.scoring.oportunidades.map((o) => o.id));
+  for (const r of content.scoring.aplicacionPrincipal) {
+    assert.ok(ids.has(r.id), `regla con id desconocido: ${r.id}`);
+  }
+});
+
+test('boosts y caps apuntan a oportunidades declaradas', () => {
+  const ids = new Set(content.scoring.oportunidades.map((o) => o.id));
+  for (const b of content.scoring.boosts) assert.ok(ids.has(b.id), `boost con id desconocido: ${b.id}`);
+  for (const c of content.scoring.caps) assert.ok(ids.has(c.id), `cap con id desconocido: ${c.id}`);
+});
+
 test('el copy no tiene voseo — es-MX en todas las cadenas', () => {
   const VOSEO = /\b(?:pagás|generás|comprás|tenés|exportás|vendés|necesitás|protegé|querés|podés|sabés|hacés|ponés|elegí|mirá|fijate|contá|revisá|agendá|escribí|dejá|sumá|bajá|corrés|reconocés|buscá|dejanos)\b/i;
   const cadenas = [];

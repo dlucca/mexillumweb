@@ -26,6 +26,33 @@ export function matchesWhen(resp, when) {
   });
 }
 
+// ¿La respuesta cumple una condición? Como matchesWhen, pero el valor esperado puede
+// ser un array de admisibles: { perfil: ['punta', 'plano'] } cumple con cualquiera.
+function condMatches(resp, cond) {
+  return Object.entries(cond).every(([campo, esperado]) => {
+    const admisibles = Array.isArray(esperado) ? esperado : [esperado];
+    const actual = resp[campo];
+    return Array.isArray(actual)
+      ? actual.some((v) => admisibles.includes(v))
+      : admisibles.includes(actual);
+  });
+}
+
+// Una condición suelta ({ tarifa: 'gdmth' }) se acepta donde se espera una regla.
+function asRule(r) {
+  return ('when' in r || 'allOf' in r || 'anyOf' in r) ? r : { when: r };
+}
+
+// Regla declarativa (mejora #6): combina `when` (igualdades, compat con reglas
+// existentes), `allOf` (todas las condiciones) y `anyOf` (al menos una). Las tres son
+// opcionales y se combinan con AND; una regla sin condiciones aplica siempre.
+export function matchesRule(resp, rule) {
+  if (rule.when && !condMatches(resp, rule.when)) return false;
+  if (rule.allOf && !rule.allOf.every((c) => condMatches(resp, c))) return false;
+  if (rule.anyOf && !rule.anyOf.some((c) => condMatches(resp, c))) return false;
+  return true;
+}
+
 // Una sola instalación siempre: fraseo fijo.
 export function plantaLabel() {
   return 'tu operación';
@@ -168,15 +195,20 @@ export function pickLevers(resp, ranking, content) {
 }
 
 // ---- BLOQUE D: el dato que falta ----
-// El dato principal se guía por la oportunidad mejor rankeada (mejora #5); los
-// hard-gaps (factura/tarifa sin dato) tienen prioridad porque bloquean cualquier número.
-// `ranking` es opcional: sin él, cae a los fallbacks legados (corte / default).
-export function pickMissingData(resp, content, ranking) {
+// Precedencia: hard-gaps (factura/tarifa privada, bloquean cualquier número) →
+// señales críticas comerciales (diésel, capacidad) → recomendación solar →
+// oportunidad mejor rankeada → corte → default. `ranking` y `recomendacion` son
+// opcionales: sin ellos, caen los fallbacks legados.
+export function pickMissingData(resp, content, ranking, recomendacion) {
   const hardGap = content.datoFaltante.find((r) => matchesWhen(resp, r.when));
   const porOp = content.datoFaltantePorOportunidad || {};
   const top = ranking && ranking[0] ? ranking[0].id : null;
+  const recSolar = recomendacion?.tipo === 'Solar primero' || recomendacion?.tipo === 'BESS + Solar';
   let dato;
   if (hardGap) dato = hardGap.text;
+  else if (hasSignal(resp.disparador, 'diesel') && porOp.diesel) dato = porOp.diesel;
+  else if (hasSignal(resp.disparador, 'capacidad') && porOp.diferimiento) dato = porOp.diferimiento;
+  else if (recSolar && porOp.bess_solar) dato = porOp.bess_solar;
   else if (top && porOp[top]) dato = porOp[top];
   else if (resp.corte !== 'nada') dato = content.datoFaltanteCorte;
   else dato = content.datoFaltanteDefault;
@@ -194,7 +226,9 @@ export function pickFinancing(resp, content) {
 }
 
 // ---- LIMITACIONES: datos faltantes que impiden conclusiones firmes ----
-export function detectLimitations(resp, scores, content) {
+// `recomendacion` es opcional: si la solución recomendada es "Solar primero", falta el
+// dato de techo/terreno aunque bess_solar no llegue al umbral fuerte (mejora #4).
+export function detectLimitations(resp, scores, content, recomendacion) {
   const L = content.limitaciones;
   const out = [];
   if (resp.factura === 'nolose') out.push(L.factura);
@@ -202,14 +236,16 @@ export function detectLimitations(resp, scores, content) {
   else if (resp.tarifa === 'privado') out.push(L.contrato);
   if (resp.perfil === 'nolose') out.push(L.perfil);
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
-  if (sinGeneracion && scores.bess_solar >= content.scoring.umbralFuerte) out.push(L.techo);
+  const solarPrimero = recomendacion?.tipo === 'Solar primero';
+  if (sinGeneracion && (scores.bess_solar >= content.scoring.umbralFuerte || solarPrimero)) out.push(L.techo);
   if (hasSignal(resp.disparador, 'diesel')) out.push(L.diesel);
   if (resp.calidad === 'nolose') out.push(L.calidad);
   return out;
 }
 
 // ---- CHECKLIST ----
-export function buildChecklist(resp, content) {
+// `recomendacion` opcional (mejora #4): "Solar primero" refuerza el dato de techo/terreno.
+export function buildChecklist(resp, content, recomendacion) {
   const ref = content.checklistRefuerzos;
   const tecnicos = [...content.checklistBase];
   if (hasSignal(resp.disparador, 'diesel')) tecnicos.push(ref.diesel);
@@ -223,6 +259,7 @@ export function buildChecklist(resp, content) {
     if (!tecnicos.includes(ref.horario)) tecnicos.push(ref.horario);
   }
   if (resp.generacion === 'evaluando' && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
+  if (recomendacion?.tipo === 'Solar primero' && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
   if (resp.calidad === 'factor') tecnicos.push(ref.factorPotencia);
 
   const viabilidad = ofreceServicio(resp)
@@ -242,6 +279,10 @@ export function buildChecklist(resp, content) {
 // Consume el resultado estructurado + el texto plano concatenado del bloque B.
 export function buildEventNote(res, resp, content, bloqueBTexto) {
   const p = res.palancas;
+  const ap = res.aplicacion_principal;
+  const apLinea = ap
+    ? `Aplicación principal: ${ap.nombre}${ap.preliminar ? ' (preliminar)' : ''}`
+    : null;
   const palancasLines = [
     'Palancas:',
     ...(res.gancho ? [res.gancho] : []),
@@ -257,6 +298,7 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
     `Potencial general: ${res.potencial_general}`,
     `Recomendación de solución: ${res.recomendacion_solucion.tipo}`,
     res.recomendacion_solucion.razon,
+    ...(apLinea ? [apLinea] : []),
     '',
     'Ranking de oportunidades:',
     ...res.ranking.map((o, i) => `${i + 1}. ${o.nombre} — ${o.score}`),
@@ -305,14 +347,18 @@ export function scoreOpportunities(resp, content) {
         if (typeof pts === 'number') total += pts;
       }
     }
-    // Boosts (mejora #4): combinaciones que suman puntos extra.
+    // Boosts: combinaciones que suman puntos extra (when/allOf/anyOf, mejora #6).
     for (const b of boosts) {
-      if (b.id === id && matchesWhen(resp, b.when)) total += b.pts;
+      if (b.id === id && matchesRule(resp, b)) total += b.pts;
     }
     total = Math.min(100, total);
-    // Caps (mejora #4): techo cuando falta una condición crítica.
+    // Caps: techo cuando falta la condición crítica. El cap queda exento si se cumple
+    // `requiere` (valores admisibles por campo) o `unless` (condición, mejora #6).
     for (const c of caps) {
-      if (c.id === id && !satisfiesRequire(resp, c.requiere)) total = Math.min(total, c.max);
+      if (c.id !== id) continue;
+      const exento = (c.requiere && satisfiesRequire(resp, c.requiere))
+        || (c.unless && matchesRule(resp, asRule(c.unless)));
+      if (!exento) total = Math.min(total, c.max);
     }
     out[id] = Math.max(0, total);
   }
@@ -350,33 +396,74 @@ export function recommendSolution(resp, scores, content) {
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
   const tarifaCiega = resp.tarifa === 'nolose' || resp.tarifa === 'privado';
   let key;
-  // Solar en sitio: ya hay generación → el foco es BESS para aprovechar generación/excedentes,
-  // no sumar más solar.
-  if (resp.generacion === 'solar_sitio') key = 'noSolar';
+  // Solar en sitio: ya hay generación → el foco es BESS sobre lo instalado (mejora #1:
+  // con excedente, el copy explica que la batería captura esa energía; sin más solar).
+  if (resp.generacion === 'solar_sitio') {
+    key = hasSignal(resp.disparador, 'excedente') ? 'bessSobreSolarExcedente' : 'bessSobreSolar';
+  }
   else if (resp.generacion === 'estacional') key = 'estacional';
   // Solar primero va ANTES que BESS+Solar: sin datos de tarifa no comprometemos la combinación.
   else if (resp.perfil === 'diurno' && sinGeneracion && tarifaCiega) key = 'solarPrimero';
   else if (bs >= 60 && sinGeneracion && resp.perfil === 'diurno') key = 'bessSolarDiurno';
+  // Sin perfil horario y sin recibo/tarifa: mismo tipo (BESS) con razón conservadora.
+  else if (resp.perfil === 'nolose' && (tarifaCiega || resp.factura === 'nolose')) key = 'bessPreliminar';
   else key = 'bess';
   return { tipo: rec[key].tipo, razon: rec[key].razon };
 }
 
+// ---- APLICACIÓN principal (mejora #3: subtipo comercial) ----
+// Qué aplicación del BESS/proyecto lidera el caso. Por defecto el top del ranking; las
+// reglas de `scoring.aplicacionPrincipal` (datos, en orden) lo sobreescriben cuando una
+// señal pesa más de lo que el score refleja. Cada regla puede exigir score fuerte
+// (`fuerte`) y cercanía al líder (`margenTop`).
+export function primaryApplication(resp, ranking, scores, content) {
+  const reglas = content.scoring.aplicacionPrincipal || [];
+  const top = ranking[0];
+  let id = top.id;
+  for (const r of reglas) {
+    if (!matchesRule(resp, r)) continue;
+    const score = scores[r.id] ?? 0;
+    if (r.fuerte && score < content.scoring.umbralFuerte) continue;
+    if (r.margenTop != null && (top.score - score) > r.margenTop) continue;
+    id = r.id;
+    break;
+  }
+  const op = content.scoring.oportunidades.find((o) => o.id === id);
+  // Lectura provisional: si la aplicación elegida ni siquiera llega al umbral de
+  // potencial medio, las respuestas no alcanzan para fijarla y hay que decirlo.
+  const preliminar = (scores[id] ?? 0) < content.scoring.umbralPotencial.medio;
+  return { id, nombre: op ? op.nombre : id, preliminar };
+}
+
+// ---- NORMALIZACIÓN de respuestas legadas (mejora #7) ----
+// Un payload viejo o estado persistido puede traer códigos previos al esquema actual.
+// Se mapean aquí para que el resto del motor (y toReadable) vea solo códigos vigentes:
+// generacion 'fisica' (pre-split solar/contrato) → 'solar_sitio'; disparador string
+// legado → array (equivalencia probada por el caso C del parche v2.2).
+export function normalizeResponses(resp) {
+  const out = { ...resp };
+  if (out.generacion === 'fisica') out.generacion = 'solar_sitio';
+  out.disparador = asList(out.disparador);
+  return out;
+}
+
 // ---- Orquestador ----
 export function assembleResult(estado, content) {
-  const resp = estado.respuestas;
+  const resp = normalizeResponses(estado.respuestas);
   const contacto = estado.contacto || {};
   const scores = scoreOpportunities(resp, content);
   const ranking = rankOpportunities(scores, content);
   const potencial_general = potencialGeneral(scores, resp, content);
   const recomendacion_solucion = recommendSolution(resp, scores, content);
+  const aplicacion_principal = primaryApplication(resp, ranking, scores, content);
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content);
   const palancas = pickLevers(resp, ranking, content);
-  const datoFaltante = pickMissingData(resp, content, ranking);
+  const datoFaltante = pickMissingData(resp, content, ranking, recomendacion_solucion);
   const financiamiento = pickFinancing(resp, content);
-  const checklist = buildChecklist(resp, content);
+  const checklist = buildChecklist(resp, content, recomendacion_solucion);
   const legibles = toReadable(resp, content);
-  const limitaciones = detectLimitations(resp, scores, content);
+  const limitaciones = detectLimitations(resp, scores, content, recomendacion_solucion);
 
   // rango_texto del lead: mensaje legible incluso sin número (mail a ventas).
   const rango_texto = bloqueB.sinNumero
@@ -402,6 +489,7 @@ export function assembleResult(estado, content) {
     ranking,
     potencial_general,
     recomendacion_solucion,
+    aplicacion_principal,
     limitaciones
   };
 
@@ -431,6 +519,7 @@ export function assembleResult(estado, content) {
     ranking,                                 // oportunidades ordenadas desc
     potencial_general,                       // 'Muy Alto'|'Alto'|'Medio'|'Bajo'
     recomendacion_solucion,                  // { tipo, razon } BESS vs Solar
+    aplicacion_principal,                    // { id, nombre } aplicación comercial líder
     limitaciones,                            // datos faltantes que impiden conclusiones firmes
     leadPayload
   };

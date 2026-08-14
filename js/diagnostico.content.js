@@ -123,7 +123,8 @@ const content = {
   },
   perfilExposicion: [
     { when: { generacion: 'estacional' }, text: 'con generación estacional y hueco fuera de temporada' },
-    { when: { sector: 'continuo' }, text: 'de proceso continuo con exposición estructural a horario punta' },
+    // Sin repetir "proceso continuo": perfilSector.continuo ya lo dice (mejora #2).
+    { when: { sector: 'continuo' }, text: 'con exposición estructural a horario punta' },
     { when: { disparador: 'capacidad' }, text: 'con restricción de capacidad eléctrica' },
     { when: { disparador: 'diesel' }, text: 'con dependencia de diésel' }
   ],
@@ -204,7 +205,23 @@ const content = {
     umbralPotencial: { muyAlto: 75, alto: 60, medio: 40 },
     umbralFuerte: 60,
     minFuertesParaSubir: 3,
-    umbralSecundaria: 40
+    umbralSecundaria: 40,
+    // Aplicación principal: qué lidera comercialmente cuando el ranking por score no
+    // lo captura. Se evalúan en orden (primera que aplica gana); si ninguna aplica,
+    // manda el top del ranking. Usan la misma gramática de reglas que boosts/caps.
+    //   fuerte: la oportunidad debe llegar a umbralFuerte.
+    //   margenTop: además, no puede quedar más de N puntos debajo del líder del ranking.
+    aplicacionPrincipal: [
+      // Diésel declarado siempre lidera: ahorra por peso desplazado, no por score.
+      { id: 'diesel', when: { disparador: 'diesel' } },
+      // Restricción de capacidad: lidera si el diferimiento tiene peso propio.
+      { id: 'diferimiento', when: { disparador: 'capacidad' }, fuerte: true },
+      // Respaldo: un corte caro manda, pero no cuando el ranking lo supera por mucho
+      // (ahí el caso económico sigue siendo el pico/arbitraje y el respaldo es requisito).
+      { id: 'respaldo',
+        anyOf: [{ corte: ['producto', 'reinicio', 'servicio'] }, { calidad: 'cortes' }],
+        fuerte: true, margenTop: 20 }
+    ]
   },
 
   // ---- BLOQUE B ----
@@ -323,11 +340,15 @@ const content = {
 
   // ---- RECOMENDACIÓN de solución ----
   recomendaciones: {
-    noSolar: { tipo: 'No recomendar Solar', razon: 'Ya tienes generación resuelta; sumar más Solar no es tu cuello de botella. El foco es cuánto te cuesta la demanda y cómo aprovechas mejor lo que ya generas — ahí entra el BESS.' },
+    bessSobreSolarExcedente: { tipo: 'BESS sobre solar existente', razon: 'Ya generas, y una parte se te va en excedente exportado o desperdiciado. La prioridad no es sumar más Solar: es un BESS que capture ese excedente, lo mueva a tus horas caras y suba el valor de la generación que ya instalaste.' },
+    bessSobreSolar: { tipo: 'BESS sobre solar existente', razon: 'Ya tienes generación en sitio, así que sumar más Solar no es tu cuello de botella. La prioridad es un BESS que aproveche mejor lo que ya generas: cubrir el pico de demanda y mover energía a las horas caras.' },
     estacional: { tipo: 'BESS + Solar', razon: 'Generas parte del año y el resto pagas tarifa completa. La Solar llena ese hueco —coincide con la temporada de más sol— y la batería firma esa generación y ataca el pico.' },
     bessSolarDiurno: { tipo: 'BESS + Solar', razon: 'Tu consumo de día encaja con la generación solar, y la batería te cubre el pico y la tarde-noche. La combinación rinde más que cualquiera de las dos por separado.' },
     solarPrimero: { tipo: 'Solar primero', razon: 'Con consumo diurno y sin datos de tarifa todavía, Solar es la apuesta más robusta para empezar a bajar el recibo; el BESS se dimensiona después con tu perfil real.' },
-    bess: { tipo: 'BESS', razon: 'Tu mayor oportunidad está en el pico de demanda y el arbitraje horario, no en generar energía. El BESS ataca eso directo; Solar queda como una fase 2 a evaluar sobre tus números.' }
+    bess: { tipo: 'BESS', razon: 'Tu mayor oportunidad está en el pico de demanda y el arbitraje horario, no en generar energía. El BESS ataca eso directo; Solar queda como una fase 2 a evaluar sobre tus números.' },
+    // Mismo tipo que `bess`, razón conservadora: sin perfil horario ni recibo no hay
+    // base para afirmar cuál palanca manda (evita sobreafirmar en el caso ciego).
+    bessPreliminar: { tipo: 'BESS', razon: 'Con lo que sabemos hoy el BESS es el camino más probable, porque el pico de demanda y el arbitraje horario suelen ser donde está el dinero. Cuál de los dos manda en tu caso no lo podemos fijar sin tu perfil de consumo y tu recibo: es lo primero que revisamos en la llamada.' }
   },
 
   // ---- LIMITACIONES del diagnóstico ----
