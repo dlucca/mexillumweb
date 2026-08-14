@@ -94,7 +94,9 @@ test('renderBlockB: caso con número incluye cadena, rango exacto y disclaimer',
 
 test('renderBlockB: perfil plano (24/7) agrega el extra de arbitraje', () => {
   const r = { sector: 'continuo', perfil: 'plano', tarifa: 'gdmth', factura: 'alto', disparador: 'costo' };
-  assert.ok(renderBlockB(r, content).texto.includes('el arbitraje horario lo es'));
+  // Contra content.bloqueB.continuoExtra y no contra un fragmento literal: lo que
+  // se prueba es que el extra se anexa, no cómo está redactado.
+  assert.ok(renderBlockB(r, content).texto.includes(content.bloqueB.continuoExtra));
 });
 
 test('renderBlockB: nolose y privado devuelven copy sin número; diésel se suma como nota', () => {

@@ -284,7 +284,7 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
     ? `Aplicación principal: ${ap.nombre}${ap.preliminar ? ' (preliminar)' : ''}`
     : null;
   const palancasLines = [
-    'Palancas:',
+    'Oportunidades:',
     ...(res.gancho ? [res.gancho] : []),
     `Principal — ${p.principal.nombre}: ${p.principal.text}`,
     ...(p.secundaria ? [`Secundaria — ${p.secundaria.nombre}: ${p.secundaria.text}`] : []),

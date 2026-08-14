@@ -4,7 +4,7 @@
 const content = {
   intro: {
     titulo: 'Diagnóstico energético en 2 minutos',
-    cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué palancas de ahorro aplican a tu planta, cuál atacar primero, un orden de magnitud de lo que hay en juego, y qué datos preparar para volverlo un número exacto.',
+    cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué oportunidades de ahorro aplican a tu planta, cuál atacar primero, un orden de magnitud de lo que hay en juego, y qué datos preparar para volverlo un número exacto.',
     // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
     // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
     pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres agendar la llamada.',
@@ -93,7 +93,7 @@ const content = {
     {
       key: 'disparador', notaLabel: 'Disparador', multi: true,
       pregunta: 'Además de la factura, ¿algo de esto te suena familiar?',
-      hint: 'Cada una señala una palanca de ahorro distinta — puedes marcar más de una.',
+      hint: 'Cada una señala una oportunidad de ahorro distinta — puedes marcar más de una.',
       opciones: [
         { label: 'Queremos crecer o ampliar carga, y CFE no da capacidad (o tarda)', codigo: 'capacidad' },
         { label: 'Usamos diésel o planta de emergencia con frecuencia', codigo: 'diesel' },
@@ -242,8 +242,8 @@ const content = {
     plantilla: (v) => `Con una factura de ~${v.facturaLegible} al mes en tarifa ${v.tarifaLegible}, el cargo por demanda suele pesar entre ${v.pctDemandaPiso}% y ${v.pctDemandaTecho}% del recibo. En operaciones con un perfil de carga como el tuyo, un sistema de almacenamiento bien dimensionado suele recortar del orden de ${v.pctRecortePiso}% a ${v.pctRecorteTecho}% de ese cargo.`,
     rango: (rangoTexto) => `Orden de magnitud: ${rangoTexto}.`,
     disclaimer: 'No es una estimación precisa ni una propuesta: en empresas con un perfil similar solemos encontrar oportunidades económicas de este orden de magnitud. El número real se calcula con tus recibos de los últimos 12 meses.',
-    continuoExtra: 'Y en una operación que no para como la tuya, el recorte de pico no suele ser la palanca más fuerte — el arbitraje horario lo es, porque compras en punta todos los días. Eso se suma y se calcula con tu desglose horario.',
-    noloseFactura: 'Para dar un orden de magnitud necesitamos la escala de tu factura — es el primer dato del checklist. Lo que sí podemos adelantarte es qué palancas aplican a tu perfil:',
+    continuoExtra: 'Y en una operación que no para como la tuya, el recorte de pico no suele ser lo que más rinde — el arbitraje horario sí, porque compras en punta todos los días. Eso se suma y se calcula con tu desglose horario.',
+    noloseFactura: 'Para dar un orden de magnitud necesitamos la escala de tu factura — es el primer dato del checklist. Lo que sí podemos adelantarte es qué oportunidades aplican a tu perfil:',
     privado: 'Como compras a un suministrador privado, tu ahorro depende de la estructura de tu contrato — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.',
     dieselNota: 'Y ojo: la sustitución de diésel ahorra por peso desplazado, no por porcentaje de factura — suele ser el de mayor margen del análisis, y lo dimensionamos con tus horas de operación.'
   },
@@ -258,7 +258,7 @@ const content = {
     },
     arbitraje: {
       nombre: 'Arbitraje horario',
-      principal: 'Compras energía en horario punta de forma recurrente. Trasladar ese consumo a horas baratas con la batería es tu palanca más fuerte.',
+      principal: 'Compras energía en horario punta de forma recurrente. Trasladar ese consumo a horas baratas con la batería es tu mayor oportunidad.',
       descarte: 'Salvo que tu consumo esté concentrado en punta, arbitrar entre horarios rinde menos que atacar el pico directo. Lo verificamos con tu desglose horario.'
     },
     bess_solar: {
@@ -274,11 +274,11 @@ const content = {
     diferimiento: {
       nombre: 'Diferimiento de capacidad',
       principal: 'Ampliar tu acometida con CFE puede tomar meses o años. El almacenamiento te deja crecer sin esperar esa ampliación.',
-      descarte: 'No hay una restricción de capacidad que resolver hoy; el diferimiento no es tu palanca.'
+      descarte: 'No hay una restricción de capacidad que resolver hoy; el diferimiento no aplica en tu caso.'
     },
     diesel: {
       nombre: 'Sustitución de diésel',
-      principal: 'Cada hora de diésel cuesta un múltiplo de la red. Desplazarlo con almacenamiento suele ser la palanca de mayor margen.',
+      principal: 'Cada hora de diésel cuesta un múltiplo de la red. Desplazarlo con almacenamiento suele ser la oportunidad de mayor margen.',
       descarte: 'No dependes de diésel, así que no hay consumo de combustible que desplazar.'
     }
   },
@@ -355,13 +355,13 @@ const content = {
 
   // ---- LIMITACIONES del diagnóstico ----
   limitaciones: {
-    factura: { dato: 'Orden de magnitud de tu factura mensual', porque: 'Sin la escala del recibo no hay base para estimar el rango económico.', no_se_puede: 'Cuantificar el ahorro; sólo priorizar qué palancas aplican.' },
+    factura: { dato: 'Orden de magnitud de tu factura mensual', porque: 'Sin la escala del recibo no hay base para estimar el rango económico.', no_se_puede: 'Cuantificar el ahorro; sólo priorizar qué oportunidades aplican.' },
     tarifa: { dato: 'Tu tarifa de CFE', porque: 'Define cuánto pesa el cargo por demanda y si hay diferenciación horaria.', no_se_puede: 'Separar peak shaving de arbitraje ni confirmar elegibilidad de arbitraje.' },
     contrato: { dato: 'Estructura de tu contrato de suministro', porque: 'El arbitraje depende de si hay exposición a precios horarios del mercado.', no_se_puede: 'Confirmar si el margen es tuyo o de tu suministrador.' },
-    perfil: { dato: 'Tu perfil horario de consumo', porque: 'Sin saber cuándo consumes no se distingue recortar pico de arbitrar.', no_se_puede: 'Fijar la palanca principal con confianza.' },
+    perfil: { dato: 'Tu perfil horario de consumo', porque: 'Sin saber cuándo consumes no se distingue recortar pico de arbitrar.', no_se_puede: 'Fijar la oportunidad principal con confianza.' },
     techo: { dato: 'Superficie de techo o terreno disponible', porque: 'Define si la generación solar es viable en el sitio.', no_se_puede: 'Dimensionar un proyecto BESS + Solar.' },
     diesel: { dato: 'Horas al año que corre tu diésel y su costo', porque: 'Es lo que dimensiona el mayor margen del análisis.', no_se_puede: 'Cuantificar la sustitución de diésel.' },
-    calidad: { dato: 'Comportamiento de tu calidad eléctrica', porque: 'Define si hay penalización por factor de potencia o riesgo a equipos.', no_se_puede: 'Valorar la palanca de calidad/factor de potencia.' }
+    calidad: { dato: 'Comportamiento de tu calidad eléctrica', porque: 'Define si hay penalización por factor de potencia o riesgo a equipos.', no_se_puede: 'Valorar la oportunidad de calidad/factor de potencia.' }
   },
 
   // ---- Resumen comercial en el resultado (mejora #1) ----
