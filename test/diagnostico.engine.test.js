@@ -44,7 +44,7 @@ test('buildProfile: capacidad y diesel como exposición cuando no hay estacional
 test('toReadable: mapea códigos a labels visibles', () => {
   const leg = toReadable(fx, content);
   assert.equal(leg.sector, 'Manufactura por turnos o por lotes');
-  assert.equal(leg.tarifa, 'GDMTH');
+  assert.equal(leg.tarifa, 'GDMTH (Gran Demanda Media Tensión Horaria)');
   assert.equal(leg.corte, 'Se detiene producción y reiniciar toma horas');
 });
 
@@ -130,7 +130,7 @@ test('pickLevers: respaldo usa la variante de copy según el tipo de corte', () 
 });
 
 test('pickLevers: secundaria null cuando la 2a oportunidad no supera el umbral', () => {
-  const resp = { sector: 'manufactura', perfil: 'plano', generacion: 'no', calidad: 'no', tarifa: 'otra', factura: 'bajo', corte: 'nada', disparador: 'costo' };
+  const resp = { sector: 'manufactura', perfil: 'plano', generacion: 'no', calidad: 'no', tarifa: 'pdbt', factura: 'bajo', corte: 'nada', disparador: 'costo' };
   const ranking = rankOpportunities(scoreOpportunities(resp, content), content);
   const l = pickLevers(resp, ranking, content);
   assert.ok(ranking[1].score < content.scoring.umbralSecundaria, 'fixture debe mantener la 2a oportunidad bajo el umbral');
@@ -170,7 +170,7 @@ test('pickMissingData: hard-gaps (factura/tarifa) tienen prioridad sobre el rank
 test('pickMissingData: dato principal guiado por la oportunidad mejor rankeada (mejora #5)', () => {
   const porOp = content.datoFaltantePorOportunidad;
   // diésel domina el ranking (perfil plano no favorece peak shaving) → dato de horas de diésel
-  const diesel = { sector: 'manufactura', perfil: 'plano', generacion: 'no', calidad: 'no', tarifa: 'otra', factura: 'bajo', corte: 'nada', disparador: ['diesel'] };
+  const diesel = { sector: 'manufactura', perfil: 'plano', generacion: 'no', calidad: 'no', tarifa: 'pdbt', factura: 'bajo', corte: 'nada', disparador: ['diesel'] };
   const rkD = rankOpportunities(scoreOpportunities(diesel, content), content);
   assert.equal(rkD[0].id, 'diesel');
   assert.equal(pickMissingData(diesel, content, rkD).dato, porOp.diesel);
@@ -199,7 +199,7 @@ test('pickMissingData: recomendación Solar primero / BESS + Solar pide dato de 
   // Solar primero con factura conocida (tarifa nolose no es hard-gap)
   const sp = { ...fx, perfil: 'diurno', generacion: 'no', tarifa: 'nolose', factura: 'alto' };
   const recSp = recommendSolution(sp, scoreOpportunities(sp, content), content);
-  assert.equal(recSp.tipo, 'Solar primero');
+  assert.equal(recSp.tipo, 'Solar fotovoltaico on-grid');
   assert.equal(pickMissingData(sp, content, rankOpportunities(scoreOpportunities(sp, content), content), recSp).dato, porOp.bess_solar);
   // BESS + Solar (estacional) también, salvo diésel/capacidad
   const bs = { ...fx, generacion: 'estacional' };
@@ -311,7 +311,7 @@ test('detectLimitations + buildChecklist: "Solar primero" agrega techo/terreno s
   const resp = { ...fx, perfil: 'diurno', generacion: 'no', tarifa: 'nolose', factura: 'nolose' };
   const scores = scoreOpportunities(resp, content);
   const rec = recommendSolution(resp, scores, content);
-  assert.equal(rec.tipo, 'Solar primero');
+  assert.equal(rec.tipo, 'Solar fotovoltaico on-grid');
   assert.ok(scores.bess_solar < content.scoring.umbralFuerte, 'bess_solar no llega al umbral fuerte');
   const lim = detectLimitations(resp, scores, content, rec);
   assert.equal(lim.filter((l) => l === content.limitaciones.techo).length, 1);
@@ -325,7 +325,7 @@ test('buildChecklist: evaluando + "Solar primero" no duplica el refuerzo de tech
   const resp = { ...fx, perfil: 'diurno', generacion: 'evaluando', tarifa: 'nolose', factura: 'nolose' };
   const scores = scoreOpportunities(resp, content);
   const rec = recommendSolution(resp, scores, content);
-  assert.equal(rec.tipo, 'Solar primero');
+  assert.equal(rec.tipo, 'Solar fotovoltaico on-grid');
   const { full } = buildChecklist(resp, content, rec);
   assert.equal(full.filter((b) => b === content.checklistRefuerzos.techo).length, 1);
   const lim = detectLimitations(resp, scores, content, rec);
@@ -342,14 +342,17 @@ const estadoFx = {
 test('assembleResult: fixture end-to-end (spec §5, salida estructurada)', () => {
   const res = assembleResult(estadoFx, content);
   assert.equal(res.perfil, 'Perfil: manufactura con exposición a cargo por demanda.');
-  assert.equal(res.calculo.sin_numero, false);
-  assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
-  assert.ok(res.calculo.cadena.includes('$2.5 millones'));
-  assert.equal(res.gancho, null); // Cambio 2: hubo número
+  // Motor v3: fx (diurno, sin generación, foco en costo) hace liderar solar_puro, cuya
+  // aplicación no es peak_shaving → bloque B sin rango numérico, con copy de solar.
+  assert.equal(res.ranking[0].id, 'solar_puro');
+  assert.equal(res.calculo.sin_numero, true);
+  assert.equal(res.calculo.rango_texto, null);
+  assert.equal(res.calculo.cadena, content.bloqueB.sinRangoPorAplicacion.solar_puro);
+  assert.equal(res.gancho, null); // Cambio 2: factura/tarifa conocidas → sin gancho
   assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
   assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
-  assert.equal(res.dato_faltante, content.datoFaltantePorOportunidad[res.ranking[0].id]); // mejora #5
+  assert.equal(res.dato_faltante, content.datoFaltantePorOportunidad.bess_solar); // recomendación solar → dato de techo/excedente
   assert.equal(res.cierre_llamada, content.cierreComun);
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
   assert.equal(res.checklist.web[res.checklist.web.length - 1], content.checklistUniversal);
@@ -365,18 +368,22 @@ test('assembleResult: fixture del parche → descarte presente y gancho null', (
   };
   const res = assembleResult(estado, content);
   assert.equal(res.perfil, 'Perfil: frío y logística con exposición a cargo por demanda.');
-  assert.equal(res.calculo.rango_texto, '$2.2 a $4.2 millones de MXN al año');
+  // Motor v3: perfil diurno + costo → lidera solar_puro → bloque B sin rango numérico.
+  assert.equal(res.ranking[0].id, 'solar_puro');
+  assert.equal(res.calculo.rango_texto, null);
   assert.equal(res.gancho, null); // Cambio 2: gancho depende solo de factura==='nolose' || tarifa==='privado'; aquí ninguna aplica
   assert.equal(res.palancas.principal.nombre, content.palancasCopy[res.ranking[0].id].nombre);
   assert.equal(res.palancas.secundaria.nombre, content.palancasCopy[res.ranking[1].id].nombre);
   assert.ok(res.palancas.descarte, 'descarte debe estar presente'); // Cambio 1
   assert.equal(res.palancas.descarte.nombre, content.palancasCopy[res.ranking[res.ranking.length - 1].id].nombre);
-  assert.equal(res.dato_faltante, content.datoFaltantePorOportunidad[res.ranking[0].id]); // mejora #5, guiado por ranking
+  assert.equal(res.dato_faltante, content.datoFaltantePorOportunidad.bess_solar); // recomendación solar → dato de techo/excedente
   assert.ok(res.financiamiento.startsWith('Nuestros proyectos pueden estructurarse de dos formas'));
 });
 
 test('assembleResult: limitaciones vacías cuando hay datos completos', () => {
-  const estado = { respuestas: { sector: 'manufactura', perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' }, contacto: {} };
+  // Perfil picos: lidera peak_shaving (no solar), así no se agrega la limitación de techo;
+  // con factura y tarifa conocidas, no queda ningún dato faltante.
+  const estado = { respuestas: { sector: 'manufactura', perfil: 'picos', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'reinicio', disparador: 'costo' }, contacto: {} };
   assert.deepEqual(assembleResult(estado, content).limitaciones, []);
 });
 
@@ -387,7 +394,8 @@ test('assembleResult: leadPayload expone las keys que consume /api/lead', () => 
   for (const k of esperadas) assert.ok(k in p, `falta ${k}`);
   assert.equal(p.nombre, 'Ana');
   assert.equal(p.rol, 'Finanzas');
-  assert.equal(p.rango_texto, '$2.2 a $4.2 millones de MXN al año');
+  // fx lidera solar_puro → sin rango numérico; el payload lleva el mensaje legible.
+  assert.equal(p.rango_texto, 'Aplicación prioritaria sin datos suficientes para un rango');
   assert.equal(p.respuestas_legibles.sector, 'Manufactura por turnos o por lotes');
   for (const paso of content.pasos) {
     assert.equal(typeof p.respuestas_legibles[paso.key], 'string', `falta legible ${paso.key}`);
@@ -438,9 +446,9 @@ test('scoreOpportunities: todo score queda en [0,100]', () => {
   for (const v of Object.values(s)) assert.ok(v >= 0 && v <= 100, `fuera de rango: ${v}`);
 });
 
-test('rankOpportunities: devuelve 6 ordenadas desc con nombre', () => {
+test('rankOpportunities: devuelve 8 ordenadas desc con nombre', () => {
   const r = rankOpportunities(scoreOpportunities(fx, content), content);
-  assert.equal(r.length, 6);
+  assert.equal(r.length, 8);
   for (let i = 1; i < r.length; i++) assert.ok(r[i - 1].score >= r[i].score);
   assert.ok(typeof r[0].nombre === 'string');
 });
@@ -452,7 +460,9 @@ test('potencialGeneral: tope Medio cuando faltan factura y tarifa', () => {
 });
 
 test('potencialGeneral: Muy Alto con score líder >=75', () => {
-  const resp = { sector: 'manufactura', perfil: 'picos', generacion: 'no', calidad: 'factor', tarifa: 'gdmth', factura: 'muyalto', corte: 'producto', disparador: 'costo' };
+  // Muy Alto (motor v3) exige 2+ palancas fuertes además de factura grande y tarifa
+  // cuantificable: picos+GDMTH dispara peak_shaving y corte producto+cortes dispara respaldo.
+  const resp = { sector: 'frio', perfil: 'picos', generacion: 'no', calidad: 'cortes', tarifa: 'gdmth', factura: 'muyalto', corte: 'producto', disparador: 'costo' };
   const scores = scoreOpportunities(resp, content);
   assert.equal(potencialGeneral(scores, resp, content), 'Muy Alto');
 });
@@ -460,7 +470,7 @@ test('potencialGeneral: Muy Alto con score líder >=75', () => {
 test('assembleResult: expone scores, ranking y potencial_general', () => {
   const res = assembleResult(estadoFx, content);
   assert.equal(typeof res.scores.peak_shaving, 'number');
-  assert.equal(res.ranking.length, 6);
+  assert.equal(res.ranking.length, 8);
   assert.ok(['Muy Alto', 'Alto', 'Medio', 'Bajo'].includes(res.potencial_general));
   assert.equal(res.leadPayload.potencial_general, res.potencial_general);
 });
@@ -472,7 +482,7 @@ test('recommendSolution: solar en sitio + excedente → BESS sobre solar existen
   const rec = recommendSolution(con, scoreOpportunities(con, content), content);
   assert.equal(rec.tipo, 'BESS sobre solar existente');
   assert.match(rec.razon, /excedente/i);
-  assert.match(rec.razon, /no es sumar más Solar/i); // aclara que no se recomienda más solar
+  assert.match(rec.razon, /no es sumar más paneles/i); // aclara que no se recomienda más solar
 });
 
 test('recommendSolution: solar en sitio sin excedente → BESS sobre solar existente, copy no contradictorio', () => {
@@ -486,7 +496,7 @@ test('recommendSolution: solar en sitio sin excedente → BESS sobre solar exist
 test('recommendSolution: contrato renovable se trata como sin generación detrás del medidor (mejora #3)', () => {
   // diurno + contrato + tarifa ciega → Solar primero (elegible para solar nueva)
   const resp = { ...fx, generacion: 'contrato', perfil: 'diurno', tarifa: 'nolose', factura: 'nolose' };
-  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar primero');
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar fotovoltaico on-grid');
 });
 
 test('recommendSolution: estacional → BESS + Solar', () => {
@@ -495,31 +505,35 @@ test('recommendSolution: estacional → BESS + Solar', () => {
 });
 
 test('recommendSolution: consumo diurno sin generación NO fuerza BESS + Solar (mejora #2)', () => {
-  // Antes bastaba diurno; ahora el cap de bess_solar por falta de señal solar lo evita.
+  // El cap de bess_solar por falta de señal solar evita BESS + Solar; con perfil diurno,
+  // sin generación y foco en costo, lidera solar_puro → Solar fotovoltaico on-grid (no BESS + Solar).
   const resp = { ...fx, generacion: 'no', perfil: 'diurno' };
-  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS');
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar fotovoltaico on-grid');
 });
 
-test('recommendSolution: solar en evaluación + diurno + excedente → BESS + Solar', () => {
+test('recommendSolution: solar en evaluación + diurno → Solar fotovoltaico on-grid', () => {
+  // Motor v3: solar_puro lidera el ranking (diurno) y "evaluando" cuenta como sin generación
+  // detrás del medidor, así que la recomendación es solar nueva antes que la combinación con BESS.
   const resp = { ...fx, generacion: 'evaluando', perfil: 'diurno', disparador: ['excedente'] };
-  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'BESS + Solar');
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar fotovoltaico on-grid');
 });
 
-test('recommendSolution: diurno sin generación y tarifa desconocida → Solar primero', () => {
+test('recommendSolution: diurno sin generación y tarifa desconocida → Solar fotovoltaico on-grid', () => {
   const resp = { ...fx, generacion: 'no', perfil: 'diurno', tarifa: 'nolose', factura: 'nolose' };
-  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar primero');
+  assert.equal(recommendSolution(resp, scoreOpportunities(resp, content), content).tipo, 'Solar fotovoltaico on-grid');
 });
 
-test('recommendSolution: perfil y recibo desconocidos → BESS con razón conservadora', () => {
+test('recommendSolution: perfil y recibo desconocidos, sin generación → Solar fotovoltaico on-grid', () => {
+  // Motor v3: solar_puro puntúa alto incluso con perfil/recibo desconocidos (sin generación,
+  // foco en costo), así que encabeza el ranking y la recomendación es solar nueva.
   const ciego = { ...fx, perfil: 'nolose', generacion: 'no', tarifa: 'nolose', factura: 'nolose' };
   const rec = recommendSolution(ciego, scoreOpportunities(ciego, content), content);
-  assert.equal(rec.tipo, 'BESS'); // mismo tipo: no cambia el contrato con el CRM
-  assert.equal(rec.razon, content.recomendaciones.bessPreliminar.razon);
-  assert.notEqual(rec.razon, content.recomendaciones.bess.razon);
-  // con perfil desconocido pero recibo y tarifa a la mano, la razón sí afirma
+  assert.equal(rec.tipo, 'Solar fotovoltaico on-grid');
+  assert.equal(rec.razon, content.recomendaciones.solarPrimero.razon);
+  // con recibo y tarifa a la mano el resultado se mantiene solar (solar_puro sigue liderando)
   const conDatos = { ...fx, perfil: 'nolose', generacion: 'no', tarifa: 'gdmth', factura: 'alto' };
   assert.equal(recommendSolution(conDatos, scoreOpportunities(conDatos, content), content).razon,
-    content.recomendaciones.bess.razon);
+    content.recomendaciones.solarPrimero.razon);
 });
 
 test('recommendSolution: default → BESS', () => {
@@ -529,7 +543,7 @@ test('recommendSolution: default → BESS', () => {
 
 test('assembleResult: expone recomendacion_solucion con tipo válido', () => {
   const res = assembleResult(estadoFx, content);
-  assert.ok(['BESS', 'BESS + Solar', 'Solar primero', 'BESS sobre solar existente'].includes(res.recomendacion_solucion.tipo));
+  assert.ok(Object.values(content.recomendaciones).some((r) => r.tipo === res.recomendacion_solucion.tipo));
   assert.equal(typeof res.recomendacion_solucion.razon, 'string');
 });
 
@@ -560,7 +574,9 @@ test('primaryApplication: capacidad prioriza diferimiento cuando su score es fue
 });
 
 test('primaryApplication: respaldo fuerte con corte costoso gana aunque no sea el top', () => {
-  const resp = { ...fx, corte: 'producto', calidad: 'cortes' };
+  // Perfil plano evita que solar_puro domine; arbitraje lidera pero respaldo (fuerte y dentro
+  // del margen) lo desplaza como aplicación principal.
+  const resp = { ...fx, perfil: 'plano', corte: 'producto', calidad: 'cortes' };
   const scores = scoreOpportunities(resp, content);
   const ranking = rankOpportunities(scores, content);
   assert.ok(scores.respaldo >= content.scoring.umbralFuerte);
@@ -592,10 +608,10 @@ test('primaryApplication: la precedencia se lee de content (regla nueva sin toca
 });
 
 test('primaryApplication: marca preliminar cuando el líder no llega al umbral de potencial medio', () => {
-  // Todo desconocido: el ranking líder queda en territorio "Bajo" y la aplicación
-  // no se puede fijar; la nota debe decirlo en vez de afirmarla.
-  const ciego = { sector: 'manufactura', perfil: 'nolose', generacion: 'no', calidad: 'nolose',
-    tarifa: 'nolose', factura: 'nolose', corte: 'nada', disparador: ['costo'] };
+  // Motor v3: el líder queda bajo el umbral medio solo cuando ya hay solar en sitio (que
+  // anula solar_puro) y el resto de señales es débil; ahí la aplicación no se puede fijar.
+  const ciego = { sector: 'continuo', perfil: 'plano', generacion: 'solar_sitio', calidad: 'factor',
+    tarifa: 'gdmto', factura: 'bajo', corte: 'nada', disparador: ['costo'] };
   const scores = scoreOpportunities(ciego, content);
   const ranking = rankOpportunities(scores, content);
   const ap = primaryApplication(ciego, ranking, scores, content);
@@ -608,8 +624,8 @@ test('primaryApplication: marca preliminar cuando el líder no llega al umbral d
 });
 
 test('buildEventNote: la aplicación preliminar se marca como tal en la nota', () => {
-  const ciego = { sector: 'manufactura', perfil: 'nolose', generacion: 'no', calidad: 'nolose',
-    tarifa: 'nolose', factura: 'nolose', corte: 'nada', disparador: ['costo'] };
+  const ciego = { sector: 'continuo', perfil: 'plano', generacion: 'solar_sitio', calidad: 'factor',
+    tarifa: 'gdmto', factura: 'bajo', corte: 'nada', disparador: ['costo'] };
   const res = assembleResult({ respuestas: ciego, contacto: {} }, content);
   assert.equal(res.aplicacion_principal.preliminar, true);
   assert.ok(res.note.includes(`Aplicación principal: ${res.aplicacion_principal.nombre} (preliminar)`));
@@ -672,11 +688,11 @@ test('renderBlockB / detectLimitations / buildChecklist: reconocen diesel dentro
   assert.ok(buildChecklist(r, content).full.includes(content.checklistRefuerzos.diesel));
 });
 
-test('recommendSolution: excedente dentro de un array multi-señal usa la razón de excedentes', () => {
+test('recommendSolution: diésel gana sobre excedente dentro de un array multi-señal', () => {
   const resp = { ...fx, generacion: 'solar_sitio', disparador: ['excedente', 'diesel'] };
   const rec = recommendSolution(resp, scoreOpportunities(resp, content), content);
   assert.equal(rec.tipo, 'BESS sobre solar existente');
-  assert.equal(rec.razon, content.recomendaciones.bessSobreSolarExcedente.razon);
+  assert.equal(rec.razon, content.recomendaciones.bessDieselSolar.razon);
 });
 
 test('toReadable: array une labels; vacío → "Ninguna"', () => {
@@ -684,7 +700,7 @@ test('toReadable: array une labels; vacío → "Ninguna"', () => {
   assert.ok(leg.disparador.includes('diésel'));
   assert.ok(leg.disparador.includes('crecer'));
   assert.ok(leg.disparador.includes(';'));
-  assert.equal(toReadable({ ...fx, disparador: [] }, content).disparador, 'Ninguna, nuestro tema es puramente el costo');
+  assert.equal(toReadable({ ...fx, disparador: [] }, content).disparador, 'Ninguna, nuestro tema es puramente reducir el costo de la energía');
 });
 
 // Fixture Caso A del parche (adaptado a esquema v3): dos señales, sin corte.
@@ -753,7 +769,7 @@ test('matchesRule: when mantiene la semántica actual; anyOf/allOf y valores arr
   // anyOf + when se combinan con AND (ejemplo del spec)
   const regla = { anyOf: [{ perfil: 'punta' }, { perfil: 'plano' }], when: { tarifa: 'gdmth' } };
   assert.equal(matchesRule(resp, regla), true);
-  assert.equal(matchesRule({ ...resp, tarifa: 'otra' }, regla), false);
+  assert.equal(matchesRule({ ...resp, tarifa: 'gdmto' }, regla), false);
 });
 
 test('boosts: una regla con anyOf aplica correctamente', () => {
@@ -789,7 +805,8 @@ test('caps: unless exime el cap cuando la condición se cumple', () => {
   const cap = { id: 'peak_shaving', max: 12, unless: { tarifa: ['gdmth', 'dist'] } };
   const c2 = { ...content, scoring: { ...content.scoring, caps: [...content.scoring.caps, cap] } };
   const base = { sector: 'manufactura', perfil: 'picos', generacion: 'no', calidad: 'no', factura: 'alto', corte: 'nada', disparador: 'costo' };
-  const capado = scoreOpportunities({ ...base, tarifa: 'otra' }, c2).peak_shaving;
+  // gdbt sí factura demanda (no lo capa la regla base) pero no está en unless → aplica el cap de prueba.
+  const capado = scoreOpportunities({ ...base, tarifa: 'gdbt' }, c2).peak_shaving;
   assert.equal(capado, 12);
   const exento = scoreOpportunities({ ...base, tarifa: 'gdmth' }, c2).peak_shaving;
   assert.ok(exento > 12, `con gdmth el cap no aplica, fue ${exento}`);
@@ -846,5 +863,5 @@ test('leadPayload: conserva scores, ranking, potencial, recomendación y limitac
   for (const k of ['scores', 'ranking', 'potencial_general', 'recomendacion_solucion', 'limitaciones']) {
     assert.ok(k in p, `falta ${k} en el payload`);
   }
-  assert.ok(Array.isArray(p.ranking) && p.ranking.length === 6);
+  assert.ok(Array.isArray(p.ranking) && p.ranking.length === 8);
 });

@@ -324,7 +324,8 @@ function registerBookingListener() {
         empresa: estado.contacto.empresa || '',
         correo: estado.contacto.correo || attendee.email || '',
         telefono: estado.contacto.telefono || '',
-        rol: estado.contacto.rol || ''
+        rol: estado.contacto.rol || '',
+        presupuesto: estado.contacto.presupuesto || ''
       };
       estado.resultado = assembleResult(estado, content);
       submitLead(estado.resultado.leadPayload);
@@ -363,15 +364,18 @@ function renderResult() {
           ${palancaLi('Principal', '', p.principal.nombre, p.principal.text)}
           ${p.secundaria ? palancaLi('Secundaria', '', p.secundaria.nombre, p.secundaria.text) : ''}
           ${p.factorPotencia ? palancaLi('Secundaria', '', p.factorPotencia.nombre, p.factorPotencia.text) : ''}
-          ${palancaLi('No aplica', ' dx__palanca-tag--off', p.descarte.nombre, p.descarte.text)}
+          ${palancaLi(p.descarte.tag, ' dx__palanca-tag--off', p.descarte.nombre, p.descarte.text)}
         </ul>`;
 
   // Resumen comercial discreto (mejora #1): potencial + recomendación + top 3 del
   // ranking + hasta 2 limitaciones críticas. Parte del diagnóstico, no un dashboard.
   const rz = content.resumen;
-  const top3 = res.ranking.slice(0, 3);
+  const aplicacionRank = res.ranking.find((o) => o.id === res.aplicacion_principal.id);
+  const top3 = [aplicacionRank, ...res.ranking.filter((o) => o.id !== res.aplicacion_principal.id)]
+    .filter(Boolean)
+    .slice(0, 3);
   const rankingLis = top3.map((o) =>
-    `<li><span class="dx__rank-name">${esc(o.nombre)}</span><span class="dx__rank-score">${esc(o.score)}</span></li>`).join('');
+    `<li><span class="dx__rank-name">${esc(o.nombre)}</span></li>`).join('');
   const limCriticas = res.limitaciones.slice(0, 2);
   const limHtml = limCriticas.length
     ? `<p class="dx__resumen-k">${esc(rz.limitacionesLabel)}:</p>
@@ -420,7 +424,7 @@ function renderResult() {
           ${contactFieldsHtml()}
           <input type="text" name="website" tabindex="-1" autocomplete="off"
             style="position:absolute;left:-9999px" aria-hidden="true">
-          <p class="mx-field__error" data-gate-error hidden></p>
+          <p class="mx-field__error" data-gate-error role="alert" aria-live="polite" hidden></p>
           <div class="dx__nav dx__nav--end">
             <button type="submit" class="mx-btn mx-btn--primary">${esc(content.gate.cta)}</button>
           </div>
@@ -470,7 +474,8 @@ function renderResult() {
       empresa: bookForm.empresa.value.trim(),
       correo,
       telefono: bookForm.telefono.value.trim(),
-      rol: bookForm.rol.value
+      rol: bookForm.rol.value,
+      presupuesto: bookForm.presupuesto.value
     };
     estado.resultado = assembleResult(estado, content);
     submitLead(estado.resultado.leadPayload); // envío del lead (de-duplicado)

@@ -64,9 +64,11 @@ test('api/lead: el tipo de recomendación viaja completo, sin truncarse', async 
 });
 
 test('api/lead: la aplicación preliminar llega marcada al correo', async () => {
+  // Motor v3: la aplicación queda preliminar solo cuando ya hay solar en sitio (que anula
+  // solar_puro) y el resto de señales es débil, dejando al líder bajo el umbral medio.
   const ciego = {
-    respuestas: { sector: 'manufactura', perfil: 'nolose', generacion: 'no', calidad: 'nolose',
-      tarifa: 'nolose', factura: 'nolose', corte: 'nada', disparador: ['costo'] },
+    respuestas: { sector: 'continuo', perfil: 'plano', generacion: 'solar_sitio', calidad: 'factor',
+      tarifa: 'gdmto', factura: 'bajo', corte: 'nada', disparador: ['costo'] },
     contacto: estado.contacto
   };
   const res = assembleResult(ciego, content);

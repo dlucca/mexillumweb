@@ -22,8 +22,8 @@ test('cada paso tiene notaLabel y opciones no vacías', () => {
   }
 });
 
-test('el gate tiene los 5 campos, con rol como select', () => {
-  assert.deepEqual(content.gate.campos.map((c) => c.key), ['nombre', 'empresa', 'correo', 'telefono', 'rol']);
+test('el gate tiene los 6 campos, con rol como select', () => {
+  assert.deepEqual(content.gate.campos.map((c) => c.key), ['nombre', 'empresa', 'correo', 'telefono', 'rol', 'presupuesto']);
   const rol = content.gate.campos.find((c) => c.key === 'rol');
   assert.equal(rol.type, 'select');
   assert.deepEqual(rol.opciones, ['Dirección general', 'Finanzas', 'Operaciones-Planta', 'Energía-Mantenimiento', 'Otro']);

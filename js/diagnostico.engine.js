@@ -118,9 +118,12 @@ export function formatRango(piso, techo) {
   return `${formatMoney(piso)} a ${formatMoney(techo)} de MXN al año`;
 }
 
-// Cálculo puro del rango. privado > nolose en precedencia.
+// Cálculo puro del rango. Las tarifas sin estructura compatible se detienen antes
+// de aplicar porcentajes genéricos de cargo por demanda.
 export function computeRange(resp, content) {
   if (resp.tarifa === 'privado') return { sinNumero: 'privado', piso: null, techo: null };
+  if (resp.tarifa === 'pdbt') return { sinNumero: 'pdbt', piso: null, techo: null };
+  if (resp.tarifa === 'nolose') return { sinNumero: 'tarifa', piso: null, techo: null };
   if (resp.factura === 'nolose') return { sinNumero: 'nolose', piso: null, techo: null };
   const factura = content.tablaFactura[resp.factura];
   const dem = content.tablaDemanda[resp.tarifa];
@@ -136,18 +139,35 @@ export function computeRange(resp, content) {
 }
 
 // Presentación del bloque B.
-export function renderBlockB(resp, content) {
+export function renderBlockB(resp, content, aplicacion) {
   const b = content.bloqueB;
   const { sinNumero, piso, techo } = computeRange(resp, content);
   const notas = [];
   if (hasSignal(resp.disparador, 'diesel')) notas.push(b.dieselNota);
 
+  const salidaSinNumero = (motivo, cadena) => ({
+    sinNumero: motivo, piso: null, techo: null, cadena, rangoTexto: null,
+    disclaimer: null, notaContinuo: null, texto: cadena, notas
+  });
+
   // Salidas sin número: la `cadena` es el copy explicativo, sin rango/disclaimer/nota destacables.
   if (sinNumero === 'privado') {
-    return { sinNumero, piso, techo, cadena: b.privado, rangoTexto: null, disclaimer: null, notaContinuo: null, texto: b.privado, notas };
+    return salidaSinNumero(sinNumero, b.privado);
+  }
+  if (sinNumero === 'pdbt') {
+    return salidaSinNumero(sinNumero, b.pdbt);
+  }
+  if (sinNumero === 'tarifa') {
+    return salidaSinNumero(sinNumero, b.noloseTarifa);
   }
   if (sinNumero === 'nolose') {
-    return { sinNumero, piso, techo, cadena: b.noloseFactura, rangoTexto: null, disclaimer: null, notaContinuo: null, texto: b.noloseFactura, notas };
+    return salidaSinNumero(sinNumero, b.noloseFactura);
+  }
+
+  const aplicacionId = aplicacion?.id || 'peak_shaving';
+  if (aplicacionId !== 'peak_shaving') {
+    const cadena = b.sinRangoPorAplicacion[aplicacionId] || b.noloseFactura;
+    return salidaSinNumero(`aplicacion:${aplicacionId}`, cadena);
   }
 
   const factura = content.tablaFactura[resp.factura];
@@ -177,19 +197,29 @@ function textoPalanca(id, resp, content) {
   return content.palancasCopy[id].principal;
 }
 
-export function pickLevers(resp, ranking, content) {
+export function pickLevers(resp, ranking, content, aplicacion) {
   const copy = content.palancasCopy;
   const palancaDe = (o) => ({ nombre: copy[o.id].nombre, text: textoPalanca(o.id, resp, content) });
 
-  const principal = palancaDe(ranking[0]);
-  const segundo = ranking.find((o, i) => i > 0 && o.score >= content.scoring.umbralSecundaria);
+  const principalRank = ranking.find((o) => o.id === aplicacion?.id) || ranking[0];
+  const principal = palancaDe(principalRank);
+  const segundo = ranking.find((o) => o.id !== principalRank.id && o.score >= content.scoring.umbralSecundaria);
   const secundaria = segundo ? palancaDe(segundo) : null;
   const factorPotencia = resp.calidad === 'factor'
     ? { nombre: content.palancaFactorPotencia.nombre, text: content.palancaFactorPotencia.text }
     : null;
-  const ultimo = ranking[ranking.length - 1];
-  const descartada = { nombre: copy[ultimo.id].nombre, text: copy[ultimo.id].descarte };
-  const gancho = (resp.factura === 'nolose' || resp.tarifa === 'privado') ? content.gancho : null;
+  // Una regla comercial puede elevar una aplicación que no lidera el score. Nunca
+  // debe reaparecer esa misma aplicación como "menor prioridad" al pie de la lista.
+  const ultimo = [...ranking].reverse().find((o) => o.id !== principalRank.id);
+  const ultimoNoAplica = ultimo.score === 0;
+  const descartada = {
+    nombre: copy[ultimo.id].nombre,
+    text: ultimoNoAplica ? copy[ultimo.id].descarte : copy[ultimo.id].menor,
+    tag: ultimoNoAplica ? 'No aplica' : 'Menor prioridad'
+  };
+  const gancho = (resp.factura === 'nolose' && !['privado', 'pdbt'].includes(resp.tarifa))
+    ? content.gancho
+    : null;
 
   return { gancho, principal, secundaria, factorPotencia, descartada };
 }
@@ -203,9 +233,12 @@ export function pickMissingData(resp, content, ranking, recomendacion) {
   const hardGap = content.datoFaltante.find((r) => matchesWhen(resp, r.when));
   const porOp = content.datoFaltantePorOportunidad || {};
   const top = ranking && ranking[0] ? ranking[0].id : null;
-  const recSolar = recomendacion?.tipo === 'Solar primero' || recomendacion?.tipo === 'BESS + Solar';
+  const recSolar = ['Solar primero', 'Solar fotovoltaico on-grid', 'BESS + Solar'].includes(recomendacion?.tipo);
   let dato;
-  if (hardGap) dato = hardGap.text;
+  // Aislado reencuadra todo como microred: el dato clave es consumo/autonomía, no el recibo
+  // de CFE. Va antes que los hard-gaps, que están centrados en la factura de la red.
+  if (hasSignal(resp.disparador, 'aislado') && porOp.off_grid) dato = porOp.off_grid;
+  else if (hardGap) dato = hardGap.text;
   else if (hasSignal(resp.disparador, 'diesel') && porOp.diesel) dato = porOp.diesel;
   else if (hasSignal(resp.disparador, 'capacidad') && porOp.diferimiento) dato = porOp.diferimiento;
   else if (recSolar && porOp.bess_solar) dato = porOp.bess_solar;
@@ -226,7 +259,7 @@ export function pickFinancing(resp, content) {
 }
 
 // ---- LIMITACIONES: datos faltantes que impiden conclusiones firmes ----
-// `recomendacion` es opcional: si la solución recomendada es "Solar primero", falta el
+// `recomendacion` es opcional: si la solución recomendada es solar ("Solar fotovoltaico on-grid"), falta el
 // dato de techo/terreno aunque bess_solar no llegue al umbral fuerte (mejora #4).
 export function detectLimitations(resp, scores, content, recomendacion) {
   const L = content.limitaciones;
@@ -236,18 +269,23 @@ export function detectLimitations(resp, scores, content, recomendacion) {
   else if (resp.tarifa === 'privado') out.push(L.contrato);
   if (resp.perfil === 'nolose') out.push(L.perfil);
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
-  const solarPrimero = recomendacion?.tipo === 'Solar primero';
+  const solarPrimero = ['Solar primero', 'Solar fotovoltaico on-grid'].includes(recomendacion?.tipo);
   if (sinGeneracion && (scores.bess_solar >= content.scoring.umbralFuerte || solarPrimero)) out.push(L.techo);
   if (hasSignal(resp.disparador, 'diesel')) out.push(L.diesel);
+  if (hasSignal(resp.disparador, 'aislado')) {
+    out.push(L.aislado);
+    if (!out.includes(L.techo)) out.push(L.techo); // una microred necesita superficie para generar
+  }
   if (resp.calidad === 'nolose') out.push(L.calidad);
   return out;
 }
 
 // ---- CHECKLIST ----
-// `recomendacion` opcional (mejora #4): "Solar primero" refuerza el dato de techo/terreno.
+// `recomendacion` opcional (mejora #4): recomendación solar refuerza el dato de techo/terreno.
 export function buildChecklist(resp, content, recomendacion) {
   const ref = content.checklistRefuerzos;
   const tecnicos = [...content.checklistBase];
+  if (hasSignal(resp.disparador, 'aislado')) tecnicos.push(ref.aislado);
   if (hasSignal(resp.disparador, 'diesel')) tecnicos.push(ref.diesel);
   if (resp.corte !== 'nada') tecnicos.push(ref.paros);
   if (resp.sector === 'continuo') tecnicos.push(ref.horario);
@@ -259,7 +297,8 @@ export function buildChecklist(resp, content, recomendacion) {
     if (!tecnicos.includes(ref.horario)) tecnicos.push(ref.horario);
   }
   if (resp.generacion === 'evaluando' && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
-  if (recomendacion?.tipo === 'Solar primero' && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
+  if (['Solar primero', 'Solar fotovoltaico on-grid'].includes(recomendacion?.tipo) && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
+
   if (resp.calidad === 'factor') tecnicos.push(ref.factorPotencia);
 
   const viabilidad = ofreceServicio(resp)
@@ -325,6 +364,9 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
     '',
     'Preparar para la llamada:',
     ...res.checklist.full.map((b) => `• ${b}`),
+    ...(res.leadPayload.presupuesto
+      ? ['', `Rango de inversión contemplado: ${res.leadPayload.presupuesto}`]
+      : []),
     '',
     'Respuestas del formulario:',
     ...content.pasos.map((paso, i) => `${i + 1}. ${paso.notaLabel}: ${legibles[paso.key]}`)
@@ -354,10 +396,14 @@ export function scoreOpportunities(resp, content) {
     total = Math.min(100, total);
     // Caps: techo cuando falta la condición crítica. El cap queda exento si se cumple
     // `requiere` (valores admisibles por campo) o `unless` (condición, mejora #6).
+    // `when` es lo contrario de `unless`: el techo SOLO aplica cuando la condición matchea,
+    // así que queda exento cuando NO matchea (p. ej. topar solar_puro únicamente si ya hay
+    // solar en sitio). Sin esta rama, un cap con `when` se aplicaba siempre.
     for (const c of caps) {
       if (c.id !== id) continue;
       const exento = (c.requiere && satisfiesRequire(resp, c.requiere))
-        || (c.unless && matchesRule(resp, asRule(c.unless)));
+        || (c.unless && matchesRule(resp, asRule(c.unless)))
+        || (c.when && !matchesRule(resp, asRule(c.when)));
       if (!exento) total = Math.min(total, c.max);
     }
     out[id] = Math.max(0, total);
@@ -378,33 +424,62 @@ export function potencialGeneral(scores, resp, content) {
   const valores = Object.values(scores);
   const s1 = Math.max(...valores);
   const niveles = ['Bajo', 'Medio', 'Alto', 'Muy Alto'];
-  let idx = s1 >= u.muyAlto ? 3 : s1 >= u.alto ? 2 : s1 >= u.medio ? 1 : 0;
+  // Sin ninguna oportunidad que llegue al umbral medio, el caso es Bajo.
+  if (s1 < u.medio) return niveles[0];
   const fuertes = valores.filter((v) => v >= content.scoring.umbralFuerte).length;
-  if (fuertes >= content.scoring.minFuertesParaSubir) idx = Math.min(3, idx + 1);
-  if (resp.factura === 'nolose' && (resp.tarifa === 'nolose' || resp.tarifa === 'privado')) {
-    idx = Math.min(idx, 1);
+  const cuantificable = (content.scoring.tarifasCuantificables || []).includes(resp.tarifa);
+
+  // El potencial ancla en la ESCALA de la factura (cuánto hay en juego), no solo en el fit
+  // del scoring: casi todo perfil industrial tiene alguna palanca fuerte, así que el puntaje
+  // máximo por sí solo no discrimina. La escala se recorta por fit débil y por datos faltantes.
+  let idx = content.scoring.escalaPotencial[resp.factura] ?? 1;
+  if (resp.factura === 'bajo' && s1 < content.scoring.umbralFuerte) idx = 0; // factura chica + fit flojo
+  if (s1 < content.scoring.umbralFuerte) idx = Math.min(idx, 1);             // sin palanca fuerte -> tope Medio
+  else if (s1 < u.muyAlto || fuertes < 2) idx = Math.min(idx, 2);            // fuerte pero no sobresaliente -> tope Alto
+  if (!cuantificable) idx = Math.min(idx, 2);                                // tarifa sin estructura clara
+  if (resp.factura === 'nolose') idx = Math.min(idx, 2);
+  if (resp.factura === 'nolose' && (resp.tarifa === 'nolose' || resp.tarifa === 'privado')) idx = Math.min(idx, 1);
+  // Muy Alto se reserva a casos grandes, cuantificables y con fit sobresaliente (2+ palancas).
+  if (idx === 3 && !(['alto', 'muyalto'].includes(resp.factura) && cuantificable && s1 >= u.muyAlto && fuertes >= 2)) {
+    idx = 2;
   }
   return niveles[idx];
 }
 
 // ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
-export function recommendSolution(resp, scores, content) {
+export function recommendSolution(resp, scores, content, aplicacion) {
   const rec = content.recomendaciones;
   const bs = scores.bess_solar;
+  const scoreMax = Math.max(...Object.values(scores));
+  const topId = aplicacion?.id || Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0];
   // Contrato renovable/privado NO implica generación detrás del medidor: elegible para
   // solar nueva, igual que "no generamos" o "evaluando". Solar en sitio sí tiene generación.
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
   const tarifaCiega = resp.tarifa === 'nolose' || resp.tarifa === 'privado';
   let key;
+  if (scoreMax < content.scoring.umbralPotencial.medio) key = 'insuficiente';
+  // Operar aislado reencuadra el proyecto como microred; manda sobre diésel/capacidad/etc.
+  else if (hasSignal(resp.disparador, 'aislado')) key = 'offGrid';
+  else if (hasSignal(resp.disparador, 'diesel')) {
+    key = resp.generacion === 'solar_sitio' ? 'bessDieselSolar' : 'bessDiesel';
+  }
+  else if (hasSignal(resp.disparador, 'capacidad')) key = 'bessCapacidad';
+  else if (topId === 'respaldo') key = 'bessRespaldo';
   // Solar en sitio: ya hay generación → el foco es BESS sobre lo instalado (mejora #1:
   // con excedente, el copy explica que la batería captura esa energía; sin más solar).
-  if (resp.generacion === 'solar_sitio') {
+  else if (resp.generacion === 'solar_sitio') {
     key = hasSignal(resp.disparador, 'excedente') ? 'bessSobreSolarExcedente' : 'bessSobreSolar';
   }
   else if (resp.generacion === 'estacional') key = 'estacional';
-  // Solar primero va ANTES que BESS+Solar: sin datos de tarifa no comprometemos la combinación.
+  // Solar puro lidera cuando encabeza el ranking y no hay generación previa (consumo
+  // diurno, foco en costo, sin dolor crítico —esos casos ya se resolvieron arriba). Antes
+  // solo se recomendaba sin tarifa conocida (tarifaCiega), lo que dejaba a clientes
+  // claramente solares con una recomendación de BESS pese a que el ranking decía Solar.
+  else if (topId === 'solar_puro' && sinGeneracion) key = 'solarPrimero';
+  // Solar primero también va ANTES que BESS+Solar: sin datos de tarifa no comprometemos la combinación.
   else if (resp.perfil === 'diurno' && sinGeneracion && tarifaCiega) key = 'solarPrimero';
   else if (bs >= 60 && sinGeneracion && resp.perfil === 'diurno') key = 'bessSolarDiurno';
+  else if (topId === 'bess_solar' && bs >= content.scoring.umbralFuerte) key = 'bessSolarGeneral';
   // Sin perfil horario y sin recibo/tarifa: mismo tipo (BESS) con razón conservadora.
   else if (resp.perfil === 'nolose' && (tarifaCiega || resp.factura === 'nolose')) key = 'bessPreliminar';
   else key = 'bess';
@@ -454,11 +529,11 @@ export function assembleResult(estado, content) {
   const scores = scoreOpportunities(resp, content);
   const ranking = rankOpportunities(scores, content);
   const potencial_general = potencialGeneral(scores, resp, content);
-  const recomendacion_solucion = recommendSolution(resp, scores, content);
   const aplicacion_principal = primaryApplication(resp, ranking, scores, content);
+  const recomendacion_solucion = recommendSolution(resp, scores, content, aplicacion_principal);
   const perfil = buildProfile(resp, content);
-  const bloqueB = renderBlockB(resp, content);
-  const palancas = pickLevers(resp, ranking, content);
+  const bloqueB = renderBlockB(resp, content, aplicacion_principal);
+  const palancas = pickLevers(resp, ranking, content, aplicacion_principal);
   const datoFaltante = pickMissingData(resp, content, ranking, recomendacion_solucion);
   const financiamiento = pickFinancing(resp, content);
   const checklist = buildChecklist(resp, content, recomendacion_solucion);
@@ -467,9 +542,12 @@ export function assembleResult(estado, content) {
 
   // rango_texto del lead: mensaje legible incluso sin número (mail a ventas).
   const rango_texto = bloqueB.sinNumero
-    ? (bloqueB.sinNumero === 'privado'
-        ? 'Suministrador privado — sin rango numérico'
-        : 'Factura sin especificar — sin rango numérico')
+    ? ({
+        privado: 'Suministrador privado — sin rango numérico',
+        pdbt: 'Tarifa PDBT — peak shaving no cuantificado',
+        tarifa: 'Tarifa sin especificar — sin rango numérico',
+        nolose: 'Factura sin especificar — sin rango numérico'
+      }[bloqueB.sinNumero] || 'Aplicación prioritaria sin datos suficientes para un rango')
     : bloqueB.rangoTexto;
 
   const leadPayload = {
@@ -480,6 +558,7 @@ export function assembleResult(estado, content) {
     correo: contacto.correo || '',
     telefono: contacto.telefono || '',
     rol: contacto.rol || '',
+    presupuesto: contacto.presupuesto || '',
     respuestas_legibles: legibles,
     respuestas_codigos: { ...resp },
     perfil,
