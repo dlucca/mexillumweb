@@ -368,6 +368,9 @@ export function buildEventNote(res, resp, content, bloqueBTexto) {
       ? ['', `Rango de inversión contemplado: ${res.leadPayload.presupuesto}`]
       : []),
     '',
+    `${content.anteproyectoTituloLead}:`,
+    ...res.anteproyecto.lead.map((b) => `• ${b}`),
+    '',
     'Respuestas del formulario:',
     ...content.pasos.map((paso, i) => `${i + 1}. ${paso.notaLabel}: ${legibles[paso.key]}`)
   ].join('\n');
@@ -483,7 +486,46 @@ export function recommendSolution(resp, scores, content, aplicacion) {
   // Sin perfil horario y sin recibo/tarifa: mismo tipo (BESS) con razón conservadora.
   else if (resp.perfil === 'nolose' && (tarifaCiega || resp.factura === 'nolose')) key = 'bessPreliminar';
   else key = 'bess';
-  return { tipo: rec[key].tipo, razon: rec[key].razon };
+  return { tipo: rec[key].tipo, razon: rec[key].razon, familia: FAMILIA_ANTEPROYECTO[key] || 'base' };
+}
+
+// Familia de datos para el anteproyecto según la recomendación (mapea la key interna
+// de recommendSolution a la lista de datos a solicitar). bess_solar = solar + bess.
+const FAMILIA_ANTEPROYECTO = {
+  insuficiente: 'base',
+  solarPrimero: 'solar',
+  offGrid: 'off_grid',
+  bessDiesel: 'bess',
+  bessDieselSolar: 'bess_solar',
+  bessCapacidad: 'bess',
+  bessRespaldo: 'bess',
+  bessSolarGeneral: 'bess_solar',
+  bessSobreSolarExcedente: 'bess_solar',
+  bessSobreSolar: 'bess_solar',
+  estacional: 'bess_solar',
+  bessSolarDiurno: 'bess_solar',
+  bess: 'bess',
+  bessPreliminar: 'bess'
+};
+
+// Qué familias de contenido se suman sobre la base para cada familia de solución.
+const ANTEPROYECTO_EXTRAS = {
+  base: [],
+  solar: ['solar'],
+  bess: ['bess'],
+  bess_solar: ['solar', 'bess'],
+  off_grid: ['off_grid']
+};
+
+// ---- DATOS PARA EL ANTEPROYECTO (dos voces) ----
+// Compone la lista a partir de la familia de la recomendación: base + extras.
+export function buildAnteproyecto(recomendacion, content) {
+  const a = content.anteproyecto;
+  const familia = recomendacion?.familia || 'base';
+  const extras = ANTEPROYECTO_EXTRAS[familia] || [];
+  const interno = [...a.base.interno, ...extras.flatMap((k) => a[k].interno)];
+  const lead = [...a.base.lead, ...extras.flatMap((k) => a[k].lead)];
+  return { familia, interno, lead };
 }
 
 // ---- APLICACIÓN principal (mejora #3: subtipo comercial) ----
@@ -537,6 +579,7 @@ export function assembleResult(estado, content) {
   const datoFaltante = pickMissingData(resp, content, ranking, recomendacion_solucion);
   const financiamiento = pickFinancing(resp, content);
   const checklist = buildChecklist(resp, content, recomendacion_solucion);
+  const anteproyecto = buildAnteproyecto(recomendacion_solucion, content);
   const legibles = toReadable(resp, content);
   const limitaciones = detectLimitations(resp, scores, content, recomendacion_solucion);
 
@@ -564,6 +607,7 @@ export function assembleResult(estado, content) {
     perfil,
     rango_texto,
     checklist_full: checklist.full,
+    anteproyecto_interno: anteproyecto.interno,
     scores,
     ranking,
     potencial_general,
@@ -594,6 +638,7 @@ export function assembleResult(estado, content) {
     cierre_llamada: datoFaltante.cierre,     // Bloque D cierre común
     financiamiento,                          // Bloque E
     checklist,                               // interno: consumo por vista/nota/lead
+    anteproyecto,                            // { familia, interno[], lead[] } datos a solicitar
     scores,                                  // scoring 0-100 por oportunidad
     ranking,                                 // oportunidades ordenadas desc
     potencial_general,                       // 'Muy Alto'|'Alto'|'Medio'|'Bajo'

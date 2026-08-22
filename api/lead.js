@@ -60,6 +60,11 @@ export default async function handler(req, res) {
     ? body.checklist_full.slice(0, 12).map((b) => clean(b, 240)).filter(Boolean)
     : [];
 
+  // Datos internos para armar el anteproyecto (sección aparte del checklist).
+  const anteproyecto = Array.isArray(body.anteproyecto_interno)
+    ? body.anteproyecto_interno.slice(0, 20).map((b) => clean(b, 240)).filter(Boolean)
+    : [];
+
   const potencial = clean(body.potencial_general, 20);
   const recomendacionRaw = (body.recomendacion_solucion && typeof body.recomendacion_solucion === 'object'
     && !Array.isArray(body.recomendacion_solucion))
@@ -121,6 +126,9 @@ export default async function handler(req, res) {
     checklist.length ? '' : null,
     checklist.length ? 'Checklist para la llamada:' : null,
     ...checklist.map((b) => `• ${b}`),
+    anteproyecto.length ? '' : null,
+    anteproyecto.length ? 'Datos para el anteproyecto:' : null,
+    ...anteproyecto.map((b) => `• ${b}`),
     '',
     leadId ? `lead_id: ${leadId}` : null,
   ].filter((l) => l !== null).join('\n');
@@ -165,6 +173,13 @@ export default async function handler(req, res) {
       ? `<h3 style="margin:0 0 8px;font-size:14px;color:#080A08">Checklist para la llamada</h3>` +
         `<ul style="margin:0 0 20px;padding-left:18px;font-size:14px">` +
         checklist.map((b) => `<li style="margin-bottom:4px">${esc(b)}</li>`).join('') +
+        `</ul>`
+      : '') +
+
+    (anteproyecto.length
+      ? `<h3 style="margin:0 0 8px;font-size:14px;color:#080A08">Datos para el anteproyecto</h3>` +
+        `<ul style="margin:0 0 20px;padding-left:18px;font-size:14px">` +
+        anteproyecto.map((b) => `<li style="margin-bottom:4px">${esc(b)}</li>`).join('') +
         `</ul>`
       : '') +
 

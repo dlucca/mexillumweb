@@ -456,6 +456,65 @@ const content = {
     aislado: { dato: 'Consumo total (kWh/día), perfil horario y horas de autonomía requeridas', porque: 'Una microred aislada se dimensiona sobre el consumo y la autonomía, no sobre la factura.', no_se_puede: 'Dimensionar la microred ni su respaldo.' }
   },
 
+  // ---- DATOS PARA EL ANTEPROYECTO (dos voces: interno = qué solicita el equipo;
+  //      lead = qué prepara la persona). Se compone por familia en buildAnteproyecto:
+  //      base siempre; + solar / + bess / (bess_solar = solar+bess) / + off_grid.
+  //      Texto BORRADOR — pendiente de afinar. ----
+  anteproyectoTitulo: 'Datos para el anteproyecto',
+  anteproyectoTituloLead: 'Qué preparar para nuestra reunión',
+  anteproyecto: {
+    base: {
+      interno: [
+        '12 recibos de CFE (kWh, demanda máxima en kW y tarifa).',
+        'Perfil de carga u horario de operación de la planta.',
+        'Capacidad del transformador y del tablero principal (diagrama unifilar).',
+        'Superficie disponible en m² (techo o terreno).',
+        'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.'
+      ],
+      lead: [
+        'Tus últimos 12 recibos de luz de CFE.',
+        'A qué horas del día opera tu planta.',
+        'Cuánto espacio libre tienes (techo o terreno).',
+        'Qué es lo que más te urge resolver.'
+      ]
+    },
+    solar: {
+      interno: [
+        'Área, orientación y sombreado del techo o terreno; estado estructural.',
+        'Consumo diurno frente al consumo total.',
+        'Esquema tarifario disponible (net metering / net billing).'
+      ],
+      lead: [
+        'Fotos del techo o del terreno donde irían los paneles.',
+        'Si lo sabes, cuánta luz consumes durante el día.'
+      ]
+    },
+    bess: {
+      interno: [
+        'Cargas críticas a respaldar (kW y kWh) y autonomía requerida.',
+        'Demanda máxima y cargo por demanda del recibo.',
+        'Frecuencia y duración de los cortes de energía.',
+        'Espacio y ventilación para el gabinete de baterías.'
+      ],
+      lead: [
+        'Qué equipos NO pueden apagarse y por cuánto tiempo.',
+        'Cada cuánto se va la luz y cuánto dura.'
+      ]
+    },
+    off_grid: {
+      interno: [
+        'Distancia a la red de CFE más cercana y factibilidad de conexión.',
+        'Consumo diario (kWh/día) y pico de demanda.',
+        'Generación actual (diésel: consumo, horas de uso y costo).',
+        'Días de autonomía requeridos sin sol.'
+      ],
+      lead: [
+        'Si hoy usas planta de diésel y cuántas horas al día.',
+        'Qué tan lejos está la red eléctrica más cercana.'
+      ]
+    }
+  },
+
   // ---- Resumen comercial en el resultado ----
   resumen: {
     potencialLabel: 'Encaje preliminar',

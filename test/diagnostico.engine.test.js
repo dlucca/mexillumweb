@@ -6,7 +6,7 @@ import {
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
   pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
   scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution, detectLimitations,
-  primaryApplication, normalizeResponses,
+  primaryApplication, normalizeResponses, buildAnteproyecto,
   asList, hasSignal, matchesWhen, matchesRule
 } from '../js/diagnostico.engine.js';
 
@@ -419,6 +419,12 @@ test('buildEventNote: incluye perfil, checklist completo y las 8 respuestas', ()
   assert.ok(note.includes(content.checklistViabilidad.privado)); // full, sin recorte
   // 8 respuestas crudas (una por notaLabel)
   for (const paso of content.pasos) assert.ok(note.includes(paso.notaLabel), `falta ${paso.notaLabel} en la nota`);
+});
+
+test('buildEventNote: incluye "qué preparar" (voz lead) del anteproyecto', () => {
+  const res = assembleResult(estadoFx, content);
+  assert.ok(res.note.includes(content.anteproyectoTituloLead), 'falta el título lead del anteproyecto');
+  for (const item of res.anteproyecto.lead) assert.ok(res.note.includes(item), `falta item lead: ${item}`);
 });
 
 // ---- SCORING de oportunidades ----
@@ -864,4 +870,48 @@ test('leadPayload: conserva scores, ranking, potencial, recomendación y limitac
     assert.ok(k in p, `falta ${k} en el payload`);
   }
   assert.ok(Array.isArray(p.ranking) && p.ranking.length === 8);
+});
+
+// ---- Paso 1: datos para el anteproyecto (dos voces, dinámico por familia) ----
+
+const FAMILIAS = ['base', 'solar', 'bess', 'bess_solar', 'off_grid'];
+
+test('recommendSolution: expone una familia de anteproyecto válida', () => {
+  const scores = scoreOpportunities(fx, content);
+  const ranking = rankOpportunities(scores, content);
+  const ap = primaryApplication(fx, ranking, scores, content);
+  const rec = recommendSolution(fx, scores, content, ap);
+  assert.ok(FAMILIAS.includes(rec.familia), `familia inesperada: ${rec.familia}`);
+});
+
+test('buildAnteproyecto: solar suma datos solares sobre la base, en dos voces', () => {
+  const a = buildAnteproyecto({ tipo: 'Solar fotovoltaico on-grid', familia: 'solar' }, content);
+  assert.equal(a.familia, 'solar');
+  assert.ok(Array.isArray(a.interno) && a.interno.length > 0);
+  assert.ok(Array.isArray(a.lead) && a.lead.length > 0);
+  // base presente (recibos CFE) + dato solar (techo)
+  assert.ok(a.interno.some((s) => /recibo/i.test(s)), 'falta base (recibos) en interno');
+  assert.ok(a.interno.some((s) => /techo|orientaci/i.test(s)), 'falta dato solar en interno');
+  // dos voces: el texto para el lead no es idéntico al interno
+  assert.notEqual(a.lead.join(' '), a.interno.join(' '));
+});
+
+test('buildAnteproyecto: bess pide cargas críticas y NO el dato estructural de techo solar', () => {
+  const a = buildAnteproyecto({ tipo: 'BESS para respaldo', familia: 'bess' }, content);
+  assert.equal(a.familia, 'bess');
+  assert.ok(a.interno.some((s) => /crítica|autonom/i.test(s)), 'falta dato bess en interno');
+  assert.ok(!a.interno.some((s) => /orientaci/i.test(s)), 'no debería pedir orientación de techo');
+});
+
+test('buildAnteproyecto: off_grid pide autonomía y generación actual', () => {
+  const a = buildAnteproyecto({ tipo: 'Microred aislada (Solar + BESS)', familia: 'off_grid' }, content);
+  assert.equal(a.familia, 'off_grid');
+  assert.ok(a.interno.some((s) => /autonom|diésel|diesel/i.test(s)));
+});
+
+test('assembleResult: expone anteproyecto en el resultado y en el payload interno', () => {
+  const res = assembleResult(estadoFx, content);
+  assert.ok(res.anteproyecto && Array.isArray(res.anteproyecto.interno) && Array.isArray(res.anteproyecto.lead));
+  assert.ok(FAMILIAS.includes(res.anteproyecto.familia));
+  assert.ok(Array.isArray(res.leadPayload.anteproyecto_interno) && res.leadPayload.anteproyecto_interno.length > 0);
 });

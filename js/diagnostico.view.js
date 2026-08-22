@@ -412,6 +412,10 @@ function renderResult() {
           <ul>${items}</ul>
           <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
         </aside>
+        <aside class="dx__checklist" aria-label="Qué preparar para la reunión">
+          <h3>${esc(content.anteproyectoTituloLead)}</h3>
+          <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+        </aside>
         <div class="dx__actions">
           <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
         </div>

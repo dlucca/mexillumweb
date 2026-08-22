@@ -80,6 +80,19 @@ test('api/lead: la aplicación preliminar llega marcada al correo', async () => 
   assert.ok(!firme.correo.text.includes('(preliminar)'));
 });
 
+test('api/lead: el correo incluye los datos internos del anteproyecto, aparte del checklist', async () => {
+  const res = assembleResult(estado, content);
+  assert.ok(res.leadPayload.anteproyecto_interno.length > 0);
+  const { correo } = await enviar(res.leadPayload);
+  assert.ok(correo.text.includes(content.anteproyectoTitulo), 'falta el título del anteproyecto en el texto');
+  assert.ok(correo.html.includes(content.anteproyectoTitulo), 'falta el título del anteproyecto en el HTML');
+  for (const item of res.leadPayload.anteproyecto_interno) {
+    assert.ok(correo.text.includes(item), `falta item interno en el texto: ${item}`);
+  }
+  // no reemplaza al checklist de la llamada
+  assert.ok(correo.text.includes('Checklist para la llamada'));
+});
+
 test('api/lead: payload sin aplicación principal sigue enviando el correo', async () => {
   const { aplicacion_principal, ...sinCampo } = assembleResult(estado, content).leadPayload;
   const { res: http, correo } = await enviar(sinCampo);
