@@ -314,65 +314,22 @@ export function buildChecklist(resp, content, recomendacion) {
   return { web, full };
 }
 
-// ---- Nota del evento cal.diy (texto plano, sin recorte) ----
-// Consume el resultado estructurado + el texto plano concatenado del bloque B.
-export function buildEventNote(res, resp, content, bloqueBTexto) {
-  const p = res.palancas;
-  const ap = res.aplicacion_principal;
-  const apLinea = ap
-    ? `Aplicación principal: ${ap.nombre}${ap.preliminar ? ' (preliminar)' : ''}`
-    : null;
-  const palancasLines = [
-    'Oportunidades:',
-    ...(res.gancho ? [res.gancho] : []),
-    `Principal — ${p.principal.nombre}: ${p.principal.text}`,
-    ...(p.secundaria ? [`Secundaria — ${p.secundaria.nombre}: ${p.secundaria.text}`] : []),
-    ...(p.factorPotencia ? [`Secundaria — ${p.factorPotencia.nombre}: ${p.factorPotencia.text}`] : []),
-    // descarte: siempre presente tras el Cambio 1.
-    ...(p.descarte ? [`No aplica — ${p.descarte.nombre}: ${p.descarte.text}`] : [])
-  ];
-  const legibles = res.leadPayload.respuestas_legibles;
-  const priorizacion = [
-    '',
-    `Potencial general: ${res.potencial_general}`,
-    `Recomendación de solución: ${res.recomendacion_solucion.tipo}`,
-    res.recomendacion_solucion.razon,
-    ...(apLinea ? [apLinea] : []),
-    '',
-    'Ranking de oportunidades:',
-    ...res.ranking.map((o, i) => `${i + 1}. ${o.nombre} — ${o.score}`),
-    ...(res.limitaciones.length
-      ? ['', 'Datos que faltan para cerrar el número:',
-         ...res.limitaciones.map((l) => `• ${l.dato}: ${l.no_se_puede}`)]
-      : [])
-  ];
+// ---- Nota del evento de Cal.com (texto plano, de cara al cliente) ----
+// Resumen breve que SÍ cabe en el mail de confirmación del calendario: perfil,
+// configuración a evaluar, orden de magnitud y qué preparar (voz lead). El
+// detalle técnico completo va al equipo por /api/lead, no aquí.
+export function buildEventNote(res, content) {
   return [
-    'Diagnóstico Mexillum',
+    'Diagnóstico Mexillum — resumen',
     '',
     res.perfil,
-    '',
-    bloqueBTexto,
-    ...res.calculo.notas.map((n) => `\n${n}`),
-    '',
-    ...palancasLines,
-    ...priorizacion,
-    '',
-    res.dato_faltante,
-    res.cierre_llamada,
-    '',
-    res.financiamiento,
-    '',
-    'Preparar para la llamada:',
-    ...res.checklist.full.map((b) => `• ${b}`),
-    ...(res.leadPayload.presupuesto
-      ? ['', `Rango de inversión contemplado: ${res.leadPayload.presupuesto}`]
-      : []),
+    `Configuración a evaluar: ${res.recomendacion_solucion.tipo}`,
+    res.calculo.sin_numero
+      ? res.leadPayload.rango_texto
+      : `Orden de magnitud: ${res.leadPayload.rango_texto}`,
     '',
     `${content.anteproyectoTituloLead}:`,
-    ...res.anteproyecto.lead.map((b) => `• ${b}`),
-    '',
-    'Respuestas del formulario:',
-    ...content.pasos.map((paso, i) => `${i + 1}. ${paso.notaLabel}: ${legibles[paso.key]}`)
+    ...res.anteproyecto.lead.map((b) => `• ${b}`)
   ].join('\n');
 }
 
@@ -647,6 +604,6 @@ export function assembleResult(estado, content) {
     limitaciones,                            // datos faltantes que impiden conclusiones firmes
     leadPayload
   };
-  res.note = buildEventNote(res, resp, content, bloqueB.texto);
+  res.note = buildEventNote(res, content);
   return res;
 }

@@ -411,14 +411,17 @@ test('leadPayload.rango_texto: mensajes sin número para privado y nolose', () =
   assert.match(nol.rango_texto, /sin/i);
 });
 
-test('buildEventNote: incluye perfil, checklist completo y las 8 respuestas', () => {
+test('buildEventNote: resumen breve y de cara al cliente (perfil, recomendación, rango)', () => {
   const res = assembleResult(estadoFx, content);
   const note = res.note;
   assert.ok(note.includes(res.perfil));
-  assert.ok(note.includes(content.checklistUniversal));
-  assert.ok(note.includes(content.checklistViabilidad.privado)); // full, sin recorte
-  // 8 respuestas crudas (una por notaLabel)
-  for (const paso of content.pasos) assert.ok(note.includes(paso.notaLabel), `falta ${paso.notaLabel} en la nota`);
+  assert.ok(note.includes(res.recomendacion_solucion.tipo));
+  assert.ok(note.includes(res.leadPayload.rango_texto));
+  // nota corta: cabe en el mail del calendario de Cal.com (no el diagnóstico completo)
+  assert.ok(note.length < 900, `nota demasiado larga: ${note.length}`);
+  // ya NO arrastra el checklist técnico ni las 8 respuestas crudas
+  assert.ok(!note.includes(content.checklistUniversal));
+  assert.ok(!note.includes(content.pasos[0].notaLabel));
 });
 
 test('buildEventNote: incluye "qué preparar" (voz lead) del anteproyecto', () => {
@@ -629,30 +632,16 @@ test('primaryApplication: marca preliminar cuando el líder no llega al umbral d
   assert.equal(firme.preliminar, false);
 });
 
-test('buildEventNote: la aplicación preliminar se marca como tal en la nota', () => {
-  const ciego = { sector: 'continuo', perfil: 'plano', generacion: 'solar_sitio', calidad: 'factor',
-    tarifa: 'gdmto', factura: 'bajo', corte: 'nada', disparador: ['costo'] };
-  const res = assembleResult({ respuestas: ciego, contacto: {} }, content);
-  assert.equal(res.aplicacion_principal.preliminar, true);
-  assert.ok(res.note.includes(`Aplicación principal: ${res.aplicacion_principal.nombre} (preliminar)`));
-  // el caso con datos no arrastra el matiz
-  assert.ok(!assembleResult(estadoFx, content).note.includes('(preliminar)'));
-});
-
-test('assembleResult: expone aplicacion_principal en el resultado, el payload y la nota', () => {
+test('assembleResult: expone aplicacion_principal en el resultado y el payload', () => {
   const res = assembleResult(estadoFx, content);
   assert.ok(res.aplicacion_principal.id && res.aplicacion_principal.nombre);
   assert.equal(res.aplicacion_principal.id, res.ranking[0].id); // fx sin señales críticas fuertes
   assert.deepEqual(res.leadPayload.aplicacion_principal, res.aplicacion_principal);
-  assert.ok(res.note.includes(`Aplicación principal: ${res.aplicacion_principal.nombre}`));
 });
 
-test('buildEventNote: incluye potencial, ranking y recomendación', () => {
+test('buildEventNote: incluye la recomendación de solución', () => {
   const res = assembleResult(estadoFx, content);
-  assert.ok(res.note.includes('Potencial general'));
-  assert.ok(res.note.includes(res.potencial_general));
   assert.ok(res.note.includes(res.recomendacion_solucion.tipo));
-  assert.ok(res.note.includes(res.ranking[0].nombre));
 });
 
 // ---- v2.2: disparador multi-select (array de señales) ----
