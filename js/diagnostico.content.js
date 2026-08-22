@@ -113,6 +113,7 @@ const content = {
     cta: 'Agendar mi llamada',
     okMsg: '¡Listo! Recibimos tus datos. Elige un horario abajo para agendar la llamada.',
     confidencialidad: 'Tus datos son confidenciales y solo los usamos para tu diagnóstico. Consulta nuestro',
+    ndaAviso: 'Al agendar te enviamos, sin costo, un Acuerdo de Confidencialidad firmado por Mexillum, para que compartas tu información con tranquilidad. El acuerdo se emite a favor de tu empresa; por eso te pedimos su nombre al reservar.',
     campos: [
       { key: 'nombre', label: 'Nombre', type: 'text', required: true, autocomplete: 'name' },
       { key: 'empresa', label: 'Empresa', type: 'text', required: false, autocomplete: 'organization' },

@@ -403,6 +403,7 @@ function renderResult() {
       <section class="dx__book" aria-labelledby="dx-book-h">
         <h2 class="dx__col-title" id="dx-book-h">El siguiente paso: tu anteproyecto</h2>
         <p class="dx__col-sub">${esc(content.gate.cuerpo)}</p>
+        <p class="dx__nda-aviso">${esc(content.gate.ndaAviso)}</p>
         <div class="dx__cal" id="agenda"></div>
         <p class="dx__col-sub" style="font-size:12px;margin-top:var(--space-3)">
           ${esc(content.gate.confidencialidad)}

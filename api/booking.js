@@ -8,6 +8,13 @@
 
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 
+// Lee un campo de las respuestas de la reserva de Cal (string o { value }).
+const respVal = (responses, key) => {
+  const r = responses && responses[key];
+  if (r == null) return '';
+  return String(typeof r === 'object' ? (r.value ?? '') : r).trim();
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -53,6 +60,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Reserva sin correo del asistente.' });
   }
 
+  // El NDA se emite a favor de la empresa (razón social). Si no viene, cae al
+  // nombre de la persona. En Cal, "Empresa" es obligatoria para evitar ese caso.
+  const responses = payload.responses || payload.userFieldsResponses || {};
+  const empresa = clean(respVal(responses, 'empresa'), 160);
+  const prospecto = empresa || nombre || correo;
+
   const fecha = new Date().toISOString().slice(0, 10);
   // El rol debe coincidir con la parte definida en la plantilla de DocuSeal.
   const role = process.env.DOCUSEAL_ROLE || 'Primera Parte';
@@ -67,7 +80,7 @@ export default async function handler(req, res) {
         name: nombre || undefined,
         completed: true, // auto-firmado vía API: el lead recibe el NDA ya listo, sin firmar
         fields: [
-          { name: 'prospecto', default_value: nombre || correo, readonly: true },
+          { name: 'prospecto', default_value: prospecto, readonly: true },
           { name: 'fecha', default_value: fecha, readonly: true }
         ]
       }

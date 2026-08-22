@@ -46,6 +46,7 @@ const bookingBody = {
   triggerEvent: 'BOOKING_CREATED',
   payload: {
     attendees: [{ name: 'Cristian Dlucca', email: 'cristian@novapatch.mx' }],
+    responses: { empresa: { value: 'Novapatch S.A. de C.V.' } },
     startTime: '2026-09-03T19:30:00Z'
   }
 };
@@ -89,8 +90,15 @@ test('api/booking: booking válido crea submission con prospecto y fecha pre-lle
   assert.equal(sub.completed, true);
   const prospecto = sub.fields.find((f) => f.name === 'prospecto');
   const fecha = sub.fields.find((f) => f.name === 'fecha');
-  assert.ok(prospecto && /Cristian/.test(prospecto.default_value));
+  assert.equal(prospecto.default_value, 'Novapatch S.A. de C.V.'); // usa la empresa, no el nombre
   assert.ok(fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha.default_value));
+});
+
+test('api/booking: sin empresa, el prospecto cae al nombre del asistente', async () => {
+  const body = { triggerEvent: 'BOOKING_CREATED', payload: { attendees: [{ name: 'Cristian Dlucca', email: 'c@x.mx' }] } };
+  const { docusealCall } = await correr(reqBase({ body }));
+  const prospecto = docusealCall.body.submitters[0].fields.find((f) => f.name === 'prospecto');
+  assert.equal(prospecto.default_value, 'Cristian Dlucca');
 });
 
 test('api/booking: evento que no es BOOKING_CREATED se ignora (200 sin llamar DocuSeal)', async () => {
