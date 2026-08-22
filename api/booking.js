@@ -62,7 +62,8 @@ export default async function handler(req, res) {
   }
 
   const fecha = new Date().toISOString().slice(0, 10);
-  const role = process.env.DOCUSEAL_ROLE || 'First Party';
+  // El rol debe coincidir con la parte definida en la plantilla de DocuSeal.
+  const role = process.env.DOCUSEAL_ROLE || 'Primera Parte';
 
   const submission = {
     template_id: templateId,

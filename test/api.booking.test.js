@@ -85,6 +85,7 @@ test('api/booking: booking válido crea submission con prospecto y fecha pre-lle
   assert.equal(b.send_email, true);
   const sub = b.submitters[0];
   assert.equal(sub.email, 'cristian@novapatch.mx');
+  assert.equal(sub.role, 'Primera Parte'); // debe coincidir con el rol de la plantilla
   assert.equal(sub.completed, true);
   const prospecto = sub.fields.find((f) => f.name === 'prospecto');
   const fecha = sub.fields.find((f) => f.name === 'fecha');
