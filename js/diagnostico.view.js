@@ -422,7 +422,7 @@ function renderResult() {
       </section>
 
       <section class="dx__book" aria-labelledby="dx-book-h">
-        <h2 class="dx__col-title" id="dx-book-h">Agenda una conversación</h2>
+        <h2 class="dx__col-title" id="dx-book-h">El siguiente paso: tu anteproyecto</h2>
         <p class="dx__col-sub">${esc(content.gate.cuerpo)}</p>
         <form class="dx__book-form" novalidate>
           ${contactFieldsHtml()}

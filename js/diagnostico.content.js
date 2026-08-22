@@ -109,8 +109,8 @@ const content = {
 
   gate: {
     titulo: 'Tu diagnóstico está listo.',
-    cuerpo: 'Déjanos tus datos y elige un horario. Coordinamos una llamada para revisar tu diagnóstico a fondo y lo adjuntamos automáticamente a la reunión.',
-    cta: 'Enviar mis datos',
+    cuerpo: 'Agendamos una llamada para revisar tu diagnóstico a fondo y definir qué datos necesitamos de tu operación. Con eso armamos un anteproyecto con números para tu instalación — sin costo ni compromiso.',
+    cta: 'Agendar mi llamada',
     okMsg: '¡Listo! Recibimos tus datos. Elige un horario abajo para agendar la llamada.',
     campos: [
       { key: 'nombre', label: 'Nombre', type: 'text', required: true, autocomplete: 'name' },
