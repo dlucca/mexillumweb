@@ -44,14 +44,6 @@ export default async function handler(req, res) {
   const nombre = clean(attendee.name, 120);
   const correo = clean(attendee.email, 160);
 
-  // Registro de diagnóstico: qué evento llegó y qué correo se detectó.
-  console.log('[booking] recibido', JSON.stringify({
-    trigger: body.triggerEvent || null,
-    bodyKeys: Object.keys(body),
-    payloadKeys: Object.keys(payload || {}),
-    attendeeEmails: (Array.isArray(payload.attendees) ? payload.attendees : []).map((a) => a && a.email)
-  }));
-
   // Solo actuamos cuando se crea una reserva; los demás eventos se ignoran.
   if (body.triggerEvent && body.triggerEvent !== 'BOOKING_CREATED') {
     return res.status(200).json({ ok: true, ignored: body.triggerEvent });
