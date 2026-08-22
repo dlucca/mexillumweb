@@ -70,9 +70,28 @@ export default async function handler(req, res) {
   // El rol debe coincidir con la parte definida en la plantilla de DocuSeal.
   const role = process.env.DOCUSEAL_ROLE || 'Primera Parte';
 
+  // Asunto y cuerpo del correo del NDA. Aplica al correo de solicitud de firma;
+  // el correo de "documento completado" se ajusta además en DocuSeal → Personalización.
+  const message = {
+    subject: 'Tu Acuerdo de Confidencialidad con Mexillum',
+    body: [
+      'Hola,',
+      '',
+      'Gracias por agendar tu llamada con Mexillum. Adjunto encontrarás nuestro Acuerdo de Confidencialidad, firmado por Mexillum.',
+      '',
+      'Es un compromiso de nuestra parte: la información de tu operación que compartas para preparar tu anteproyecto (recibos, consumos, datos técnicos) la tratamos como confidencial. No necesitas firmar nada — es solo para tu tranquilidad.',
+      '',
+      'Guárdalo y tenlo presente para nuestra reunión, donde revisaremos tu diagnóstico a fondo y definiremos los siguientes pasos.',
+      '',
+      'Nos vemos pronto.',
+      'Equipo Mexillum'
+    ].join('\n')
+  };
+
   const submission = {
     template_id: templateId,
     send_email: true,
+    message,
     submitters: [
       {
         role,

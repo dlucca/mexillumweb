@@ -92,6 +92,10 @@ test('api/booking: booking válido crea submission con prospecto y fecha pre-lle
   const fecha = sub.fields.find((f) => f.name === 'fecha');
   assert.equal(prospecto.default_value, 'Novapatch S.A. de C.V.'); // usa la empresa, no el nombre
   assert.ok(fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha.default_value));
+  // asunto y cuerpo del correo del NDA, bien comunicados
+  assert.match(b.message.subject, /Confidencialidad/i);
+  assert.match(b.message.body, /Mexillum/);
+  assert.match(b.message.body, /reuni[oó]n/i);
 });
 
 test('api/booking: sin empresa, el prospecto cae al nombre del asistente', async () => {
