@@ -13,12 +13,15 @@ function fakeRes() {
 }
 
 // Corre el handler con fetch stubeado y env de DocuSeal. Devuelve lo enviado a DocuSeal.
-async function correr(req, { token = 'sekret', docuseal = true } = {}) {
+async function correr(req, { token = 'sekret', docuseal = true, dsFail = null } = {}) {
   const capt = [];
   const fetchReal = globalThis.fetch;
   const env = { ...process.env };
   globalThis.fetch = async (url, opts) => {
     capt.push({ url, opts, body: JSON.parse(opts.body) });
+    if (dsFail) {
+      return { ok: false, status: dsFail.status, json: async () => ({}), text: async () => dsFail.detail };
+    }
     return { ok: true, status: 200, json: async () => ({ id: 1, submitters: [{ slug: 'x' }] }), text: async () => '' };
   };
   process.env.CAL_WEBHOOK_SECRET = token;
@@ -93,6 +96,13 @@ test('api/booking: evento que no es BOOKING_CREATED se ignora (200 sin llamar Do
   const { res, docusealCall } = await correr(reqBase({ body: { ...bookingBody, triggerEvent: 'BOOKING_CANCELLED' } }));
   assert.equal(res.statusCode, 200);
   assert.equal(docusealCall, undefined);
+});
+
+test('api/booking: error de DocuSeal responde 502 con el detalle para depurar', async () => {
+  const { res } = await correr(reqBase(), { dsFail: { status: 422, detail: '{"error":"role \\"First Party\\" not found"}' } });
+  assert.equal(res.statusCode, 502);
+  assert.equal(res.body.docuseal_status, 422);
+  assert.match(res.body.docuseal_detail, /role/);
 });
 
 test('api/booking: sin correo del asistente responde 400', async () => {

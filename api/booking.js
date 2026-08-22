@@ -80,7 +80,11 @@ export default async function handler(req, res) {
     if (!r.ok) {
       const detail = await r.text().catch(() => '');
       console.error('DocuSeal error', r.status, detail);
-      return res.status(502).json({ error: 'No se pudo generar el NDA.' });
+      return res.status(502).json({
+        error: 'No se pudo generar el NDA.',
+        docuseal_status: r.status,
+        docuseal_detail: String(detail).slice(0, 500)
+      });
     }
     return res.status(200).json({ ok: true });
   } catch (err) {
