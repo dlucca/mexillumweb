@@ -521,6 +521,33 @@ export function normalizeResponses(resp) {
   return out;
 }
 
+// ---- Contacto desde la reserva de Cal.com ----
+// Lee nombre/correo del asistente y los campos extra (empresa, teléfono, rol,
+// presupuesto) de las respuestas de la reserva. Tolera varias formas del payload:
+// `data.booking.responses[key]` puede ser un string o `{ value }`, y algunos
+// campos vienen en la raíz. Devuelve siempre cadenas (nunca undefined).
+function respValue(responses, key) {
+  const r = responses && responses[key];
+  if (r == null) return '';
+  if (typeof r === 'object') return String(r.value ?? '').trim();
+  return String(r).trim();
+}
+
+export function bookingContact(data) {
+  const d = data || {};
+  const booking = d.booking || d;
+  const attendee = (Array.isArray(booking.attendees) && booking.attendees[0]) || {};
+  const responses = booking.responses || d.responses || {};
+  return {
+    nombre: String(attendee.name || respValue(responses, 'name') || '').trim(),
+    correo: String(attendee.email || respValue(responses, 'email') || '').trim(),
+    empresa: respValue(responses, 'empresa'),
+    telefono: respValue(responses, 'telefono') || respValue(responses, 'phone') || String(attendee.phoneNumber || '').trim(),
+    rol: respValue(responses, 'rol'),
+    presupuesto: respValue(responses, 'presupuesto')
+  };
+}
+
 // ---- Orquestador ----
 export function assembleResult(estado, content) {
   const resp = normalizeResponses(estado.respuestas);

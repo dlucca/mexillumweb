@@ -6,7 +6,7 @@ import {
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
   pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
   scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution, detectLimitations,
-  primaryApplication, normalizeResponses, buildAnteproyecto,
+  primaryApplication, normalizeResponses, buildAnteproyecto, bookingContact,
   asList, hasSignal, matchesWhen, matchesRule
 } from '../js/diagnostico.engine.js';
 
@@ -903,4 +903,49 @@ test('assembleResult: expone anteproyecto en el resultado y en el payload intern
   assert.ok(res.anteproyecto && Array.isArray(res.anteproyecto.interno) && Array.isArray(res.anteproyecto.lead));
   assert.ok(FAMILIAS.includes(res.anteproyecto.familia));
   assert.ok(Array.isArray(res.leadPayload.anteproyecto_interno) && res.leadPayload.anteproyecto_interno.length > 0);
+});
+
+// ---- bookingContact: leer contacto + campos extra de la reserva de Cal ----
+
+test('bookingContact: extrae nombre/correo del asistente y campos extra de responses', () => {
+  const data = {
+    booking: {
+      attendees: [{ name: 'Cristian Dlucca', email: 'cristian@acme.mx' }],
+      responses: {
+        empresa: { value: 'Acme' },
+        telefono: { value: '5555' },
+        rol: { value: 'Dirección general' },
+        presupuesto: { value: '$500,000 – $2,000,000 MXN' }
+      }
+    }
+  };
+  const c = bookingContact(data);
+  assert.equal(c.nombre, 'Cristian Dlucca');
+  assert.equal(c.correo, 'cristian@acme.mx');
+  assert.equal(c.empresa, 'Acme');
+  assert.equal(c.telefono, '5555');
+  assert.equal(c.rol, 'Dirección general');
+  assert.equal(c.presupuesto, '$500,000 – $2,000,000 MXN');
+});
+
+test('bookingContact: acepta responses con valores string y datos en la raíz', () => {
+  const c = bookingContact({ responses: { name: 'Ana', email: 'ana@x.mx', empresa: 'Beta' } });
+  assert.equal(c.nombre, 'Ana');
+  assert.equal(c.correo, 'ana@x.mx');
+  assert.equal(c.empresa, 'Beta');
+});
+
+test('bookingContact: sin campos extra devuelve cadenas vacías, no undefined', () => {
+  const c = bookingContact({ booking: { attendees: [{ name: 'Solo', email: 'solo@x.mx' }] } });
+  assert.equal(c.nombre, 'Solo');
+  assert.equal(c.empresa, '');
+  assert.equal(c.telefono, '');
+  assert.equal(c.rol, '');
+  assert.equal(c.presupuesto, '');
+});
+
+test('bookingContact: entrada vacía no rompe', () => {
+  const c = bookingContact(undefined);
+  assert.equal(c.nombre, '');
+  assert.equal(c.correo, '');
 });

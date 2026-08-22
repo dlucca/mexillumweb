@@ -1,5 +1,5 @@
 import content from './diagnostico.content.js';
-import { assembleResult, plantaLabel } from './diagnostico.engine.js';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js';
 
 const root = document.getElementById('dx-root');
 
@@ -248,25 +248,6 @@ function tickSvg() {
     + '<path d="M2.5 6.3l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
 
-// ---- Formulario de contacto (dentro del resultado, junto a la agenda) ---------
-function contactFieldsHtml() {
-  return content.gate.campos.map((c) => {
-    const req = c.required ? ' <span aria-hidden="true">*</span>' : '';
-    const control = c.type === 'select'
-      ? `<select class="mx-select" id="gate-${c.key}" name="${c.key}">
-           <option value="">—</option>
-           ${c.opciones.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
-         </select>`
-      : `<input class="mx-input" id="gate-${c.key}" name="${c.key}" type="${c.type}"
-           autocomplete="${c.autocomplete}" ${c.required ? 'required' : ''}>`;
-    return `
-      <div class="mx-field">
-        <label class="mx-field__label" for="gate-${c.key}">${esc(c.label)}${req}</label>
-        ${control}
-      </div>`;
-  }).join('');
-}
-
 // ---- Integración cal.diy (embed inline) --------------------------------------
 function loadCal() {
   if (window.Cal) return;
@@ -316,16 +297,14 @@ function registerBookingListener() {
     action: 'bookingSuccessful',
     callback: (e) => {
       if (leadEnviado) return;
-      const data = e?.detail?.data || {};
-      const booking = data.booking || data;
-      const attendee = (booking.attendees && booking.attendees[0]) || {};
+      const c = bookingContact(e?.detail?.data);
       estado.contacto = {
-        nombre: estado.contacto.nombre || attendee.name || '',
-        empresa: estado.contacto.empresa || '',
-        correo: estado.contacto.correo || attendee.email || '',
-        telefono: estado.contacto.telefono || '',
-        rol: estado.contacto.rol || '',
-        presupuesto: estado.contacto.presupuesto || ''
+        nombre: estado.contacto.nombre || c.nombre,
+        empresa: estado.contacto.empresa || c.empresa,
+        correo: estado.contacto.correo || c.correo,
+        telefono: estado.contacto.telefono || c.telefono,
+        rol: estado.contacto.rol || c.rol,
+        presupuesto: estado.contacto.presupuesto || c.presupuesto
       };
       estado.resultado = assembleResult(estado, content);
       submitLead(estado.resultado.leadPayload);
@@ -424,21 +403,11 @@ function renderResult() {
       <section class="dx__book" aria-labelledby="dx-book-h">
         <h2 class="dx__col-title" id="dx-book-h">El siguiente paso: tu anteproyecto</h2>
         <p class="dx__col-sub">${esc(content.gate.cuerpo)}</p>
-        <form class="dx__book-form" novalidate>
-          ${contactFieldsHtml()}
-          <input type="text" name="website" tabindex="-1" autocomplete="off"
-            style="position:absolute;left:-9999px" aria-hidden="true">
-          <p class="mx-field__error" data-gate-error role="alert" aria-live="polite" hidden></p>
-          <div class="dx__nav dx__nav--end">
-            <button type="submit" class="mx-btn mx-btn--primary">${esc(content.gate.cta)}</button>
-          </div>
-          <p class="dx__book-ok" data-book-ok hidden>${esc(content.gate.okMsg)}</p>
-          <p class="dx__col-sub" style="font-size:12px;margin-top:var(--space-3)">
-            ${esc(content.gate.confidencialidad)}
-            <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>.
-          </p>
-        </form>
         <div class="dx__cal" id="agenda"></div>
+        <p class="dx__col-sub" style="font-size:12px;margin-top:var(--space-3)">
+          ${esc(content.gate.confidencialidad)}
+          <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>.
+        </p>
       </section>
 
       <section class="dx__print-only dx__checklist">
@@ -459,37 +428,9 @@ function renderResult() {
     render();
   });
 
-  // Formulario junto a la agenda: al enviarlo registramos el lead y reprellenamos
-  // el calendario con el nombre/email. Agendar sin enviarlo también manda el lead
-  // (registerBookingListener), así que el formulario es un atajo, no un gate.
-  const bookForm = view.querySelector('.dx__book-form');
-  const bookErr = view.querySelector('[data-gate-error]');
-  const bookOk = view.querySelector('[data-book-ok]');
-  bookForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (bookForm.website.value) return; // honeypot
-    const nombre = bookForm.nombre.value.trim();
-    const correo = bookForm.correo.value.trim();
-    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!nombre || !EMAIL_RE.test(correo)) {
-      bookErr.textContent = 'Necesitamos tu nombre y un email válido.';
-      bookErr.hidden = false;
-      return;
-    }
-    bookErr.hidden = true;
-    estado.contacto = {
-      nombre,
-      empresa: bookForm.empresa.value.trim(),
-      correo,
-      telefono: bookForm.telefono.value.trim(),
-      rol: bookForm.rol.value,
-      presupuesto: bookForm.presupuesto.value
-    };
-    estado.resultado = assembleResult(estado, content);
-    submitLead(estado.resultado.leadPayload); // envío del lead (de-duplicado)
-    bookOk.hidden = false;
-    mountCal('#agenda', estado.resultado); // reprellenar el calendario
-  });
+  // Ya no hay formulario propio: el único paso es agendar en Cal. Al agendar,
+  // registerBookingListener toma nombre/correo + campos extra de la reserva y
+  // registra el lead (submitLead). El calendario es la única acción.
 
   root.replaceChildren(view);
   focusMain();
