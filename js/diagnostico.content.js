@@ -112,6 +112,7 @@ const content = {
     cuerpo: 'Agendamos una llamada para revisar tu diagnóstico a fondo y definir qué datos necesitamos de tu operación. Con eso armamos un anteproyecto con números para tu instalación — sin costo ni compromiso.',
     cta: 'Agendar mi llamada',
     okMsg: '¡Listo! Recibimos tus datos. Elige un horario abajo para agendar la llamada.',
+    confidencialidad: 'Tus datos son confidenciales y solo los usamos para tu diagnóstico. Consulta nuestro',
     campos: [
       { key: 'nombre', label: 'Nombre', type: 'text', required: true, autocomplete: 'name' },
       { key: 'empresa', label: 'Empresa', type: 'text', required: false, autocomplete: 'organization' },

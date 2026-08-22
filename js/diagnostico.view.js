@@ -433,6 +433,10 @@ function renderResult() {
             <button type="submit" class="mx-btn mx-btn--primary">${esc(content.gate.cta)}</button>
           </div>
           <p class="dx__book-ok" data-book-ok hidden>${esc(content.gate.okMsg)}</p>
+          <p class="dx__col-sub" style="font-size:12px;margin-top:var(--space-3)">
+            ${esc(content.gate.confidencialidad)}
+            <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>.
+          </p>
         </form>
         <div class="dx__cal" id="agenda"></div>
       </section>
