@@ -25,7 +25,9 @@
         <img class="brand__mark nav__mark" src="assets/logo-mark-white.png" alt="">
         <span class="brand__word nav__word">mexillum</span>
       </a>
-      <div class="nav__actions"></div>
+      <div class="nav__actions">
+        <a class="mx-btn mx-btn--primary mx-btn--sm" href="/diagnostico">Hacer diagnóstico</a>
+      </div>
     </div>
   </header>
 
@@ -112,7 +114,7 @@
         </div>
         <aside class="what__aside reveal" style="--rd:120ms">
           <p class="kicker kicker--accent">La pieza pendiente</p>
-          <p>El almacenamiento es lo que más empresas tienen sin resolver. Es la pieza que convierte kWh baratos en energía disponible en el momento en que la planta la necesita.</p>
+          <p>La generación ya está en la agenda de casi toda planta. El almacenamiento es la pieza que la mayoría aún no resuelve — y la que convierte kWh baratos en energía disponible cuando la línea la necesita.</p>
           <div class="metric-list">
             <div class="metric"><span class="metric__k">Recorte del cargo por demanda (GDMTH)</span><span class="metric__v">18 %</span></div>
             <div class="metric"><span class="metric__k">Respaldo ante evento de red</span><span class="metric__v">&lt; 20 ms</span></div>
@@ -151,6 +153,16 @@
       </div>
     </section>
 
+    <!-- ================= Banda CTA intermedia ================= -->
+    <section class="section section--band theme-dark" aria-label="Diagnóstico" style="background:var(--verde-oscuro)">
+      <div class="container diag-band reveal">
+        <div class="diag-band__text">
+          <p class="diag-band__lead">En 8 preguntas sabrás qué le falta a tu sistema de energía — sin jerga y sin costo.</p>
+        </div>
+        <a class="mx-btn mx-btn--primary" href="/diagnostico">Hacer mi diagnóstico</a>
+      </div>
+    </section>
+
     <!-- ================= Casos por industria ================= -->
     <section class="section section--cases" aria-labelledby="casos-t">
       <div class="container">
@@ -170,21 +182,61 @@
           <article class="mx-card case reveal" style="--rd:80ms">
             <div class="case__sector">Petroquímica</div>
             <h3 class="case__h">Continuidad y calidad de energía</h3>
-            <p class="case__p">BESS dimensionado contra huecos de tensión y paros no programados en procesos que no admiten interrupción.</p>
             <div class="case__tag">ALMACENAMIENTO</div>
+            <p class="case__p">BESS dimensionado contra huecos de tensión y paros no programados en procesos que no admiten interrupción.</p>
           </article>
           <article class="mx-card case reveal" style="--rd:160ms">
             <div class="case__sector">Alimentos</div>
             <h3 class="case__h">Cadena de frío protegida</h3>
-            <p class="case__p">BESS para respaldo de refrigeración y gestión de demanda, con solar en sitio donde el techo y el consumo lo justifican.</p>
             <div class="case__tag">ALMACENAMIENTO + SOLAR DONDE APLICA</div>
+            <p class="case__p">BESS para respaldo de refrigeración y gestión de demanda, con solar en sitio donde el techo y el consumo lo justifican.</p>
           </article>
           <article class="mx-card case reveal" style="--rd:240ms">
             <div class="case__sector">Transporte público</div>
             <h3 class="case__h">Gestión de demanda en patios</h3>
-            <p class="case__p">BESS que aplana la carga simultánea de la flota eléctrica y evita ampliar la conexión eléctrica del sitio.</p>
             <div class="case__tag">ALMACENAMIENTO</div>
+            <p class="case__p">BESS que aplana la carga simultánea de la flota eléctrica y evita ampliar la conexión eléctrica del sitio.</p>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Proyectos / trayectoria ================= -->
+    <section class="section" aria-labelledby="proof-t">
+      <div class="container">
+        <div class="cases__head reveal">
+          <p class="kicker kicker--muted" id="proof-t">Trayectoria</p>
+          <p class="cases__intro">Proyectos de generación y almacenamiento entregados por el equipo de Intermepro para industria en la región.</p>
+        </div>
+        <div class="cases">
+          <article class="mx-card case reveal">
+            <div class="case__sector">Neuquén, AR · Energía</div>
+            <h3 class="case__h">Tecpetrol</h3>
+            <div class="case__tag">SOLAR + ALMACENAMIENTO + RESPALDO</div>
+            <p class="case__p">Sistema híbrido en sitio de operación intensiva: generación solar, almacenamiento y respaldo integrados.</p>
+          </article>
+          <article class="mx-card case reveal" style="--rd:80ms">
+            <div class="case__sector">Buenos Aires, AR · Alimentos y bebidas</div>
+            <h3 class="case__h">Coca-Cola</h3>
+            <div class="case__tag">SOLAR 35.2 kW + SOLAR TÉRMICA</div>
+            <p class="case__p">Generación fotovoltaica y calentamiento solar para planta de manufactura.</p>
+          </article>
+          <article class="mx-card case reveal" style="--rd:160ms">
+            <div class="case__sector">Campana, AR · Minería</div>
+            <h3 class="case__h">Petromining · Trafigura</h3>
+            <div class="case__tag">PLANTA SOLAR FOTOVOLTAICA</div>
+            <p class="case__p">Planta solar fotovoltaica para operación minera de gran escala.</p>
+          </article>
+        </div>
+        <div class="brands reveal" style="--rd:200ms">
+          <span class="kicker kicker--muted">Clientes atendidos por el equipo</span>
+          <div class="brands__list">
+            <span class="brand-chip">Coca-Cola</span>
+            <span class="brand-chip">Tecpetrol</span>
+            <span class="brand-chip">Trafigura</span>
+            <span class="brand-chip">La Caja</span>
+            <span class="brand-chip">Bodegas Otero Ramos</span>
+          </div>
         </div>
       </div>
     </section>
