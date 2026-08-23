@@ -463,7 +463,7 @@ const content = {
   //      base siempre; + solar / + bess / (bess_solar = solar+bess) / + off_grid.
   //      Texto BORRADOR — pendiente de afinar. ----
   anteproyectoTitulo: 'Datos para el anteproyecto',
-  anteproyectoTituloLead: 'Qué preparar para nuestra reunión',
+  anteproyectoTituloLead: 'Qué tener a mano para la llamada',
   anteproyecto: {
     base: {
       interno: [
@@ -477,7 +477,8 @@ const content = {
         'Tus últimos 12 recibos de luz de CFE.',
         'A qué horas del día opera tu planta.',
         'Cuánto espacio libre tienes (techo o terreno).',
-        'Qué es lo que más te urge resolver.'
+        'Qué es lo que más te urge resolver.',
+        'Quién autoriza una inversión así y hasta qué monto.'
       ]
     },
     solar: {

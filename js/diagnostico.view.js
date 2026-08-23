@@ -81,7 +81,10 @@ function renderStep() {
 
   const view = el(`
     <div class="dx__view">
-      <p class="dx__progress">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</p>
+      <div class="dx__progress">
+        <span class="dx__progress-label">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</span>
+        <span class="dx__progress-track" aria-hidden="true"><span class="dx__progress-fill" style="width:${Math.round((idx + 1) / content.pasos.length * 100)}%"></span></span>
+      </div>
       <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(pregunta)}</h2>
       ${hintHtml}
       <div class="dx__options" role="radiogroup" aria-label="${esc(pregunta)}">${opcionesHtml}</div>
@@ -170,7 +173,10 @@ function renderStepMulti(idx, paso, pregunta) {
 
   const view = el(`
     <div class="dx__view">
-      <p class="dx__progress">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</p>
+      <div class="dx__progress">
+        <span class="dx__progress-label">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</span>
+        <span class="dx__progress-track" aria-hidden="true"><span class="dx__progress-fill" style="width:${Math.round((idx + 1) / content.pasos.length * 100)}%"></span></span>
+      </div>
       <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(pregunta)}</h2>
       ${hintHtml}
       <div class="dx__options" role="group" aria-label="${esc(pregunta)}">${opcionesHtml}</div>
@@ -386,14 +392,10 @@ function renderResult() {
         <p>${esc(res.dato_faltante)}</p>
         <p class="dx__close">${esc(res.cierre_llamada)}</p>
         <p class="dx__fin">${esc(res.financiamiento)}</p>
-        <aside class="dx__checklist" aria-label="Preparación para la llamada">
-          <h3>${esc(content.checklistTitulo)}</h3>
-          <ul>${items}</ul>
-          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
-        </aside>
-        <aside class="dx__checklist" aria-label="Qué preparar para la reunión">
+        <aside class="dx__checklist" aria-label="Qué tener a mano para la llamada">
           <h3>${esc(content.anteproyectoTituloLead)}</h3>
           <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
         </aside>
         <div class="dx__actions">
           <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>

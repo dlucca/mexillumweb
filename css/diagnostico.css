@@ -23,11 +23,21 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx__footer-co{color:var(--text-body);font-weight:var(--weight-semibold)}
 .dx__footer-addr a{color:var(--text-accent)}
 .dx__footer-copy{font-family:var(--font-mono);font-size:var(--size-kicker);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted)}
-.dx__progress{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-5)}
-.dx__question{font:var(--type-h2);color:var(--text-strong);margin:0 0 var(--space-8);max-width:var(--measure-narrow)}
-.dx__options{display:flex;flex-direction:column;gap:var(--space-4);max-width:var(--measure-prose)}
-.dx__option{width:100%;text-align:left;background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer}
-.dx__option .mx-check{width:100%}
+/* Progreso: etiqueta mono + barra fina de avance (orientación en el embudo) */
+.dx__progress{display:flex;align-items:center;gap:var(--space-5);margin-bottom:var(--space-7)}
+.dx__progress-label{font:var(--type-label);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
+.dx__progress-track{flex:1;max-width:220px;height:2px;background:var(--border-hairline);overflow:hidden}
+.dx__progress-fill{display:block;height:100%;background:var(--accent);transition:width var(--dur-base) var(--ease-standard)}
+
+/* Pregunta: título de verdad — grande, condensado, con presencia */
+.dx__question{font-family:var(--font-core);font-weight:var(--weight-bold);font-size:clamp(28px,3.4vw,42px);line-height:1.06;letter-spacing:var(--track-display);color:var(--text-strong);margin:0 0 var(--space-9);max-width:24ch;text-wrap:pretty}
+
+/* Opciones: filas con presencia y estado seleccionado — no renglones de formulario */
+.dx__options{display:flex;flex-direction:column;gap:var(--space-3);max-width:var(--measure-prose)}
+.dx__option{width:100%;text-align:left;background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-3);padding:var(--space-5) var(--space-6);font:inherit;color:inherit;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard)}
+.dx__option .mx-check{width:100%;font-size:var(--size-body-lg);gap:var(--space-5)}
+.dx__option:hover{border-color:var(--accent)}
+.dx__option[aria-checked="true"]{border-color:var(--accent);background:var(--accent-quiet)}
 .dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-9)}
 .dx__nav--end{justify-content:space-between}
 
@@ -109,5 +119,6 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 
 /* mobile: apila y quita sticky */
 @media (max-width:899px){
-  .dx__question{font:var(--type-h3);color:var(--text-strong)}
+  .dx__question{font-size:clamp(24px,6vw,32px)}
+  .dx__progress-track{max-width:none}
 }
