@@ -65,42 +65,46 @@
             </div>
 
             <ol class="faults__list">
-              <li class="fault reveal">
+              <li class="fault fault--warn reveal">
                 <span class="fault__idx" aria-hidden="true">01</span>
-                <div class="fault__body">
-                  <h3 class="fault__title">El kWh barato, en la hora equivocada</h3>
-                  <p class="fault__desc">Con generación solar en sitio o sin ella, el kWh barato no siempre está disponible en la hora en que la planta lo consume.</p>
-                  <p class="fault__readout">
-                    <span class="fault__tag fault__tag--warn">Sobrecosto</span>
-                    <span class="fault__eq">Generas barato, consumes caro</span>
-                  </p>
-                </div>
+                <h3 class="fault__title">El kWh barato, en la hora equivocada</h3>
+                <p class="fault__desc">Con generación solar en sitio o sin ella, el kWh barato no siempre está disponible en la hora en que la planta lo consume.</p>
+                <p class="fault__readout">
+                  <span class="fault__tag fault__tag--warn">Sobrecosto</span>
+                  <span class="fault__eq">Generas barato, consumes caro</span>
+                </p>
               </li>
-              <li class="fault reveal" style="--rd:90ms">
+              <li class="fault fault--warn reveal" style="--rd:90ms">
                 <span class="fault__idx" aria-hidden="true">02</span>
-                <div class="fault__body">
-                  <h3 class="fault__title">Pico de demanda sin atacar</h3>
-                  <p class="fault__desc">El cargo por demanda se paga completo cada mes, aunque el pico dure minutos.</p>
-                  <p class="fault__readout">
-                    <span class="fault__tag fault__tag--warn">Cargo por demanda</span>
-                    <span class="fault__eq">Pico de minutos, cargo de mes</span>
-                  </p>
-                </div>
+                <h3 class="fault__title">Pico de demanda sin atacar</h3>
+                <p class="fault__desc">El cargo por demanda se paga completo cada mes, aunque el pico dure minutos.</p>
+                <p class="fault__readout">
+                  <span class="fault__tag fault__tag--warn">Cargo por demanda</span>
+                  <span class="fault__eq">Pico de minutos, cargo de mes</span>
+                </p>
               </li>
-              <li class="fault reveal" style="--rd:180ms">
+              <li class="fault fault--alert reveal" style="--rd:180ms">
                 <span class="fault__idx" aria-hidden="true">03</span>
-                <div class="fault__body">
-                  <h3 class="fault__title">Continuidad de proceso expuesta</h3>
-                  <p class="fault__desc">Un hueco de tensión o un corte de 40 minutos detiene la línea. Ese costo no aparece en la factura eléctrica.</p>
-                  <p class="fault__readout">
-                    <span class="fault__tag fault__tag--alert">Paro de línea</span>
-                    <span class="fault__eq">40 min detienen la producción</span>
-                  </p>
-                </div>
+                <h3 class="fault__title">Continuidad de proceso expuesta</h3>
+                <p class="fault__desc">Un hueco de tensión o un corte de 40 minutos detiene la línea. Ese costo no aparece en la factura eléctrica.</p>
+                <p class="fault__readout">
+                  <span class="fault__tag fault__tag--alert">Paro de línea</span>
+                  <span class="fault__eq">40 min detienen la producción</span>
+                </p>
               </li>
             </ol>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ================= Banda CTA (tras el problema) ================= -->
+    <section class="section section--band theme-dark" aria-label="Diagnóstico" style="background:var(--verde-oscuro)">
+      <div class="container diag-band reveal">
+        <div class="diag-band__text">
+          <p class="diag-band__lead">¿Cuál de estas fugas tienes? En 8 preguntas lo sabrás — sin jerga y sin costo.</p>
+        </div>
+        <a class="mx-btn mx-btn--primary" href="/diagnostico">Hacer mi diagnóstico</a>
       </div>
     </section>
 
@@ -121,6 +125,33 @@
             <div class="metric"><span class="metric__k">Inversión del cliente</span><span class="metric__v metric__v--accent">$0 CAPEX</span></div>
           </div>
         </aside>
+      </div>
+    </section>
+
+    <!-- ================= Modelo 0% CAPEX ================= -->
+    <section class="section section--dark theme-dark" aria-labelledby="modelo-t">
+      <div class="grid-overlay"></div>
+      <div class="container model__inner">
+        <p class="kicker kicker--lima kicker--mb8 reveal" id="modelo-t">Modelo 0 % CAPEX</p>
+        <h2 class="model__title reveal">No inviertes. Ahorras desde el mes uno.</h2>
+        <p class="model__lede reveal">Aplica igual sea generación, almacenamiento o ambos. Mexillum financia, instala y opera; tú pagas por energía entregada bajo contrato de servicio.</p>
+        <div class="model__stats">
+          <div class="mx-stat mx-stat--md mx-stat--accent reveal">
+            <div class="mx-stat__label">Inversión inicial</div>
+            <div class="mx-stat__value">$0<span class="mx-stat__unit">CAPEX</span></div>
+            <div class="mx-stat__basis">Sin solicitud de capital ni deuda en balance.</div>
+          </div>
+          <div class="mx-stat mx-stat--md reveal" style="--rd:100ms">
+            <div class="mx-stat__label">Primer mes con ahorro</div>
+            <div class="mx-stat__value">01<span class="mx-stat__unit">MES</span></div>
+            <div class="mx-stat__basis">El pago por servicio es menor al costo evitado desde el arranque.</div>
+          </div>
+          <div class="mx-stat mx-stat--md reveal" style="--rd:200ms">
+            <div class="mx-stat__label">Riesgo de desempeño</div>
+            <div class="mx-stat__value">100<span class="mx-stat__unit">% MEXILLUM</span></div>
+            <div class="mx-stat__basis">Disponibilidad y desempeño garantizados en contrato.</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -153,60 +184,12 @@
       </div>
     </section>
 
-    <!-- ================= Banda CTA intermedia ================= -->
-    <section class="section section--band theme-dark" aria-label="Diagnóstico" style="background:var(--verde-oscuro)">
-      <div class="container diag-band reveal">
-        <div class="diag-band__text">
-          <p class="diag-band__lead">En 8 preguntas sabrás qué le falta a tu sistema de energía — sin jerga y sin costo.</p>
-        </div>
-        <a class="mx-btn mx-btn--primary" href="/diagnostico">Hacer mi diagnóstico</a>
-      </div>
-    </section>
-
-    <!-- ================= Casos por industria ================= -->
+    <!-- ================= Casos y proyectos ================= -->
     <section class="section section--cases" aria-labelledby="casos-t">
       <div class="container">
         <div class="cases__head reveal">
-          <p class="kicker kicker--muted" id="casos-t">Casos por industria</p>
-          <p class="cases__intro">Cada configuración sale del diagnóstico. No hay un paquete único.</p>
-        </div>
-        <div class="cases">
-          <article class="mx-card case case--lead reveal">
-            <div class="case__lead-main">
-              <div class="case__sector">Minería</div>
-              <h3 class="case__h">Microred solar + BESS</h3>
-              <div class="case__tag">GENERACIÓN + ALMACENAMIENTO</div>
-            </div>
-            <p class="case__p">Sustitución de diésel en sitios con red débil o sin red. Generación y almacenamiento operando como un solo sistema.</p>
-          </article>
-          <article class="mx-card case reveal" style="--rd:80ms">
-            <div class="case__sector">Petroquímica</div>
-            <h3 class="case__h">Continuidad y calidad de energía</h3>
-            <div class="case__tag">ALMACENAMIENTO</div>
-            <p class="case__p">BESS dimensionado contra huecos de tensión y paros no programados en procesos que no admiten interrupción.</p>
-          </article>
-          <article class="mx-card case reveal" style="--rd:160ms">
-            <div class="case__sector">Alimentos</div>
-            <h3 class="case__h">Cadena de frío protegida</h3>
-            <div class="case__tag">ALMACENAMIENTO + SOLAR DONDE APLICA</div>
-            <p class="case__p">BESS para respaldo de refrigeración y gestión de demanda, con solar en sitio donde el techo y el consumo lo justifican.</p>
-          </article>
-          <article class="mx-card case reveal" style="--rd:240ms">
-            <div class="case__sector">Transporte público</div>
-            <h3 class="case__h">Gestión de demanda en patios</h3>
-            <div class="case__tag">ALMACENAMIENTO</div>
-            <p class="case__p">BESS que aplana la carga simultánea de la flota eléctrica y evita ampliar la conexión eléctrica del sitio.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= Proyectos / trayectoria ================= -->
-    <section class="section" aria-labelledby="proof-t">
-      <div class="container">
-        <div class="cases__head reveal">
-          <p class="kicker kicker--muted" id="proof-t">Trayectoria</p>
-          <p class="cases__intro">Proyectos de generación y almacenamiento entregados por nuestro equipo para industria en la región.</p>
+          <p class="kicker kicker--muted" id="casos-t">Casos y proyectos</p>
+          <p class="cases__intro">Cada configuración sale del diagnóstico — minería, petroquímica, alimentos, transporte. Esto es lo que ha entregado nuestro equipo.</p>
         </div>
         <div class="cases">
           <article class="mx-card case reveal">
@@ -236,33 +219,6 @@
             <span class="brand-chip">Trafigura</span>
             <span class="brand-chip">La Caja</span>
             <span class="brand-chip">Bodegas Otero Ramos</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= Modelo 0% CAPEX ================= -->
-    <section class="section section--dark theme-dark" aria-labelledby="modelo-t">
-      <div class="grid-overlay"></div>
-      <div class="container model__inner">
-        <p class="kicker kicker--lima kicker--mb8 reveal" id="modelo-t">Modelo 0 % CAPEX</p>
-        <h2 class="model__title reveal">No inviertes. Ahorras desde el mes uno.</h2>
-        <p class="model__lede reveal">Aplica igual sea generación, almacenamiento o ambos. Mexillum financia, instala y opera; tú pagas por energía entregada bajo contrato de servicio.</p>
-        <div class="model__stats">
-          <div class="mx-stat mx-stat--md mx-stat--accent reveal">
-            <div class="mx-stat__label">Inversión inicial</div>
-            <div class="mx-stat__value">$0<span class="mx-stat__unit">CAPEX</span></div>
-            <div class="mx-stat__basis">Sin solicitud de capital ni deuda en balance.</div>
-          </div>
-          <div class="mx-stat mx-stat--md reveal" style="--rd:100ms">
-            <div class="mx-stat__label">Primer mes con ahorro</div>
-            <div class="mx-stat__value">01<span class="mx-stat__unit">MES</span></div>
-            <div class="mx-stat__basis">El pago por servicio es menor al costo evitado desde el arranque.</div>
-          </div>
-          <div class="mx-stat mx-stat--md reveal" style="--rd:200ms">
-            <div class="mx-stat__label">Riesgo de desempeño</div>
-            <div class="mx-stat__value">100<span class="mx-stat__unit">% MEXILLUM</span></div>
-            <div class="mx-stat__basis">Disponibilidad y desempeño garantizados en contrato.</div>
           </div>
         </div>
       </div>
