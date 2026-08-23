@@ -2,7 +2,7 @@
 /* sticky footer: fill the viewport so the footer sits at the bottom on short views
    (e.g. a single question), instead of floating up with empty space beneath it. */
 body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
-.dx{max-width:var(--max-content);width:100%;margin:0 auto;padding:var(--section-y-sm) var(--gutter-inline);flex:1 0 auto}
+.dx{max-width:var(--max-content);width:100%;margin:0 auto;padding:var(--space-7) var(--gutter-inline) var(--space-9);flex:1 0 auto}
 /* solo para lectores de pantalla: encabezados de estructura y foco, invisibles en pantalla */
 .dx__sronly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
@@ -30,16 +30,18 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx__progress-fill{display:block;height:100%;background:var(--accent);transition:width var(--dur-base) var(--ease-standard)}
 
 /* Pregunta: título de verdad — grande, condensado, con presencia */
-.dx__question{font-family:var(--font-core);font-weight:var(--weight-bold);font-size:clamp(28px,3.4vw,42px);line-height:1.06;letter-spacing:var(--track-display);color:var(--text-strong);margin:0 0 var(--space-9);max-width:24ch;text-wrap:pretty}
+.dx__question{font-family:var(--font-core);font-weight:var(--weight-bold);font-size:clamp(24px,2.3vw,32px);line-height:1.1;letter-spacing:var(--track-heading);color:var(--text-strong);margin:0 0 var(--space-6);max-width:34ch;text-wrap:pretty}
 
 /* Opciones: filas con presencia y estado seleccionado — no renglones de formulario */
 .dx__options{display:flex;flex-direction:column;gap:var(--space-3);max-width:var(--measure-prose)}
-.dx__option{width:100%;text-align:left;background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-3);padding:var(--space-5) var(--space-6);font:inherit;color:inherit;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard)}
-.dx__option .mx-check{width:100%;font-size:var(--size-body-lg);gap:var(--space-5)}
+.dx__option{width:100%;text-align:left;background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-3);padding:var(--space-3) var(--space-6);font:inherit;color:inherit;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard)}
+.dx__option .mx-check{width:100%;font-size:var(--size-body-lg);line-height:1.25;gap:var(--space-5)}
 .dx__option:hover{border-color:var(--accent)}
 .dx__option[aria-checked="true"]{border-color:var(--accent);background:var(--accent-quiet)}
-.dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-9)}
-.dx__nav--end{justify-content:space-between}
+.dx__nav{display:flex;gap:var(--space-4);margin-top:var(--space-6)}
+/* Barra de navegación fija al fondo: "Siguiente" siempre visible aunque la
+   pregunta tenga muchas opciones y no quepa entera en la pantalla del laptop. */
+.dx__nav--end{position:sticky;bottom:0;justify-content:space-between;background:var(--bg-page);padding:var(--space-4) 0;box-shadow:0 -1px 0 var(--border-hairline)}
 
 /* pantalla final: diagnóstico (derecha) + agenda con calendario cal.diy + checklist (izquierda).
    Orden del DOM: diagnóstico primero → en mobile se muestra arriba; en desktop la grilla
