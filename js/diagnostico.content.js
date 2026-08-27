@@ -286,6 +286,17 @@ const content = {
     plano: [0.10, 0.18],
     nolose: [0.15, 0.30]
   },
+  // % del recibo ANUAL que rinde el arbitraje horario, según el PERFIL de carga.
+  // Anclado a GDMTH: punta ~2-2.5x base, energía ~60% del recibo, y la fracción de
+  // consumo que cae en punta por perfil. Conservador (tráfico frío). Aplica solo
+  // cuando el arbitraje lidera y la tarifa es horaria (GDMTH/DIST).
+  tablaArbitraje: {
+    punta: [0.05, 0.10],
+    diurno: [0.03, 0.06],
+    plano: [0.015, 0.03],
+    picos: [0.015, 0.03],
+    nolose: [0.02, 0.05]
+  },
   tarifaLegible: {
     gdmth: 'GDMTH',
     dist: 'DIST/DIT',
@@ -297,6 +308,7 @@ const content = {
   bloqueB: {
     plantilla: (v) => `Con una factura de ~${v.facturaLegible} al mes en tarifa ${v.tarifaLegible}, el cargo por demanda suele pesar entre ${v.pctDemandaPiso}% y ${v.pctDemandaTecho}% del recibo. En operaciones con un perfil de carga como el tuyo, un sistema de almacenamiento bien dimensionado suele recortar del orden de ${v.pctRecortePiso}% a ${v.pctRecorteTecho}% de ese cargo.`,
     rango: (rangoTexto) => `Orden de magnitud: ${rangoTexto}.`,
+    arbitrajePlantilla: (v) => `Con una factura de ~${v.facturaLegible} al mes en tarifa ${v.tarifaLegible}, una parte de tu consumo cae en el horario punta de CFE —el más caro del día—. Trasladar ese consumo a horas baratas con la batería (arbitraje) suele valer del orden de ${v.pctPiso}% a ${v.pctTecho}% de tu factura anual.`,
     disclaimer: 'No es una estimación precisa ni una propuesta: en empresas con un perfil similar solemos encontrar oportunidades económicas de este orden de magnitud. El número real se calcula con tus recibos de los últimos 12 meses.',
     continuoExtra: 'Y en una operación que no para como la tuya, el recorte de pico no suele ser lo que más rinde — el arbitraje horario sí, porque compras en punta todos los días. Eso se suma y se calcula con tu desglose horario.',
     noloseFactura: 'Para dar un orden de magnitud necesitamos la escala de tu factura — es el primer dato del checklist. Lo que sí podemos adelantarte es qué oportunidades aplican a tu perfil:',

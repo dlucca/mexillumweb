@@ -37,3 +37,21 @@ test('assembleResult corre para un boutique evaluando solar', () => {
   assert.ok(res.recomendacion_solucion?.tipo);
   assert.ok(res.palancas?.principal?.nombre);
 });
+
+// v2.3: cuando el arbitraje lidera y hay tarifa horaria + factura, se muestra un rango
+// (antes solo peak shaving daba número). Ancla de mercado en tablaArbitraje.
+test('arbitraje líder con GDMTH + factura muestra un rango (no queda sin número)', () => {
+  const estado = { respuestas: { sector: 'allinclusive', perfil: 'punta', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto', corte: 'nada', disparador: ['costo'] }, contacto: {} };
+  const res = assembleResult(estado, content);
+  assert.equal(res.aplicacion_principal.id, 'arbitraje');
+  assert.equal(res.calculo.sin_numero, false);
+  assert.ok(res.calculo.rango_texto && /MXN/.test(res.calculo.rango_texto));
+});
+
+test('tablaArbitraje conserva los % de mercado esperados', () => {
+  assert.deepEqual(content.tablaArbitraje.punta, [0.05, 0.10]);
+  assert.deepEqual(content.tablaArbitraje.plano, [0.015, 0.03]);
+  assert.deepEqual(content.tablaArbitraje.diurno, [0.03, 0.06]);
+  assert.deepEqual(content.tablaArbitraje.picos, [0.015, 0.03]);
+  assert.deepEqual(content.tablaArbitraje.nolose, [0.02, 0.05]);
+});

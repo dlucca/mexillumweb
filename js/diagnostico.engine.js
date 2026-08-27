@@ -165,6 +165,28 @@ export function renderBlockB(resp, content, aplicacion) {
   }
 
   const aplicacionId = aplicacion?.id || 'peak_shaving';
+
+  // Arbitraje: cuando lidera y hay tarifa horaria (GDMTH/DIST) + factura, sí damos un
+  // rango. El ahorro se estima como % del recibo anual según el perfil de carga
+  // (tablaArbitraje). Los % están anclados a la estructura GDMTH: punta ~2-2.5x base,
+  // energía ~60% del recibo, y la porción de consumo que cae en punta según el perfil.
+  if (aplicacionId === 'arbitraje' && content.tablaArbitraje) {
+    const arb = content.tablaArbitraje[resp.tarifa] ? content.tablaArbitraje[resp.tarifa][resp.perfil] : content.tablaArbitraje[resp.perfil];
+    const facturaArb = content.tablaFactura[resp.factura];
+    if (arb && facturaArb != null) {
+      const cadena = b.arbitrajePlantilla({
+        facturaLegible: formatMoney(facturaArb),
+        tarifaLegible: content.tarifaLegible[resp.tarifa],
+        pctPiso: Math.round(arb[0] * 100), pctTecho: Math.round(arb[1] * 100)
+      });
+      const pisoArb = facturaArb * 12 * arb[0];
+      const techoArb = facturaArb * 12 * arb[1];
+      const rangoTexto = formatRango(pisoArb, techoArb);
+      const texto = `${cadena}\n\n${b.rango(rangoTexto)}\n\n${b.disclaimer}`;
+      return { sinNumero: null, piso: pisoArb, techo: techoArb, cadena, rangoTexto, disclaimer: b.disclaimer, notaContinuo: null, texto, notas };
+    }
+  }
+
   if (aplicacionId !== 'peak_shaving') {
     const cadena = b.sinRangoPorAplicacion[aplicacionId] || b.noloseFactura;
     return salidaSinNumero(`aplicacion:${aplicacionId}`, cadena);

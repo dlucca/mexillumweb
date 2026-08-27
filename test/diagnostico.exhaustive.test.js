@@ -41,7 +41,9 @@ test('regresión exhaustiva: todas las combinaciones mantienen conclusiones cohe
     if (ultimo.score > 0) assert.equal(palancas.descartada.text, content.palancasCopy[ultimo.id].menor);
 
     if (!calculo.sinNumero) {
-      assert.equal(aplicacion.id, 'peak_shaving', `rango ajeno a peak shaving: ${JSON.stringify(resp)}`);
+      // El rango se da para peak shaving o, desde v2.3, para arbitraje (que exige tarifa horaria).
+      assert.ok(['peak_shaving', 'arbitraje'].includes(aplicacion.id), `rango con aplicación inesperada: ${JSON.stringify(resp)}`);
+      if (aplicacion.id === 'arbitraje') assert.ok(['gdmth', 'dist'].includes(tarifa), `arbitraje con rango en tarifa no horaria: ${JSON.stringify(resp)}`);
       assert.ok(['gdmth', 'dist', 'gdmto', 'gdbt'].includes(tarifa));
       assert.notEqual(factura, 'nolose');
     }
