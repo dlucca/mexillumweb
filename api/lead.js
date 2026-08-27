@@ -45,6 +45,7 @@ export default async function handler(req, res) {
   const empresa = clean(body.empresa, 120);
   const telefono = clean(body.telefono, 40);
   const rol = clean(body.rol, 60);
+  const origen = clean(body.origen, 40);
 
   if (!nombre || !EMAIL_RE.test(correo)) {
     return res.status(400).json({ error: 'Datos incompletos o inválidos.' });
@@ -103,7 +104,9 @@ export default async function handler(req, res) {
   }
 
   const quien = empresa ? `${nombre} — ${empresa}` : nombre;
-  const subject = `Diagnóstico — ${quien}`;
+  const subject = origen === 'hoteles'
+    ? `Diagnóstico Hoteles — ${quien}`
+    : `Diagnóstico — ${quien}`;
 
   const text = [
     'Nuevo diagnóstico completado',
@@ -113,6 +116,7 @@ export default async function handler(req, res) {
     `Correo:   ${correo}`,
     `Teléfono: ${telefono || '—'}`,
     `Rol:      ${rol || '—'}`,
+    origen ? `Origen:   ${origen}` : null,
     '',
     perfil,
     `Rango estimado: ${rangoTexto}`,
@@ -159,6 +163,7 @@ export default async function handler(req, res) {
     `<td style="padding:6px 0"><a href="mailto:${esc(correo)}">${esc(correo)}</a></td></tr>` +
     (telefono ? fila('Teléfono', telefono) : '') +
     (rol ? fila('Rol', rol) : '') +
+    (origen ? fila('Origen', origen) : '') +
     `</table>` +
 
     `<h3 style="margin:0 0 8px;font-size:14px;color:#080A08">Respuestas del diagnóstico</h3>` +

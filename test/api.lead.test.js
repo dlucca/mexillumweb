@@ -44,6 +44,38 @@ const estado = {
   contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'ana@acme.mx', telefono: '5555', rol: 'Finanzas' }
 };
 
+// Arma un payload válido (leadPayload del motor + contacto) con overrides, corre el
+// handler y devuelve { subject, text } del correo capturado.
+async function runLead(overrides = {}) {
+  const res = assembleResult(estado, content);
+  const payload = { ...res.leadPayload, ...estado.contacto, ...overrides };
+  const { correo } = await enviar(payload);
+  return { sent: correo };
+}
+
+test('origen hoteles marca el asunto y el cuerpo del correo', async () => {
+  const { sent } = await runLead({ origen: 'hoteles' });
+  assert.match(sent.subject, /^Diagnóstico Hoteles —/);
+  assert.match(sent.text, /Origen:\s*hoteles/);
+});
+
+test('sin origen el asunto queda como hoy', async () => {
+  const { sent } = await runLead({});
+  assert.match(sent.subject, /^Diagnóstico —/);
+  assert.doesNotMatch(sent.text, /Origen:/);
+});
+
+test('origen hoteles también aparece en el cuerpo HTML del correo', async () => {
+  const { sent } = await runLead({ origen: 'hoteles' });
+  assert.match(sent.html, /Origen/);
+  assert.match(sent.html, /hoteles/);
+});
+
+test('sin origen el HTML no menciona Origen', async () => {
+  const { sent } = await runLead({});
+  assert.doesNotMatch(sent.html, /Origen/);
+});
+
 test('api/lead: el correo incluye la aplicación principal que calcula el motor', async () => {
   const res = assembleResult(estado, content);
   assert.equal(res.aplicacion_principal.id, 'diesel'); // precedencia comercial
