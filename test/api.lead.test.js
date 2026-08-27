@@ -76,6 +76,16 @@ test('sin origen el HTML no menciona Origen', async () => {
   assert.doesNotMatch(sent.html, /Origen/);
 });
 
+test('origen hoteles usa etiquetas hoteleras; industrial conserva las suyas', async () => {
+  const hotel = await runLead({ origen: 'hoteles' });
+  assert.match(hotel.sent.text, /Tipo de propiedad/);
+  assert.doesNotMatch(hotel.sent.text, /Sector \/ operación/);
+
+  const industrial = await runLead({});
+  assert.match(industrial.sent.text, /Sector \/ operación/);
+  assert.doesNotMatch(industrial.sent.text, /Tipo de propiedad/);
+});
+
 test('api/lead: el correo incluye la aplicación principal que calcula el motor', async () => {
   const res = assembleResult(estado, content);
   assert.equal(res.aplicacion_principal.id, 'diesel'); // precedencia comercial

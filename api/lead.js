@@ -25,6 +25,12 @@ const PREGUNTAS = [
   ['disparador', 'Disparador'],
 ];
 
+// Para leads de hoteles algunas etiquetas cambian de voz; el resto se reusa.
+const PREGUNTAS_HOTELES = {
+  sector: 'Tipo de propiedad',
+  corte: 'Impacto de un apagón',
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -90,9 +96,10 @@ export default async function handler(req, res) {
     : [];
 
   const respuestas = PREGUNTAS.map(([key, label]) => {
+    const etiqueta = (origen === 'hoteles' && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
     const visible = clean(legibles[key], 240);
     const codigo = clean(codigos[key], 40);
-    return { label, visible: visible || codigo || '—' };
+    return { label: etiqueta, visible: visible || codigo || '—' };
   });
 
   const apiKey = process.env.RESEND_API_KEY;
