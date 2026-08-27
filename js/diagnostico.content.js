@@ -523,7 +523,8 @@ const content = {
     potencialLabel: 'Encaje preliminar',
     recomendacionLabel: 'Configuración a evaluar',
     rankingLabel: 'Prioridad técnica',
-    limitacionesLabel: 'Para cerrar el número, todavía falta'
+    limitacionesLabel: 'Para cerrar el número, todavía falta',
+    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.'
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

@@ -372,6 +372,7 @@ function renderResult() {
             <p class="dx__resumen-line"><span class="dx__resumen-k">${esc(rz.potencialLabel)}</span><strong>${esc(res.potencial_general)}</strong></p>
             <p class="dx__resumen-line"><span class="dx__resumen-k">${esc(rz.recomendacionLabel)}</span><strong>${esc(res.recomendacion_solucion.tipo)}</strong></p>
           </div>
+          ${/BESS/.test(res.recomendacion_solucion.tipo) ? `<p class="dx__resumen-glosa">${esc(rz.bessGlosa)}</p>` : ''}
           <p class="dx__resumen-razon">${esc(res.recomendacion_solucion.razon)}</p>
           <p class="dx__resumen-k">${esc(rz.rankingLabel)}</p>
           <ol class="dx__ranking">${rankingLis}</ol>
