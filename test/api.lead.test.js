@@ -65,6 +65,17 @@ test('sin origen el asunto queda como hoy', async () => {
   assert.doesNotMatch(sent.text, /Origen:/);
 });
 
+test('origen hoteles también aparece en el cuerpo HTML del correo', async () => {
+  const { sent } = await runLead({ origen: 'hoteles' });
+  assert.match(sent.html, /Origen/);
+  assert.match(sent.html, /hoteles/);
+});
+
+test('sin origen el HTML no menciona Origen', async () => {
+  const { sent } = await runLead({});
+  assert.doesNotMatch(sent.html, /Origen/);
+});
+
 test('api/lead: el correo incluye la aplicación principal que calcula el motor', async () => {
   const res = assembleResult(estado, content);
   assert.equal(res.aplicacion_principal.id, 'diesel'); // precedencia comercial

@@ -163,6 +163,7 @@ export default async function handler(req, res) {
     `<td style="padding:6px 0"><a href="mailto:${esc(correo)}">${esc(correo)}</a></td></tr>` +
     (telefono ? fila('Teléfono', telefono) : '') +
     (rol ? fila('Rol', rol) : '') +
+    (origen ? fila('Origen', origen) : '') +
     `</table>` +
 
     `<h3 style="margin:0 0 8px;font-size:14px;color:#080A08">Respuestas del diagnóstico</h3>` +
