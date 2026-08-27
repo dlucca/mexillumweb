@@ -110,7 +110,7 @@ const content = {
 
   gate: {
     titulo: 'Tu diagnóstico está listo.',
-    cuerpo: 'Agendamos una llamada para revisar tu diagnóstico a fondo y definir qué datos necesitamos de tu propiedad. Con eso armamos un anteproyecto con números para tu propiedad — sin costo ni compromiso.',
+    cuerpo: 'Cuando gustes podemos agendar una llamada para revisar contigo las posibilidades que muestra tu diagnóstico, resolver dudas y definir qué datos de tu propiedad afinan el anteproyecto. Sin costo ni compromiso.',
     cta: 'Agendar mi llamada',
     okMsg: '¡Listo! Recibimos tus datos. Elige un horario abajo para agendar la llamada.',
     confidencialidad: 'Tus datos son confidenciales y solo los usamos para tu diagnóstico. Consulta nuestro',
