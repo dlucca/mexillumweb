@@ -110,7 +110,7 @@ const content = {
 
   gate: {
     titulo: 'Tu diagnóstico está listo.',
-    cuerpo: 'Agendamos una llamada para revisar tu diagnóstico a fondo y definir qué datos necesitamos de tu propiedad. Con eso armamos un anteproyecto con números para tu instalación — sin costo ni compromiso.',
+    cuerpo: 'Agendamos una llamada para revisar tu diagnóstico a fondo y definir qué datos necesitamos de tu propiedad. Con eso armamos un anteproyecto con números para tu propiedad — sin costo ni compromiso.',
     cta: 'Agendar mi llamada',
     okMsg: '¡Listo! Recibimos tus datos. Elige un horario abajo para agendar la llamada.',
     confidencialidad: 'Tus datos son confidenciales y solo los usamos para tu diagnóstico. Consulta nuestro',
@@ -121,7 +121,7 @@ const content = {
       { key: 'correo', label: 'Email', type: 'email', required: true, autocomplete: 'email' },
       { key: 'telefono', label: 'Teléfono', type: 'tel', required: false, autocomplete: 'tel' },
       { key: 'rol', label: 'Rol', type: 'select', required: false,
-        opciones: ['Dirección general', 'Finanzas', 'Operaciones-Planta', 'Energía-Mantenimiento', 'Otro'] },
+        opciones: ['Dirección general', 'Finanzas', 'Operaciones/Ingeniería', 'Sostenibilidad/Energía', 'Otro'] },
       // Calificación comercial opcional: da a ventas una idea del tamaño del proyecto sin
       // sumar fricción al diagnóstico (solo lo ve quien ya decidió agendar). Rangos en MXN
       // para no mezclar moneda con la factura, que también es MXN.
@@ -174,14 +174,14 @@ const content = {
         // Solar on-grid puro brilla cuando el consumo es diurno, no se cuenta con generación previa,
         // no hay dolor crítico de cortes y el foco es reducción pura de costo de kWh.
         perfil: { diurno: 44, plano: 22, picos: 14, punta: 6, nolose: 14 },
-        generacion: { no: 28, evaluando: 32, contrato: 8, solar_sitio: 0 },
+        generacion: { no: 28, evaluando: 32, estacional: 10, contrato: 8, solar_sitio: 0 },
         disparador: { costo: 22 },
         tarifa: { gdmto: 20, gdbt: 18, gdmth: 16, dist: 12, pdbt: 14, privado: 10, nolose: 8 },
         corte: { nada: 14, servicio: 4, reinicio: 2, producto: 0 },
         calidad: { no: 10, nolose: 6 }
       },
       bess_solar: {
-        generacion: { solar_sitio: 22, contrato: 6, evaluando: 24, no: 10 },
+        generacion: { solar_sitio: 22, contrato: 6, estacional: 34, evaluando: 24, no: 10 },
         perfil: { diurno: 34, plano: 16, picos: 10, punta: 8, nolose: 14 },
         disparador: { excedente: 18 },
         sector: { resort: 6, allinclusive: 6, urbano: 4, desarrollo: 6 }
@@ -230,7 +230,7 @@ const content = {
       // perfil diurno. Es un techo (sigue siendo palanca secundaria), no una exclusión.
       { id: 'solar_puro', max: 40, when: { perfil: ['plano', 'punta', 'picos'] } },
       // BESS + Solar necesita señal real de generación/solar; sin solar en sitio o evaluación previa, se limita.
-      { id: 'bess_solar', max: 45, requiere: { generacion: ['solar_sitio', 'evaluando'] } },
+      { id: 'bess_solar', max: 45, requiere: { generacion: ['solar_sitio', 'estacional', 'evaluando'] } },
       // Arbitraje depende de conocer la tarifa horaria.
       { id: 'arbitraje', max: 40, requiere: { tarifa: ['gdmth', 'dist', 'privado'] } },
       // Sustitución de diésel: sin la señal de diésel no hay combustible que desplazar.
@@ -523,7 +523,7 @@ const content = {
     recomendacionLabel: 'Configuración a evaluar',
     rankingLabel: 'Prioridad técnica',
     limitacionesLabel: 'Para cerrar el número, todavía falta',
-    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.'
+    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías de grado industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.'
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },
