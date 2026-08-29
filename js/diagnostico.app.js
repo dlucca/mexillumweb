@@ -1,4 +1,6 @@
 import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js';
+import { mountRoofPicker } from './diagnostico.roof.js';
+import { mountFacturasUploader } from './diagnostico.facturas.js';
 
 // Instancia self-hosted de cal.diy. El origen es común a todas las versiones.
 const CAL_ORIGIN = 'https://cal.mexillum.com';
@@ -13,7 +15,11 @@ export function initDiagnostico({ content, calLink, origen }) {
     paso: 'intro',            // 'intro' | 0..7 | 'result'
     respuestas: {},
     contacto: {},
-    resultado: null           // cache del assembleResult
+    resultado: null,          // cache del assembleResult
+    lead_id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
+    ubicacion: null,
+    techo: null,
+    facturas: null,
   };
 
   function el(html) {
@@ -320,6 +326,143 @@ export function initDiagnostico({ content, calLink, origen }) {
     });
   }
 
+  // ---- Paso: dibujar techo (opcional) -----------------------------------------
+  function renderTecho() {
+    const view = el(`
+      <div class="dx__view">
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Dibuja tu techo</h2>
+        <p class="dx__col-sub">Marca las esquinas de tu techo en el mapa. Con esto tu anteproyecto sale más rápido y preciso.</p>
+        <div class="dx-roof-mount"></div>
+        <div class="dx__nav dx__nav--end">
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          <span class="dx__skiprow">
+            <button type="button" class="dx__skip" data-act="saltar">Saltar por ahora</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente">Continuar</button>
+          </span>
+        </div>
+      </div>`);
+
+    mountRoofPicker(view.querySelector('.dx-roof-mount'), {
+      onLocation: (u) => { estado.ubicacion = u; },
+      onRoof: (r) => { estado.techo = r; }
+    });
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'result'; render(); });
+    view.querySelector('[data-act="saltar"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+    view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+
+    root.replaceChildren(view);
+    focusMain();
+  }
+
+  // ---- Paso: subir facturas (opcional) ----------------------------------------
+  function renderFacturas() {
+    const view = el(`
+      <div class="dx__view">
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Sube tus últimas 12 facturas</h2>
+        <p class="dx__col-sub">Con tus facturas de CFE calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.</p>
+        <div class="dx-fac-mount"></div>
+        <div class="dx__nav dx__nav--end">
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          <span class="dx__skiprow">
+            <button type="button" class="dx__skip" data-act="saltar">Saltar por ahora</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente">Continuar</button>
+          </span>
+        </div>
+      </div>`);
+
+    mountFacturasUploader(view.querySelector('.dx-fac-mount'), {
+      leadId: estado.lead_id,
+      onChange: (f) => { estado.facturas = f; }
+    });
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'techo'; render(); });
+    view.querySelector('[data-act="saltar"]').addEventListener('click', () => { estado.paso = 'cierre'; render(); });
+    view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { estado.paso = 'cierre'; render(); });
+
+    root.replaceChildren(view);
+    focusMain();
+  }
+
+  // ---- Paso: contacto + siguiente paso (dos caminos) --------------------------
+  function renderCierre() {
+    const res = estado.resultado || assembleResult(estado, content);
+    estado.resultado = res;
+
+    const view = el(`
+      <div class="dx__view">
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Elige cómo quieres tu anteproyecto</h2>
+        <div class="dx-cierre">
+          <label class="dx-cierre__field">Nombre
+            <input type="text" data-f="nombre" autocomplete="name">
+          </label>
+          <label class="dx-cierre__field">Correo
+            <input type="email" data-f="correo" autocomplete="email" required>
+          </label>
+          <label class="dx-cierre__field">Teléfono (opcional)
+            <input type="tel" data-f="telefono" autocomplete="tel">
+          </label>
+          <p class="dx-cierre__err" role="alert" hidden>Escribe un correo válido.</p>
+        </div>
+
+        <div class="dx-cierre__paths">
+          <div class="dx-cierre__path">
+            <h3>Propuesta preliminar por correo</h3>
+            <p class="dx__col-sub">Déjanos tu correo y te contactamos con tu propuesta preliminar.</p>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="preliminar">Recibir propuesta preliminar</button>
+            <p class="dx-cierre__ok" data-slot="okA" hidden>¡Listo! Pronto te contactaremos.</p>
+          </div>
+          <div class="dx-cierre__path">
+            <h3>Agendar una llamada</h3>
+            <p class="dx__col-sub">Para un aproximado con más detalle, agenda una llamada.</p>
+            <button type="button" class="mx-btn mx-btn--ghost" data-act="agendar">Agendar llamada</button>
+            <div class="dx__cal" id="agenda" hidden></div>
+          </div>
+        </div>
+        <div class="dx__nav">
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+        </div>
+      </div>`);
+
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const getField = (f) => view.querySelector(`[data-f="${f}"]`).value.trim();
+    const errEl = view.querySelector('.dx-cierre__err');
+
+    function capturarContacto() {
+      const correo = getField('correo');
+      if (!EMAIL_RE.test(correo)) { errEl.hidden = false; return false; }
+      errEl.hidden = true;
+      estado.contacto = {
+        ...estado.contacto,
+        nombre: getField('nombre'),
+        correo,
+        telefono: getField('telefono')
+      };
+      return true;
+    }
+
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+
+    view.querySelector('[data-act="preliminar"]').addEventListener('click', () => {
+      if (!capturarContacto()) return;
+      estado.contacto.tipo_cierre = 'preliminar';
+      estado.resultado = assembleResult(estado, content);
+      const payload = origen ? { ...estado.resultado.leadPayload, origen } : estado.resultado.leadPayload;
+      submitLead(payload);
+      view.querySelector('[data-slot="okA"]').hidden = false;
+    });
+
+    view.querySelector('[data-act="agendar"]').addEventListener('click', () => {
+      if (!capturarContacto()) return;
+      estado.contacto.tipo_cierre = 'llamada';
+      estado.resultado = assembleResult(estado, content);
+      const calEl = view.querySelector('#agenda');
+      calEl.hidden = false;
+      mountCal('#agenda', estado.resultado);
+    });
+
+    root.replaceChildren(view);
+    focusMain();
+  }
+
   // ---- Pantalla final: diagnóstico (A–E) + agenda ------------------------------
   function renderResult() {
     const res = estado.resultado || assembleResult(estado, content);
@@ -401,19 +544,9 @@ export function initDiagnostico({ content, calLink, origen }) {
             <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
           </aside>
           <div class="dx__actions">
+            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">Continuar</button>
             <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
           </div>
-        </section>
-
-        <section class="dx__book" aria-labelledby="dx-book-h">
-          <h2 class="dx__col-title" id="dx-book-h">El siguiente paso: tu anteproyecto</h2>
-          <p class="dx__col-sub">${esc(content.gate.cuerpo)}</p>
-          <p class="dx__nda-aviso">${esc(content.gate.ndaAviso)}</p>
-          <div class="dx__cal" id="agenda"></div>
-          <p class="dx__col-sub" style="font-size:12px;margin-top:var(--space-3)">
-            ${esc(content.gate.confidencialidad)}
-            <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>.
-          </p>
         </section>
 
         <section class="dx__print-only dx__checklist">
@@ -430,22 +563,29 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.respuestas = {};
       estado.contacto = {};
       estado.resultado = null;
+      estado.ubicacion = null;
+      estado.techo = null;
+      estado.facturas = null;
+      estado.lead_id = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
       leadEnviado = false;
       render();
     });
 
-    // Ya no hay formulario propio: el único paso es agendar en Cal. Al agendar,
-    // registerBookingListener toma nombre/correo + campos extra de la reserva y
-    // registra el lead (submitLead). El calendario es la única acción.
+    view.querySelector('[data-act="continuar"]').addEventListener('click', () => {
+      estado.paso = 'techo';
+      render();
+    });
 
     root.replaceChildren(view);
     focusMain();
-    mountCal('#agenda', res);
   }
 
   function render() {
     if (estado.paso === 'intro') return renderIntro();
     if (estado.paso === 'result') return renderResult();
+    if (estado.paso === 'techo') return renderTecho();
+    if (estado.paso === 'facturas') return renderFacturas();
+    if (estado.paso === 'cierre') return renderCierre();
     return renderStep();
   }
 
