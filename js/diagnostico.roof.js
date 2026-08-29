@@ -13,12 +13,14 @@ export function mountRoofPicker(container, { onLocation, onRoof }) {
         <input class="dx-roof__input" type="text" placeholder="Escribe tu dirección" aria-label="Dirección">
         <button type="button" class="mx-btn mx-btn--ghost dx-roof__loc">Usar mi ubicación</button>
       </div>
-      <div class="dx-roof__map" role="application" aria-label="Mapa para dibujar el techo"></div>
-      <p class="dx-roof__status dx__col-sub">Cargando mapa…</p>
-      <div class="dx-roof__controls" hidden>
-        <button type="button" class="mx-btn mx-btn--ghost dx-roof__add">+ Agregar otra área</button>
-        <button type="button" class="dx__skip dx-roof__clear">Borrar todo</button>
+      <div class="dx-roof__mapwrap">
+        <div class="dx-roof__map" role="application" aria-label="Mapa para dibujar el techo"></div>
+        <div class="dx-roof__controls" hidden>
+          <button type="button" class="dx-roof__add">+ Agregar otra área</button>
+          <button type="button" class="dx-roof__clear">Borrar todo</button>
+        </div>
       </div>
+      <p class="dx-roof__status dx__col-sub">Cargando mapa…</p>
     </div>`;
 
   const inputEl = container.querySelector('.dx-roof__input');
