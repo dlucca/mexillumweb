@@ -1,0 +1,307 @@
+<title>Mexillum Design Tokens</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* fonts must lead */
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Nunito:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+/* ===== brand tokens (mirrored from css/tokens.css) ===== */
+:root{
+  --negro:#080A08; --verde-oscuro:#16221A; --lima-circuito:#4FE070;
+  --menta-claro:#B8F0C0; --blanco:#F0F2EC;
+
+  --green-50:#EDFCF0;--green-100:#D4F7DC;--green-200:#B8F0C0;--green-300:#8DE7A0;
+  --green-400:#4FE070;--green-500:#2FC955;--green-600:#21A344;--green-700:#1A7C36;
+  --green-800:#155C29;--green-900:#0F3D1C;
+
+  --neutral-0:#FFFFFF;--neutral-50:#F7F8F4;--neutral-100:#F0F2EC;--neutral-200:#E1E4DC;
+  --neutral-300:#C7CCC2;--neutral-400:#9AA398;--neutral-500:#6F796E;--neutral-600:#4C5550;
+  --neutral-700:#2E3A32;--neutral-800:#16221A;--neutral-900:#0D1410;--neutral-950:#080A08;
+
+  --signal-ok:#2FC955;--signal-warn:#E8B33A;--signal-alert:#E2542F;--signal-info:#4FA8E0;--signal-idle:#9AA398;
+
+  /* semantic — LIGHT */
+  --bg-page:var(--neutral-100);--bg-inset:var(--neutral-50);
+  --surface-card:var(--neutral-0);--surface-sunken:var(--neutral-200);--surface-inverse:var(--neutral-950);
+  --text-strong:var(--neutral-950);--text-body:var(--neutral-700);--text-muted:var(--neutral-500);
+  --text-inverse:var(--neutral-100);--text-accent:var(--green-700);
+  --border-hairline:var(--neutral-200);--border-default:var(--neutral-300);--border-strong:var(--neutral-700);
+  --accent:var(--green-500);--accent-hover:var(--green-600);--accent-quiet:var(--green-100);
+  --focus-ring:var(--green-600);--grid-line:rgba(8,10,8,.07);
+
+  --font-core:"Barlow Semi Condensed","Barlow",system-ui,sans-serif;
+  --font-wordmark:"Nunito",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --track-kicker:0.16em; --track-label:0.04em;
+
+  --radius-3:4px; --radius-4:6px; --radius-full:999px;
+  --grid-overlay:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg-page:var(--negro);--bg-inset:var(--neutral-900);
+  --surface-card:var(--neutral-800);--surface-sunken:var(--neutral-900);--surface-inverse:var(--neutral-100);
+  --text-strong:var(--blanco);--text-body:#C2CCC4;--text-muted:#8C978E;
+  --text-inverse:var(--neutral-950);--text-accent:var(--lima-circuito);
+  --border-hairline:rgba(240,242,236,.10);--border-default:rgba(240,242,236,.18);--border-strong:rgba(240,242,236,.36);
+  --accent:var(--lima-circuito);--accent-hover:var(--green-300);--accent-quiet:rgba(79,224,112,.14);
+  --focus-ring:var(--lima-circuito);--grid-line:rgba(240,242,236,.06);
+}}
+:root[data-theme="dark"]{
+  --bg-page:var(--negro);--bg-inset:var(--neutral-900);
+  --surface-card:var(--neutral-800);--surface-sunken:var(--neutral-900);--surface-inverse:var(--neutral-100);
+  --text-strong:var(--blanco);--text-body:#C2CCC4;--text-muted:#8C978E;
+  --text-inverse:var(--neutral-950);--text-accent:var(--lima-circuito);
+  --border-hairline:rgba(240,242,236,.10);--border-default:rgba(240,242,236,.18);--border-strong:rgba(240,242,236,.36);
+  --accent:var(--lima-circuito);--accent-hover:var(--green-300);--accent-quiet:rgba(79,224,112,.14);
+  --focus-ring:var(--lima-circuito);--grid-line:rgba(240,242,236,.06);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg-page);color:var(--text-body);
+  font:400 16px/1.55 var(--font-core);-webkit-font-smoothing:antialiased;
+  background-image:var(--grid-overlay);background-size:48px 48px;
+}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px 96px}
+
+/* header */
+header{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+  padding:20px 24px;margin:0 -24px 40px;
+  background:color-mix(in srgb,var(--bg-page) 88%,transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border-hairline);
+}
+.lockup{display:flex;align-items:center;gap:10px;text-decoration:none}
+.mark{width:34px;height:auto;display:block;flex:0 0 auto}
+.wordmark{font:700 26px/1 var(--font-wordmark);letter-spacing:.02em;color:var(--text-strong);text-transform:lowercase}
+.header-meta{font:500 11px/1.2 var(--font-mono);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted)}
+.spacer{flex:1}
+.toggle{
+  font:500 12px/1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-strong);background:var(--surface-card);
+  border:1px solid var(--border-default);border-radius:var(--radius-3);
+  padding:9px 12px;cursor:pointer;transition:border-color .14s,color .14s;
+}
+.toggle:hover{border-color:var(--accent);color:var(--accent)}
+.toggle:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg-page),0 0 0 4px var(--focus-ring)}
+
+/* section scaffold */
+section{margin-top:64px}
+.kicker{font:500 11px/1.2 var(--font-mono);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:20px;height:3px;background:var(--accent);border-radius:2px}
+.sec-title{margin:12px 0 4px;font:600 32px/1.08 var(--font-core);letter-spacing:-.01em;color:var(--text-strong);text-wrap:balance}
+.sec-note{margin:0 0 24px;max-width:60ch;color:var(--text-body)}
+
+/* swatches */
+.swatch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.swatch{
+  border:1px solid var(--border-hairline);border-radius:var(--radius-4);overflow:hidden;
+  background:var(--surface-card);cursor:pointer;transition:transform .14s,box-shadow .14s;
+}
+.swatch:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(8,10,8,.14)}
+.swatch:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg-page),0 0 0 4px var(--focus-ring)}
+.chip{height:88px}
+.swatch-body{padding:10px 12px 12px;border-top:1px solid var(--border-hairline)}
+.swatch-name{font:600 14px/1.2 var(--font-core);color:var(--text-strong)}
+.swatch-var{font:400 11px/1.4 var(--font-mono);color:var(--text-muted);margin-top:3px;word-break:break-all}
+.swatch-hex{font:500 12px/1.4 var(--font-mono);color:var(--text-body);text-transform:uppercase}
+
+/* ramp */
+.ramp{display:flex;border-radius:var(--radius-4);overflow:hidden;border:1px solid var(--border-hairline)}
+.ramp-cell{flex:1;height:64px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;cursor:pointer;position:relative}
+.ramp-cell span{font:500 10px/1 var(--font-mono)}
+.ramp+.ramp{margin-top:14px}
+.ramp-label{font:500 11px/1.2 var(--font-mono);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--text-muted);margin:0 0 8px}
+
+/* signals */
+.signals{display:flex;gap:12px;flex-wrap:wrap}
+.signal{display:flex;align-items:center;gap:9px;padding:9px 14px 9px 12px;border:1px solid var(--border-default);border-radius:var(--radius-full);background:var(--surface-card)}
+.dot{width:10px;height:10px;border-radius:50%}
+.signal span{font:500 13px/1 var(--font-mono);color:var(--text-strong)}
+
+/* type specimens */
+.type-row{display:flex;gap:20px;align-items:baseline;padding:18px 0;border-top:1px solid var(--border-hairline);flex-wrap:wrap}
+.type-tag{flex:0 0 130px;font:400 11px/1.5 var(--font-mono);color:var(--text-muted)}
+.type-tag b{display:block;color:var(--text-strong);font:500 12px/1.5 var(--font-mono)}
+.type-sample{color:var(--text-strong);min-width:0}
+.d1{font:700 76px/.98 var(--font-core);letter-spacing:-.02em}
+.h1s{font:700 44px/1.08 var(--font-core);letter-spacing:-.01em}
+.h2s{font:600 32px/1.08 var(--font-core)}
+.h3s{font:600 24px/1.3 var(--font-core)}
+.bodys{font:400 16px/1.55 var(--font-core);color:var(--text-body);max-width:52ch}
+.mono-fig{font:500 58px/1 var(--font-mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.word-sample{display:flex;align-items:center;gap:14px}
+.word-sample .wm{font:700 40px/1 var(--font-wordmark);letter-spacing:.02em;color:var(--text-strong);text-transform:lowercase}
+.word-sample .mark{width:52px}
+
+/* fonts summary cards */
+.font-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.font-card{border:1px solid var(--border-hairline);border-radius:var(--radius-4);padding:20px;background:var(--surface-card)}
+.font-card .fc-role{font:500 11px/1.2 var(--font-mono);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--accent)}
+.font-card .fc-name{margin:8px 0 2px;color:var(--text-strong)}
+.font-card .fc-use{font:400 13px/1.5 var(--font-core);color:var(--text-muted)}
+
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:var(--surface-inverse);color:var(--text-inverse);
+  font:500 13px/1 var(--font-mono);padding:11px 16px;border-radius:var(--radius-3);
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:20;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--border-hairline);font:400 12px/1.6 var(--font-mono);color:var(--text-muted)}
+@media (max-width:640px){.d1{font-size:52px}.h1s{font-size:34px}.type-tag{flex-basis:100%}}
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="lockup" href="#top">
+      <svg class="mark" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="64" height="64" rx="10" fill="#080A08"/><image x="8" y="16" width="48" height="32" href="data:image/png;base64,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"/></svg>
+      <span class="wordmark">mexillum</span>
+    </a>
+    <div class="header-meta">design tokens · v1</div>
+    <div class="spacer"></div>
+    <button class="toggle" id="themeBtn" type="button">Tema: auto</button>
+  </header>
+
+  <p class="kicker">Sistema de diseño</p>
+  <h1 class="sec-title" style="font-size:44px;font-weight:700">Paleta y tipografía Mexillum</h1>
+  <p class="sec-note">Copia viva de <code style="font-family:var(--font-mono)">css/tokens.css</code>. Haz clic en cualquier muestra para copiar su valor. Estética de instrumento: geometría casi cuadrada, verde circuito, datos en monoespaciada.</p>
+
+  <!-- BRAND -->
+  <section>
+    <p class="kicker">01 · Base de marca</p>
+    <h2 class="sec-title">Colores base</h2>
+    <p class="sec-note">Los cinco colores raíz de la marca. Todo lo demás deriva de aquí.</p>
+    <div class="swatch-grid" id="brand"></div>
+  </section>
+
+  <!-- GREEN RAMP -->
+  <section>
+    <p class="kicker">02 · Rampas</p>
+    <h2 class="sec-title">Verde &amp; neutrales</h2>
+    <p class="sec-note">El verde nace de <code style="font-family:var(--font-mono)">--lima-circuito</code>. Los neutrales no son grises puros: llevan un sesgo verde cálido-frío.</p>
+    <p class="ramp-label">green-50 → green-900</p>
+    <div class="ramp" id="rampGreen"></div>
+    <p class="ramp-label" style="margin-top:22px">neutral-0 → neutral-950</p>
+    <div class="ramp" id="rampNeutral"></div>
+  </section>
+
+  <!-- SIGNALS -->
+  <section>
+    <p class="kicker">03 · Señales</p>
+    <h2 class="sec-title">Colores semánticos</h2>
+    <p class="sec-note">Instrumentación, no decoración. Estado del sistema de un vistazo.</p>
+    <div class="signals" id="signals"></div>
+  </section>
+
+  <!-- FONTS -->
+  <section>
+    <p class="kicker">04 · Tipografía</p>
+    <h2 class="sec-title">Familias</h2>
+    <div class="font-grid">
+      <div class="font-card">
+        <div class="fc-role">Core · texto + títulos</div>
+        <h3 class="fc-name h3s" style="font-family:var(--font-core)">Barlow Semi Condensed</h3>
+        <p class="fc-use">Todo el cuerpo y los encabezados. Condensada, así que los tamaños grandes rinden.</p>
+      </div>
+      <div class="font-card">
+        <div class="fc-role">Wordmark · solo el logo</div>
+        <h3 class="fc-name" style="font-family:var(--font-wordmark);font-weight:700">Nunito</h3>
+        <p class="fc-use">Solo para el logotipo. Siempre en minúsculas, nunca capitalizado.</p>
+      </div>
+      <div class="font-card">
+        <div class="fc-role">Mono · datos + etiquetas</div>
+        <h3 class="fc-name" style="font-family:var(--font-mono);font-weight:700">JetBrains Mono</h3>
+        <p class="fc-use">Cifras, etiquetas, kickers y código. Números tabulares.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TYPE SCALE -->
+  <section>
+    <p class="kicker">05 · Escala</p>
+    <h2 class="sec-title">Especímenes</h2>
+    <div>
+      <div class="type-row"><div class="type-tag"><b>display-1</b>76px / 700</div><div class="type-sample d1">Aa</div></div>
+      <div class="type-row"><div class="type-tag"><b>h1</b>44px / 700</div><div class="type-sample h1s">Diagnóstico industrial</div></div>
+      <div class="type-row"><div class="type-tag"><b>h2</b>32px / 600</div><div class="type-sample h2s">Trayectoria del proyecto</div></div>
+      <div class="type-row"><div class="type-tag"><b>h3</b>24px / 600</div><div class="type-sample h3s">Fugas detectadas en línea</div></div>
+      <div class="type-row"><div class="type-tag"><b>body</b>16px / 400</div><div class="type-sample bodys">Texto de párrafo en Barlow Semi Condensed. Medida ideal cercana a 62 caracteres para lectura cómoda y ritmo constante.</div></div>
+      <div class="type-row"><div class="type-tag"><b>figure</b>58px mono</div><div class="type-sample mono-fig">98.6%</div></div>
+      <div class="type-row"><div class="type-tag"><b>wordmark</b>Nunito · 1 color</div><div class="type-sample word-sample">
+        <svg class="mark" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="64" height="64" rx="10" fill="#080A08"/><image x="8" y="16" width="48" height="32" href="data:image/png;base64,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"/></svg>
+        <span class="wm">mexillum</span>
+      </div></div>
+    </div>
+  </section>
+
+  <footer>
+    Fuente de verdad: <span style="color:var(--text-accent)">css/tokens.css</span> · esta hoja es un espejo generado para referencia rápida.
+  </footer>
+</div>
+
+<div class="toast" id="toast">copiado</div>
+
+<script>
+const brand=[
+  {n:"Negro",v:"--negro",h:"#080A08"},
+  {n:"Verde oscuro",v:"--verde-oscuro",h:"#16221A"},
+  {n:"Lima circuito",v:"--lima-circuito",h:"#4FE070"},
+  {n:"Menta claro",v:"--menta-claro",h:"#B8F0C0"},
+  {n:"Blanco",v:"--blanco",h:"#F0F2EC"},
+];
+const green=[["50","#EDFCF0"],["100","#D4F7DC"],["200","#B8F0C0"],["300","#8DE7A0"],["400","#4FE070"],["500","#2FC955"],["600","#21A344"],["700","#1A7C36"],["800","#155C29"],["900","#0F3D1C"]];
+const neutral=[["0","#FFFFFF"],["50","#F7F8F4"],["100","#F0F2EC"],["200","#E1E4DC"],["300","#C7CCC2"],["400","#9AA398"],["500","#6F796E"],["600","#4C5550"],["700","#2E3A32"],["800","#16221A"],["900","#0D1410"],["950","#080A08"]];
+const signals=[["ok","#2FC955"],["warn","#E8B33A"],["alert","#E2542F"],["info","#4FA8E0"],["idle","#9AA398"]];
+
+const toast=document.getElementById('toast');let tT;
+function copy(txt){
+  navigator.clipboard&&navigator.clipboard.writeText(txt);
+  toast.textContent=txt+" · copiado";toast.classList.add('show');
+  clearTimeout(tT);tT=setTimeout(()=>toast.classList.remove('show'),1300);
+}
+function lum(hex){const c=hex.replace('#','');const r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);return(0.299*r+0.587*g+0.114*b)/255;}
+function ink(hex){return lum(hex)>0.6?'#080A08':'#F0F2EC';}
+
+// brand swatches
+document.getElementById('brand').innerHTML=brand.map(c=>`
+  <div class="swatch" tabindex="0" data-copy="${c.h}">
+    <div class="chip" style="background:${c.h}"></div>
+    <div class="swatch-body">
+      <div class="swatch-name">${c.n}</div>
+      <div class="swatch-var">var(${c.v})</div>
+      <div class="swatch-hex">${c.h}</div>
+    </div>
+  </div>`).join('');
+
+// ramps
+function ramp(id,pref,arr){
+  document.getElementById(id).innerHTML=arr.map(([k,h])=>`
+    <div class="ramp-cell" tabindex="0" data-copy="${h}" style="background:${h}" title="${pref}-${k} ${h}">
+      <span style="color:${ink(h)}">${k}</span>
+    </div>`).join('');
+}
+ramp('rampGreen','green',green);
+ramp('rampNeutral','neutral',neutral);
+
+// signals
+document.getElementById('signals').innerHTML=signals.map(([n,h])=>`
+  <div class="signal" tabindex="0" data-copy="${h}" role="button">
+    <span class="dot" style="background:${h}"></span><span>${n}</span>
+  </div>`).join('');
+
+// copy handlers
+document.addEventListener('click',e=>{const el=e.target.closest('[data-copy]');if(el)copy(el.dataset.copy);});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')){const el=e.target.closest('[data-copy]');if(el){e.preventDefault();copy(el.dataset.copy);}}});
+
+// theme toggle: auto -> light -> dark -> auto
+const btn=document.getElementById('themeBtn');const modes=['auto','light','dark'];let mi=0;
+btn.addEventListener('click',()=>{
+  mi=(mi+1)%3;const m=modes[mi];
+  if(m==='auto')document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme',m);
+  btn.textContent='Tema: '+m;
+});
+</script>

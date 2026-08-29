@@ -154,9 +154,9 @@ facturas: estado.facturas || null,             // { paths, count }
     función vía REST de Supabase Storage, `POST .../object/sign/facturas/{path}`
     con expiración ~30 días).
   - `tipo_cierre` (preliminar / llamada).
-- **Correo al cliente (camino A, "propuesta preliminar"):** nuevo. Contiene el
-  diagnóstico ya calculado (perfil, rango de ahorro, recomendación, palancas) en
-  una plantilla simple, + "un asesor te contactará con el detalle". Se envía vía
+- **Correo al cliente (camino A, "propuesta preliminar"):** nuevo, breve.
+  Confirmación tipo "Recibimos tus datos, pronto te contactaremos con tu
+  propuesta preliminar." Sin incluir el diagnóstico calculado. Se envía vía
   Resend a `estado.contacto.correo`.
   - En camino B no se manda correo al cliente (Cal envía su propia confirmación).
 
