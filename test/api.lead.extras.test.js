@@ -63,11 +63,13 @@ test('sin extras el correo interno se envía igual (no regresión)', async () =>
   assert.ok(emails.length >= 1);
 });
 
-test('tipo_cierre preliminar dispara correo breve al cliente', async () => {
+test('tipo_cierre preliminar dispara correo con el diagnóstico al cliente', async () => {
   const { emails } = await enviar({ ...base, tipo_cierre: 'preliminar' });
   const alCliente = emails.find((e) => e.to === 'ana@acme.mx');
   assert.ok(alCliente, 'hay correo al cliente');
-  assert.match(alCliente.text, /pronto te contactaremos/i);
+  assert.match(alCliente.subject, /diagnóstico energético/i);
+  assert.match(alCliente.text, /Perfil X/);
+  assert.match(alCliente.text, /determinar tu proyecto con mayor precisión/i);
 });
 
 test('tipo_cierre llamada NO manda correo al cliente', async () => {

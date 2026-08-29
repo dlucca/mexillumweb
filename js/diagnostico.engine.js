@@ -622,6 +622,13 @@ export function assembleResult(estado, content) {
     ranking,
     potencial_general,
     recomendacion_solucion,
+    palancas: {
+      principal: palancas.principal ? { nombre: palancas.principal.nombre, text: palancas.principal.text } : null,
+      secundaria: palancas.secundaria
+        ? { nombre: palancas.secundaria.nombre, text: palancas.secundaria.text }
+        : (palancas.factorPotencia ? { nombre: palancas.factorPotencia.nombre, text: palancas.factorPotencia.text } : null)
+    },
+    financiamiento,
     aplicacion_principal,
     limitaciones
   };

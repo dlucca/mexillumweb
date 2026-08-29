@@ -420,14 +420,13 @@ export function initDiagnostico({ content, calLink, origen }) {
             <p class="dx__col-sub">Para un aproximado con más detalle, agenda una llamada.</p>
             <button type="button" class="mx-btn mx-btn--ghost" data-act="agendar">Agendar llamada</button>
             <div class="dx__cal" id="agenda" hidden></div>
+            <aside class="dx__checklist" data-slot="checklist" aria-label="Qué tener a mano para la llamada" hidden>
+              <h3>${esc(content.anteproyectoTituloLead)}</h3>
+              <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+              <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
+            </aside>
           </div>
         </div>
-        <aside class="dx__checklist" aria-label="Qué tener a mano para la llamada">
-          <h3>${esc(content.anteproyectoTituloLead)}</h3>
-          <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
-          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
-        </aside>
-        <p class="dx__fin">${esc(res.financiamiento)}</p>
         <div class="dx__nav">
           <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
         </div>
@@ -469,6 +468,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.resultado = assembleResult(estado, content);
       const calEl = view.querySelector('#agenda');
       calEl.hidden = false;
+      view.querySelector('[data-slot="checklist"]').hidden = false;
       mountCal('#agenda', estado.resultado);
     });
 
@@ -546,11 +546,12 @@ export function initDiagnostico({ content, calLink, origen }) {
           ${bloqueBHtml}
           ${palancasHtml}
           ${resumenHtml}
+          <p class="dx__fin">${esc(res.financiamiento)}</p>
           <div class="dx__cta">
-            <p class="dx__cta-p">Esto es un primer vistazo. Para afinar el número a tu caso, dinos 2 datos más: marca tu techo y sube tus recibos de luz. Te toma 2 minutos.</p>
+            <p class="dx__cta-p">Esto es un primer diagnóstico. Para determinar tu proyecto con mayor precisión, dinos 2 datos más: marca tu techo y sube tus recibos de luz. Te toma 2 minutos.</p>
           </div>
           <div class="dx__actions">
-            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">Afinar mi diagnóstico</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">Precisar mi proyecto</button>
             <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
           </div>
         </section>
