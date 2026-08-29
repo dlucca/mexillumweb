@@ -87,6 +87,13 @@ export default async function handler(req, res) {
   const perfil = clean(body.perfil, 200) || '—';
   const rangoTexto = clean(body.rango_texto, 120) || '—';
   const leadId = clean(body.lead_id, 64);
+  const financiamiento = clean(body.financiamiento, 400);
+  const palancasLead = (body.palancas && typeof body.palancas === 'object' && !Array.isArray(body.palancas))
+    ? body.palancas : null;
+  const palP = palancasLead && palancasLead.principal && typeof palancasLead.principal === 'object'
+    ? { nombre: clean(palancasLead.principal.nombre, 60), text: clean(palancasLead.principal.text, 300) } : null;
+  const palS = palancasLead && palancasLead.secundaria && typeof palancasLead.secundaria === 'object'
+    ? { nombre: clean(palancasLead.secundaria.nombre, 60), text: clean(palancasLead.secundaria.text, 300) } : null;
 
   const tipoCierre = clean(body.tipo_cierre, 20);
   const ubic = (body.ubicacion && typeof body.ubicacion === 'object' && !Array.isArray(body.ubicacion))
@@ -301,16 +308,60 @@ export default async function handler(req, res) {
     }
 
     if (tipoCierre === 'preliminar' && EMAIL_RE.test(correo) && clientEmailAllowed(correo)) {
-      const textoCliente =
-        `Hola ${nombre || ''},\n\n` +
-        `Recibimos tus datos. Pronto te contactaremos con tu propuesta preliminar.\n\n` +
-        `— Equipo Mexillum`;
+      // Solo mostramos el rango si es un número real (no los mensajes "sin rango...").
+      const rangoReal = rangoTexto && !/sin\s+(rango|n[uú]mero|especificar)/i.test(rangoTexto) ? rangoTexto : '';
+
+      const lineasCliente = [
+        `Hola ${nombre || ''},`,
+        '',
+        'Gracias por completar tu diagnóstico. Esto es lo que vemos para tu operación:',
+        '',
+        'Tu perfil',
+        perfil || '—',
+        rangoReal ? '' : null,
+        rangoReal ? 'Ahorro estimado (referencia)' : null,
+        rangoReal ? rangoReal : null,
+        '',
+        'Lo que más te conviene',
+        recomendacion ? `${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : null,
+        palP ? `• Principal: ${palP.nombre} — ${palP.text}` : null,
+        palS ? `• Secundaria: ${palS.nombre} — ${palS.text}` : null,
+        financiamiento ? '' : null,
+        financiamiento ? 'Cómo se puede estructurar' : null,
+        financiamiento || null,
+        '',
+        'Un asesor te va a contactar para determinar tu proyecto con mayor precisión. Tus datos son confidenciales: solo los usamos para tu diagnóstico.',
+        '',
+        '— Equipo Mexillum'
+      ].filter((l) => l !== null);
+      const textoCliente = lineasCliente.join('\n');
+
+      const seccion = (titulo, cuerpoHtml) =>
+        `<h3 style="margin:16px 0 4px;font-size:14px;color:#080A08">${esc(titulo)}</h3>${cuerpoHtml}`;
+      const htmlCliente =
+        `<div style="font-family:Arial,Helvetica,sans-serif;color:#16221A;max-width:560px;font-size:14px;line-height:1.5">` +
+        `<p style="margin:0 0 12px">Hola ${esc(nombre || '')},</p>` +
+        `<p style="margin:0 0 12px">Gracias por completar tu diagnóstico. Esto es lo que vemos para tu operación:</p>` +
+        seccion('Tu perfil', `<p style="margin:0 0 8px">${esc(perfil || '—')}</p>`) +
+        (rangoReal ? seccion('Ahorro estimado (referencia)', `<p style="margin:0 0 8px;font-weight:bold">${esc(rangoReal)}</p>`) : '') +
+        seccion('Lo que más te conviene',
+          (recomendacion ? `<p style="margin:0 0 8px">${esc(recomendacion.tipo)}${recomendacion.razon ? ' — ' + esc(recomendacion.razon) : ''}</p>` : '') +
+          ((palP || palS) ? `<ul style="margin:0 0 8px;padding-left:18px">` +
+            (palP ? `<li><strong>${esc(palP.nombre)}.</strong> ${esc(palP.text)}</li>` : '') +
+            (palS ? `<li><strong>${esc(palS.nombre)}.</strong> ${esc(palS.text)}</li>` : '') +
+            `</ul>` : '')
+        ) +
+        (financiamiento ? seccion('Cómo se puede estructurar', `<p style="margin:0 0 8px;color:#6F796E">${esc(financiamiento)}</p>`) : '') +
+        `<p style="margin:16px 0 0">Un asesor te va a contactar para determinar tu proyecto con mayor precisión. Tus datos son confidenciales: solo los usamos para tu diagnóstico.</p>` +
+        `<p style="margin:16px 0 0">— Equipo Mexillum</p>` +
+        `</div>`;
+
       try {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from, to: correo, subject: 'Recibimos tus datos — Mexillum', text: textoCliente
+            from, to: correo, subject: 'Tu diagnóstico energético — Mexillum', text: textoCliente, html: htmlCliente
           })
         });
       } catch (err) { console.error('correo cliente falló', err); }
