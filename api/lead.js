@@ -38,6 +38,20 @@ function clientEmailAllowed(email) {
   return true;
 }
 
+// Datos que el prospecto puede ir reuniendo con sus áreas para el anteproyecto.
+// Se incluyen en el correo de propuesta preliminar como lista de referencia.
+const DATOS_ANTEPROYECTO = [
+  '12 recibos de CFE (kWh, demanda máxima en kW y tarifa).',
+  'Perfil de carga u horario de operación de la planta.',
+  'Capacidad del transformador y del tablero principal (diagrama unifilar).',
+  'Superficie disponible en m² (techo o terreno).',
+  'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.',
+  'Cargas críticas a respaldar (kW y kWh) y autonomía requerida.',
+  'Demanda máxima y cargo por demanda del recibo.',
+  'Frecuencia y duración de los cortes de energía.',
+  'Espacio y ventilación para el gabinete de baterías.'
+];
+
 // Etiquetas visibles de cada paso del funnel v2, en orden.
 const PREGUNTAS = [
   ['sector', 'Sector / operación'],
@@ -330,6 +344,9 @@ export default async function handler(req, res) {
         financiamiento ? 'Cómo se puede estructurar' : null,
         financiamiento || null,
         '',
+        'Datos para el anteproyecto',
+        ...DATOS_ANTEPROYECTO.map((d) => `• ${d}`),
+        '',
         'Un asesor te va a contactar para determinar tu proyecto con mayor precisión. Tus datos son confidenciales: solo los usamos para tu diagnóstico.',
         '',
         '— Equipo Mexillum'
@@ -352,6 +369,7 @@ export default async function handler(req, res) {
             `</ul>` : '')
         ) +
         (financiamiento ? seccion('Cómo se puede estructurar', `<p style="margin:0 0 8px;color:#6F796E">${esc(financiamiento)}</p>`) : '') +
+        seccion('Datos para el anteproyecto', `<ul style="margin:0 0 8px;padding-left:18px">${DATOS_ANTEPROYECTO.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`) +
         `<p style="margin:16px 0 0">Un asesor te va a contactar para determinar tu proyecto con mayor precisión. Tus datos son confidenciales: solo los usamos para tu diagnóstico.</p>` +
         `<p style="margin:16px 0 0">— Equipo Mexillum</p>` +
         `</div>`;
