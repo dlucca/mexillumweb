@@ -20,6 +20,7 @@ const content = {
         { label: 'Manufactura por turnos o por lotes', codigo: 'manufactura' },
         { label: 'Frío y logística (cadena de frío, CEDIS, hielo)', codigo: 'frio' },
         { label: 'Infraestructura pública o servicios (transporte, agua, edificios)', codigo: 'publico' },
+        { label: 'Comercio, oficinas o entretenimiento (retail, cines, centros comerciales, corporativos)', codigo: 'comercial' },
         { label: 'Carga de vehículos eléctricos', codigo: 'ev' }
       ]
     },
@@ -132,7 +133,7 @@ const content = {
   // ---- BLOQUE A ----
   perfilSector: {
     continuo: 'proceso continuo', manufactura: 'manufactura', frio: 'frío y logística',
-    publico: 'infraestructura pública', ev: 'carga de vehículos eléctricos'
+    publico: 'infraestructura pública', comercial: 'comercio y edificios', ev: 'carga de vehículos eléctricos'
   },
   perfilExposicion: [
     { when: { generacion: 'estacional' }, text: 'con generación estacional y hueco fuera de temporada' },

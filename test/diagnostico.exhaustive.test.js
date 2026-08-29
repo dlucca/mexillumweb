@@ -60,7 +60,7 @@ test('regresión exhaustiva: todas las combinaciones mantienen conclusiones cohe
     total++;
   }
 
-  assert.equal(total, 700_000);
+  assert.equal(total, 840_000);
 });
 
 test('tarifas: PDBT queda separada y no comparte cálculo de demanda', () => {
