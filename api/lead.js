@@ -4,6 +4,8 @@
 // Requiere env var RESEND_API_KEY. Opcional: LEAD_TO, LEAD_FROM.
 // Sin deps npm: usa fetch nativo (Node 18+).
 
+import { sendNda } from '../lib/nda.js';
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const esc = (s) =>
@@ -312,6 +314,11 @@ export default async function handler(req, res) {
           })
         });
       } catch (err) { console.error('correo cliente falló', err); }
+
+      // NDA en segundo plano para que suba sus recibos con confianza (Opción A).
+      try {
+        await sendNda({ nombre, correo, empresa });
+      } catch (err) { console.error('NDA (preliminar) falló', err); }
     }
 
     return res.status(200).json({ ok: true });

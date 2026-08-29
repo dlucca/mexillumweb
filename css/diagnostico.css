@@ -147,3 +147,7 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx-cierre__path{border:1px solid var(--border-hairline);border-radius:10px;padding:var(--space-5)}
 .dx-cierre__ok{color:var(--text-strong);font-weight:var(--weight-semibold);margin-top:var(--space-3)}
 @media (min-width:720px){.dx-cierre__paths{grid-template-columns:1fr 1fr}}
+
+.dx__resumen-frase{margin:0 0 var(--space-3)}
+.dx__cta{margin:var(--space-6) 0 var(--space-5);padding:var(--space-4) var(--space-5);border-left:3px solid var(--accent);background:var(--bg-inset);border-radius:8px}
+.dx__cta-p{margin:0;color:var(--text-body)}

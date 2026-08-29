@@ -6,6 +6,8 @@
 // Env vars: CAL_WEBHOOK_SECRET, DOCUSEAL_URL, DOCUSEAL_API_TOKEN, DOCUSEAL_TEMPLATE_ID.
 // Opcional: DOCUSEAL_ROLE (nombre del rol/parte en la plantilla; default 'First Party').
 
+import { sendNda } from '../lib/nda.js';
+
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 
 // Lee un campo de las respuestas de la reserva de Cal (string o { value }).
@@ -32,14 +34,6 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'No autorizado.' });
   }
 
-  const url = process.env.DOCUSEAL_URL;
-  const apiToken = process.env.DOCUSEAL_API_TOKEN;
-  const templateId = Number(process.env.DOCUSEAL_TEMPLATE_ID);
-  if (!url || !apiToken || !templateId) {
-    console.error('DocuSeal config incompleta (DOCUSEAL_URL / DOCUSEAL_API_TOKEN / DOCUSEAL_TEMPLATE_ID)');
-    return res.status(500).json({ error: 'Config del servidor incompleta.' });
-  }
-
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
@@ -60,70 +54,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Reserva sin correo del asistente.' });
   }
 
-  // El NDA se emite a favor de la empresa (razón social). Si no viene, cae al
-  // nombre de la persona. En Cal, "Empresa" es obligatoria para evitar ese caso.
   const responses = payload.responses || payload.userFieldsResponses || {};
   const empresa = clean(respVal(responses, 'empresa'), 160);
-  const prospecto = empresa || nombre || correo;
-
-  const fecha = new Date().toISOString().slice(0, 10);
-  // El rol debe coincidir con la parte definida en la plantilla de DocuSeal.
-  const role = process.env.DOCUSEAL_ROLE || 'Primera Parte';
-
-  // Asunto y cuerpo del correo del NDA. Aplica al correo de solicitud de firma;
-  // el correo de "documento completado" se ajusta además en DocuSeal → Personalización.
-  const message = {
-    subject: 'Tu Acuerdo de Confidencialidad con Mexillum',
-    body: [
-      'Hola,',
-      '',
-      'Gracias por agendar tu llamada con Mexillum. Adjunto encontrarás nuestro Acuerdo de Confidencialidad, firmado por Mexillum.',
-      '',
-      'Es un compromiso de nuestra parte: la información de tu operación que compartas para preparar tu anteproyecto (recibos, consumos, datos técnicos) la tratamos como confidencial. No necesitas firmar nada — es solo para tu tranquilidad.',
-      '',
-      'Guárdalo y tenlo presente para nuestra reunión, donde revisaremos tu diagnóstico a fondo y definiremos los siguientes pasos.',
-      '',
-      'Nos vemos pronto.',
-      'Equipo Mexillum'
-    ].join('\n')
-  };
-
-  const submission = {
-    template_id: templateId,
-    send_email: true,
-    message,
-    submitters: [
-      {
-        role,
-        email: correo,
-        name: nombre || undefined,
-        completed: true, // auto-firmado vía API: el lead recibe el NDA ya listo, sin firmar
-        fields: [
-          { name: 'prospecto', default_value: prospecto, readonly: true },
-          { name: 'fecha', default_value: fecha, readonly: true }
-        ]
-      }
-    ]
-  };
-
-  try {
-    const r = await fetch(`${url.replace(/\/+$/, '')}/api/submissions`, {
-      method: 'POST',
-      headers: { 'X-Auth-Token': apiToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(submission)
-    });
-    if (!r.ok) {
-      const detail = await r.text().catch(() => '');
-      console.error('DocuSeal error', r.status, detail);
-      return res.status(502).json({
-        error: 'No se pudo generar el NDA.',
-        docuseal_status: r.status,
-        docuseal_detail: String(detail).slice(0, 500)
-      });
-    }
-    return res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error('booking handler error', err);
-    return res.status(502).json({ error: 'No se pudo generar el NDA.' });
+  const resultado = await sendNda({ nombre, correo, empresa });
+  if (resultado.ok) return res.status(200).json({ ok: true });
+  if (resultado.skipped) {
+    console.error('NDA no enviado (config incompleta o sin correo):', resultado.skipped);
+    return res.status(500).json({ error: 'Config del servidor incompleta.' });
   }
+  return res.status(502).json({ error: 'No se pudo generar el NDA.' });
 }
