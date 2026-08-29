@@ -38,20 +38,6 @@ function clientEmailAllowed(email) {
   return true;
 }
 
-// Datos que el prospecto puede ir reuniendo con sus áreas para el anteproyecto.
-// Se incluyen en el correo de propuesta preliminar como lista de referencia.
-const DATOS_ANTEPROYECTO = [
-  '12 recibos de CFE (kWh, demanda máxima en kW y tarifa).',
-  'Perfil de carga u horario de operación de la planta.',
-  'Capacidad del transformador y del tablero principal (diagrama unifilar).',
-  'Superficie disponible en m² (techo o terreno).',
-  'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.',
-  'Cargas críticas a respaldar (kW y kWh) y autonomía requerida.',
-  'Demanda máxima y cargo por demanda del recibo.',
-  'Frecuencia y duración de los cortes de energía.',
-  'Espacio y ventilación para el gabinete de baterías.'
-];
-
 // Etiquetas visibles de cada paso del funnel v2, en orden.
 const PREGUNTAS = [
   ['sector', 'Sector / operación'],
@@ -325,6 +311,39 @@ export default async function handler(req, res) {
       // Solo mostramos el rango si es un número real (no los mensajes "sin rango...").
       const rangoReal = rangoTexto && !/sin\s+(rango|n[uú]mero|especificar)/i.test(rangoTexto) ? rangoTexto : '';
 
+      // "Datos para el anteproyecto" a la medida: no repetimos lo que ya nos dio,
+      // y solo pedimos lo específico de baterías/solar cuando aplica.
+      const tieneTecho = techoArea != null;
+      const tieneRecibos = facturaPaths.length > 0;
+      const recTipo = recomendacion ? recomendacion.tipo : '';
+      const esBaterias = /bess|respaldo|bater/i.test(recTipo);
+      const esSolar = /solar|fotovolt/i.test(recTipo) || tieneTecho;
+      const unir = (arr) => arr.length <= 1
+        ? (arr[0] || '')
+        : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
+
+      const yaPartes = ['tus respuestas del diagnóstico y tu tarifa CFE'];
+      if (tieneTecho) yaPartes.push(`la medida de tu techo (~${techoArea} m²)`);
+      if (tieneRecibos) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'} de CFE`);
+      const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
+
+      const faltan = [
+        'Horario u operación detallada de la planta.',
+        'Capacidad del transformador y tablero principal (diagrama unifilar).',
+        'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.',
+        'Frecuencia y duración de los cortes de energía.',
+        'Número de servicio (RPU) de tu recibo CFE.',
+        'Contacto técnico o eléctrico de tu planta.',
+        'Rango de inversión y forma preferida (compra directa o servicio/PPA).'
+      ];
+      if (!tieneRecibos) faltan.push('Tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa).');
+      if (!tieneTecho) faltan.push('Superficie disponible en m² (techo o terreno).');
+      if (esSolar) faltan.push('Tipo y estado de la cubierta del techo (peso que soporta).');
+      if (esBaterias) {
+        faltan.push('Cargas críticas a respaldar (kW y kWh) y autonomía requerida.');
+        faltan.push('Espacio y ventilación para el gabinete de baterías.');
+      }
+
       const lineasCliente = [
         `Hola ${nombre || ''},`,
         '',
@@ -345,7 +364,10 @@ export default async function handler(req, res) {
         financiamiento || null,
         '',
         'Datos para el anteproyecto',
-        ...DATOS_ANTEPROYECTO.map((d) => `• ${d}`),
+        'No necesitas tener todo listo — con lo que reúnas, avanzamos.',
+        yaTenemos,
+        'Nos ayudaría también:',
+        ...faltan.map((d) => `• ${d}`),
         '',
         'Un asesor te va a contactar para determinar tu proyecto con mayor precisión. Tus datos son confidenciales: solo los usamos para tu diagnóstico.',
         '',
@@ -369,7 +391,12 @@ export default async function handler(req, res) {
             `</ul>` : '')
         ) +
         (financiamiento ? seccion('Cómo se puede estructurar', `<p style="margin:0 0 8px;color:#6F796E">${esc(financiamiento)}</p>`) : '') +
-        seccion('Datos para el anteproyecto', `<ul style="margin:0 0 8px;padding-left:18px">${DATOS_ANTEPROYECTO.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`) +
+        seccion('Datos para el anteproyecto',
+          `<p style="margin:0 0 6px">No necesitas tener todo listo — con lo que reúnas, avanzamos.</p>` +
+          `<p style="margin:0 0 6px">${esc(yaTenemos)}</p>` +
+          `<p style="margin:0 0 4px">Nos ayudaría también:</p>` +
+          `<ul style="margin:0 0 8px;padding-left:18px">${faltan.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`
+        ) +
         `<p style="margin:16px 0 0">Un asesor te va a contactar para determinar tu proyecto con mayor precisión. Tus datos son confidenciales: solo los usamos para tu diagnóstico.</p>` +
         `<p style="margin:16px 0 0">— Equipo Mexillum</p>` +
         `</div>`;
