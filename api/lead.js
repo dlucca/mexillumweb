@@ -13,6 +13,29 @@ const esc = (s) =>
 
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 
+// Restringe un path de storage a chars seguros (defensa adicional contra "../", igual que upload-url.js).
+const safePath = (p) => String(p ?? '').replace(/[^a-zA-Z0-9._/-]+/g, '');
+
+// Throttle best-effort del correo de cliente (propuesta preliminar), por email destinatario.
+// Nota: es best-effort porque las instancias serverless son efímeras (el Map se pierde entre
+// invocaciones/instancias); si se necesita un límite duro, reemplazar por un store durable
+// (Redis, Supabase, etc.).
+const CLIENT_EMAIL_WINDOW_MS = 10 * 60 * 1000;
+const CLIENT_EMAIL_MAX = 3;
+const clientEmailSends = new Map(); // email -> timestamps[]
+function clientEmailAllowed(email) {
+  const now = Date.now();
+  const prev = clientEmailSends.get(email) || [];
+  const fresh = prev.filter((t) => now - t < CLIENT_EMAIL_WINDOW_MS);
+  if (fresh.length >= CLIENT_EMAIL_MAX) {
+    clientEmailSends.set(email, fresh);
+    return false;
+  }
+  fresh.push(now);
+  clientEmailSends.set(email, fresh);
+  return true;
+}
+
 // Etiquetas visibles de cada paso del funnel v2, en orden.
 const PREGUNTAS = [
   ['sector', 'Sector / operación'],
@@ -110,6 +133,13 @@ export default async function handler(req, res) {
         .slice(0, 6)
     : [];
 
+  // Texto de ubicación: solo agrega las coords entre paréntesis si ambas son números finitos.
+  const ubicTexto = ubic
+    ? (Number.isFinite(ubic.lat) && Number.isFinite(ubic.lng)
+        ? `${ubic.direccion || '—'} (${ubic.lat}, ${ubic.lng})`
+        : `${ubic.direccion || '—'}`)
+    : '';
+
   const respuestas = PREGUNTAS.map(([key, label]) => {
     const etiqueta = (origen === 'hoteles' && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
     const visible = clean(legibles[key], 240);
@@ -136,7 +166,9 @@ export default async function handler(req, res) {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key || !paths.length) return [];
     const out = [];
-    for (const p of paths) {
+    for (const raw of paths) {
+      const p = safePath(raw);
+      if (!p) { out.push(`${raw} (link no disponible)`); continue; }
       try {
         const r = await fetch(`${url}/storage/v1/object/sign/facturas/${p}`, {
           method: 'POST',
@@ -170,7 +202,7 @@ export default async function handler(req, res) {
     aplicacion ? `Aplicación principal: ${aplicacion}` : null,
     ranking.length ? 'Ranking: ' + ranking.map((o) => `${o.nombre} ${o.score}`).join(' · ') : null,
     '',
-    ubic ? `Ubicación: ${ubic.direccion || '—'} (${ubic.lat}, ${ubic.lng})` : null,
+    ubic ? `Ubicación: ${ubicTexto}` : null,
     techoArea != null ? `Techo dibujado: ~${techoArea} m²` : null,
     facturaLinks.length ? `${facturaLinks.length} facturas subidas:` : null,
     ...facturaLinks.map((l) => `  - ${l}`),
@@ -217,7 +249,7 @@ export default async function handler(req, res) {
 
     (ubic || techoArea != null || facturaLinks.length
       ? `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
-        (ubic ? fila('Ubicación', `${ubic.direccion || '—'} (${ubic.lat}, ${ubic.lng})`) : '') +
+        (ubic ? fila('Ubicación', ubicTexto) : '') +
         (techoArea != null ? fila('Techo dibujado', `~${techoArea} m²`) : '') +
         (facturaLinks.length
           ? `<tr><td style="padding:6px 16px 6px 0;color:#6F796E;vertical-align:top">Facturas</td>` +
@@ -266,7 +298,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'No se pudo enviar la solicitud.' });
     }
 
-    if (tipoCierre === 'preliminar' && EMAIL_RE.test(correo)) {
+    if (tipoCierre === 'preliminar' && EMAIL_RE.test(correo) && clientEmailAllowed(correo)) {
       const textoCliente =
         `Hola ${nombre || ''},\n\n` +
         `Recibimos tus datos. Pronto te contactaremos con tu propuesta preliminar.\n\n` +

@@ -12,7 +12,7 @@ export function initDiagnostico({ content, calLink, origen }) {
   const root = document.getElementById('dx-root');
 
   const estado = {
-    paso: 'intro',            // 'intro' | 0..7 | 'result'
+    paso: 'intro',            // 'intro' | 0..7 | 'result' | 'techo' | 'facturas' | 'cierre'
     respuestas: {},
     contacto: {},
     resultado: null,          // cache del assembleResult
@@ -318,7 +318,8 @@ export function initDiagnostico({ content, calLink, origen }) {
           correo: estado.contacto.correo || c.correo,
           telefono: estado.contacto.telefono || c.telefono,
           rol: estado.contacto.rol || c.rol,
-          presupuesto: estado.contacto.presupuesto || c.presupuesto
+          presupuesto: estado.contacto.presupuesto || c.presupuesto,
+          tipo_cierre: estado.contacto.tipo_cierre || 'llamada'
         };
         estado.resultado = assembleResult(estado, content);
         submitLead(origen ? { ...estado.resultado.leadPayload, origen } : estado.resultado.leadPayload);
