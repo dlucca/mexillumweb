@@ -4,7 +4,7 @@
 const content = {
   intro: {
     titulo: 'Diagnóstico energético en 2 minutos',
-    cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué oportunidades de ahorro aplican a tu planta, cuál atacar primero, y —cuando tu tarifa lo permite— un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
+    cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué oportunidades de ahorro aplican en tu caso, cuál atacar primero, y —cuando tu tarifa lo permite— un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
     // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
     // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
     pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres agendar la llamada.',
@@ -89,7 +89,7 @@ const content = {
       pregunta: 'Si a {planta} se le corta la energía 30 minutos en su peor momento del día, ¿qué pasa?',
       opciones: [
         { label: 'Se pierde producto o un lote completo', codigo: 'producto' },
-        { label: 'Se detiene producción y reiniciar toma horas', codigo: 'reinicio' },
+        { label: 'Se detiene la operación y reiniciar toma horas', codigo: 'reinicio' },
         { label: 'Perdemos servicio o ingresos por hora', codigo: 'servicio' },
         { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada' }
       ]
@@ -420,7 +420,7 @@ const content = {
 
   // ---- CHECKLIST ----
   checklistBase: [
-    'Recibos de CFE de los últimos 12 meses (de la planta o medidor evaluado)',
+    'Recibos de CFE de los últimos 12 meses (del sitio o medidor evaluado)',
     'Perfil de carga en intervalos de 15 minutos (archivo de lecturas cuarto-horarias), si lo tienes'
   ],
   checklistRefuerzos: {
@@ -481,14 +481,14 @@ const content = {
     base: {
       interno: [
         '12 recibos de CFE (kWh, demanda máxima en kW y tarifa).',
-        'Perfil de carga u horario de operación de la planta.',
+        'Perfil de carga u horario de operación del sitio.',
         'Capacidad del transformador y del tablero principal (diagrama unifilar).',
         'Superficie disponible en m² (techo o terreno).',
         'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.'
       ],
       lead: [
         'Tus últimos 12 recibos de luz de CFE.',
-        'A qué horas del día opera tu planta.',
+        'A qué horas del día opera tu sitio.',
         'Cuánto espacio libre tienes (techo o terreno).',
         'Qué es lo que más te urge resolver.',
         'Quién autoriza una inversión así y hasta qué monto.'

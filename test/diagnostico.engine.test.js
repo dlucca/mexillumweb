@@ -45,7 +45,7 @@ test('toReadable: mapea códigos a labels visibles', () => {
   const leg = toReadable(fx, content);
   assert.equal(leg.sector, 'Manufactura por turnos o por lotes');
   assert.equal(leg.tarifa, 'GDMTH (Gran Demanda Media Tensión Horaria)');
-  assert.equal(leg.corte, 'Se detiene producción y reiniciar toma horas');
+  assert.equal(leg.corte, 'Se detiene la operación y reiniciar toma horas');
 });
 
 test('roundHalfEven: medio-a-par en las fronteras', () => {
