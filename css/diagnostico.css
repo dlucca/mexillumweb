@@ -32,6 +32,10 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 /* Pregunta: título de verdad — grande, condensado, con presencia */
 .dx__question{font-family:var(--font-core);font-weight:var(--weight-bold);font-size:clamp(24px,2.3vw,32px);line-height:1.1;letter-spacing:var(--track-heading);color:var(--text-strong);margin:0 0 var(--space-6);max-width:34ch;text-wrap:pretty}
 
+/* El encabezado de cada pantalla recibe foco por accesibilidad (tabindex=-1);
+   como nunca se alcanza con teclado, ocultamos su anillo de foco. */
+[data-dx-focus]:focus,[data-dx-focus]:focus-visible{outline:none;box-shadow:none}
+
 /* Opciones: filas con presencia y estado seleccionado — no renglones de formulario */
 .dx__options{display:flex;flex-direction:column;gap:var(--space-3);max-width:var(--measure-prose)}
 .dx__option{width:100%;text-align:left;background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-3);padding:var(--space-3) var(--space-6);font:inherit;color:inherit;cursor:pointer;transition:border-color var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard)}
