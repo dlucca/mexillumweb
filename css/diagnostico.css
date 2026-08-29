@@ -48,9 +48,7 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
    coloca la agenda a la izquierda y el diagnóstico a la derecha. */
 .dx__final{display:grid;grid-template-columns:1fr;gap:var(--space-10)}
 @media (min-width:900px){
-  .dx__final{grid-template-columns:1.15fr 1fr;align-items:start;gap:var(--space-11)}
-  .dx__diag{grid-column:1;grid-row:1}
-  .dx__book{grid-column:2;grid-row:1}
+  .dx__final{grid-template-columns:1fr;align-items:start;gap:var(--space-11)}
 }
 .dx__diag p{font-size:var(--size-body-lg);line-height:var(--lh-body);color:var(--text-body)}
 .dx__diag .dx__close{color:var(--text-strong);font-weight:var(--weight-semibold)}
@@ -63,10 +61,6 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx__col-sub{color:var(--text-body);font-size:var(--size-body-sm);margin:0 0 var(--space-7)}
 /* Aviso del NDA antes de agendar: nota discreta con acento a la izquierda */
 .dx__nda-aviso{color:var(--text-body);font-size:var(--size-body-sm);line-height:1.5;margin:0 0 var(--space-6);padding:var(--space-3) var(--space-4);border-left:2px solid var(--accent);background:var(--bg-inset);border-radius:var(--radius-2)}
-/* Formulario de contacto dentro de la agenda: precede al calendario en la misma columna */
-.dx__book-form{display:flex;flex-direction:column;gap:var(--space-4);max-width:var(--measure-prose)}
-.dx__book-form .dx__nav{margin-top:var(--space-5);justify-content:flex-end}
-.dx__book-ok{margin:var(--space-4) 0 0;font-size:var(--size-body-sm);color:var(--text-accent);font-weight:var(--weight-semibold)}
 .dx__cal{margin:var(--space-6) 0 0;min-height:580px}
 .dx__diag .dx__checklist{margin-top:var(--space-9);border-top:1px solid var(--border-hairline);padding-top:var(--space-7)}
 .dx__checklist ul{list-style:none;margin:var(--space-5) 0;padding:0;display:flex;flex-direction:column;gap:var(--space-4)}
@@ -111,7 +105,7 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx__print-only{display:none}
 
 @media print{
-  .dx__top, .dx__footer, .dx__book, .dx__actions, .dx__diag .dx__checklist{display:none !important}
+  .dx__top, .dx__footer, .dx__actions, .dx__diag .dx__checklist{display:none !important}
   .dx__print-only{display:block}
   .dx{max-width:none;padding:0}
   .dx__final{grid-template-columns:1fr;gap:var(--space-7)}
@@ -125,3 +119,27 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
   .dx__question{font-size:clamp(24px,6vw,32px)}
   .dx__progress-track{max-width:none}
 }
+
+/* ---- Pasos post-diagnóstico: techo, facturas, cierre ---- */
+.dx-roof__bar{display:flex;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-3)}
+.dx-roof__input{flex:1 1 220px;padding:var(--space-3);border:1px solid var(--border-hairline);border-radius:8px;font-size:var(--size-body)}
+.dx-roof__map{width:100%;height:60vh;min-height:320px;border-radius:8px;background:var(--bg-subtle)}
+.dx-roof__status{margin-top:var(--space-3)}
+
+.dx-fac__drop{display:block;border:2px dashed var(--border-hairline);border-radius:10px;padding:var(--space-6);text-align:center;cursor:pointer}
+.dx-fac__drop--over{border-color:var(--text-strong);background:var(--bg-subtle)}
+.dx-fac__list{list-style:none;margin:var(--space-4) 0 0;padding:0}
+.dx-fac__row{display:flex;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) 0;font-size:var(--size-body-sm)}
+.dx-fac__state{color:var(--text-body)}
+
+.dx__skiprow{display:flex;gap:var(--space-4);align-items:center}
+.dx__skip{background:none;border:none;color:var(--text-body);text-decoration:underline;cursor:pointer;font:inherit}
+
+.dx-cierre{display:grid;gap:var(--space-3);max-width:420px;margin-bottom:var(--space-6)}
+.dx-cierre__field{display:grid;gap:6px;font-size:var(--size-body-sm);color:var(--text-body)}
+.dx-cierre__field input{padding:var(--space-3);border:1px solid var(--border-hairline);border-radius:8px;font-size:var(--size-body)}
+.dx-cierre__err{color:#b00020;font-size:var(--size-body-sm)}
+.dx-cierre__paths{display:grid;gap:var(--space-5);grid-template-columns:1fr}
+.dx-cierre__path{border:1px solid var(--border-hairline);border-radius:10px;padding:var(--space-5)}
+.dx-cierre__ok{color:var(--text-strong);font-weight:var(--weight-semibold);margin-top:var(--space-3)}
+@media (min-width:720px){.dx-cierre__paths{grid-template-columns:1fr 1fr}}

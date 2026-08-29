@@ -600,7 +600,7 @@ export function assembleResult(estado, content) {
     : bloqueB.rangoTexto;
 
   const leadPayload = {
-    lead_id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
+    lead_id: estado.lead_id || (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
     timestamp: new Date().toISOString(),
     nombre: contacto.nombre || '',
     empresa: contacto.empresa || '',
@@ -608,6 +608,10 @@ export function assembleResult(estado, content) {
     telefono: contacto.telefono || '',
     rol: contacto.rol || '',
     presupuesto: contacto.presupuesto || '',
+    tipo_cierre: contacto.tipo_cierre || '',
+    ubicacion: estado.ubicacion || null,
+    techo: estado.techo || null,
+    facturas: estado.facturas || null,
     respuestas_legibles: legibles,
     respuestas_codigos: { ...resp },
     perfil,

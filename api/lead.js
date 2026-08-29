@@ -13,6 +13,29 @@ const esc = (s) =>
 
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 
+// Restringe un path de storage a chars seguros (defensa adicional contra "../", igual que upload-url.js).
+const safePath = (p) => String(p ?? '').replace(/[^a-zA-Z0-9._/-]+/g, '');
+
+// Throttle best-effort del correo de cliente (propuesta preliminar), por email destinatario.
+// Nota: es best-effort porque las instancias serverless son efímeras (el Map se pierde entre
+// invocaciones/instancias); si se necesita un límite duro, reemplazar por un store durable
+// (Redis, Supabase, etc.).
+const CLIENT_EMAIL_WINDOW_MS = 10 * 60 * 1000;
+const CLIENT_EMAIL_MAX = 3;
+const clientEmailSends = new Map(); // email -> timestamps[]
+function clientEmailAllowed(email) {
+  const now = Date.now();
+  const prev = clientEmailSends.get(email) || [];
+  const fresh = prev.filter((t) => now - t < CLIENT_EMAIL_WINDOW_MS);
+  if (fresh.length >= CLIENT_EMAIL_MAX) {
+    clientEmailSends.set(email, fresh);
+    return false;
+  }
+  fresh.push(now);
+  clientEmailSends.set(email, fresh);
+  return true;
+}
+
 // Etiquetas visibles de cada paso del funnel v2, en orden.
 const PREGUNTAS = [
   ['sector', 'Sector / operación'],
@@ -63,6 +86,21 @@ export default async function handler(req, res) {
   const rangoTexto = clean(body.rango_texto, 120) || '—';
   const leadId = clean(body.lead_id, 64);
 
+  const tipoCierre = clean(body.tipo_cierre, 20);
+  const ubic = (body.ubicacion && typeof body.ubicacion === 'object' && !Array.isArray(body.ubicacion))
+    ? {
+        direccion: clean(body.ubicacion.direccion, 200),
+        lat: Number(body.ubicacion.lat),
+        lng: Number(body.ubicacion.lng)
+      }
+    : null;
+  const techoArea = (body.techo && Number.isFinite(Number(body.techo.area_m2)))
+    ? Math.round(Number(body.techo.area_m2))
+    : null;
+  const facturaPaths = (body.facturas && Array.isArray(body.facturas.paths))
+    ? body.facturas.paths.slice(0, 12).map((p) => clean(p, 300)).filter(Boolean)
+    : [];
+
   const checklist = Array.isArray(body.checklist_full)
     ? body.checklist_full.slice(0, 12).map((b) => clean(b, 240)).filter(Boolean)
     : [];
@@ -95,6 +133,13 @@ export default async function handler(req, res) {
         .slice(0, 6)
     : [];
 
+  // Texto de ubicación: solo agrega las coords entre paréntesis si ambas son números finitos.
+  const ubicTexto = ubic
+    ? (Number.isFinite(ubic.lat) && Number.isFinite(ubic.lng)
+        ? `${ubic.direccion || '—'} (${ubic.lat}, ${ubic.lng})`
+        : `${ubic.direccion || '—'}`)
+    : '';
+
   const respuestas = PREGUNTAS.map(([key, label]) => {
     const etiqueta = (origen === 'hoteles' && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
     const visible = clean(legibles[key], 240);
@@ -115,6 +160,31 @@ export default async function handler(req, res) {
     ? `Diagnóstico Hoteles — ${quien}`
     : `Diagnóstico — ${quien}`;
 
+  // Links firmados temporales (30 días) para que ventas abra las facturas privadas.
+  async function firmarFacturas(paths) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key || !paths.length) return [];
+    const out = [];
+    for (const raw of paths) {
+      const p = safePath(raw);
+      if (!p) { out.push(`${raw} (link no disponible)`); continue; }
+      try {
+        const r = await fetch(`${url}/storage/v1/object/sign/facturas/${p}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 30 })
+        });
+        if (!r.ok) { out.push(`${p} (link no disponible)`); continue; }
+        const data = await r.json();
+        const rel = data.signedURL || data.signedUrl || '';
+        out.push(rel ? `${url}${rel}` : `${p} (link no disponible)`);
+      } catch { out.push(`${p} (link no disponible)`); }
+    }
+    return out;
+  }
+  const facturaLinks = await firmarFacturas(facturaPaths);
+
   const text = [
     'Nuevo diagnóstico completado',
     '',
@@ -132,6 +202,10 @@ export default async function handler(req, res) {
     aplicacion ? `Aplicación principal: ${aplicacion}` : null,
     ranking.length ? 'Ranking: ' + ranking.map((o) => `${o.nombre} ${o.score}`).join(' · ') : null,
     '',
+    ubic ? `Ubicación: ${ubicTexto}` : null,
+    techoArea != null ? `Techo dibujado: ~${techoArea} m²` : null,
+    facturaLinks.length ? `${facturaLinks.length} facturas subidas:` : null,
+    ...facturaLinks.map((l) => `  - ${l}`),
     'Respuestas:',
     ...respuestas.map((r, i) => `${i + 1}. ${r.label}: ${r.visible}`),
     checklist.length ? '' : null,
@@ -173,6 +247,19 @@ export default async function handler(req, res) {
     (origen ? fila('Origen', origen) : '') +
     `</table>` +
 
+    (ubic || techoArea != null || facturaLinks.length
+      ? `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
+        (ubic ? fila('Ubicación', ubicTexto) : '') +
+        (techoArea != null ? fila('Techo dibujado', `~${techoArea} m²`) : '') +
+        (facturaLinks.length
+          ? `<tr><td style="padding:6px 16px 6px 0;color:#6F796E;vertical-align:top">Facturas</td>` +
+            `<td style="padding:6px 0">` +
+            facturaLinks.map((l, i) => `<a href="${esc(l)}">Factura ${i + 1}</a>`).join('<br>') +
+            `</td></tr>`
+          : '') +
+        `</table>`
+      : '') +
+
     `<h3 style="margin:0 0 8px;font-size:14px;color:#080A08">Respuestas del diagnóstico</h3>` +
     `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
     respuestas.map((r) =>
@@ -210,6 +297,23 @@ export default async function handler(req, res) {
       console.error('Resend error', r.status, detail);
       return res.status(502).json({ error: 'No se pudo enviar la solicitud.' });
     }
+
+    if (tipoCierre === 'preliminar' && EMAIL_RE.test(correo) && clientEmailAllowed(correo)) {
+      const textoCliente =
+        `Hola ${nombre || ''},\n\n` +
+        `Recibimos tus datos. Pronto te contactaremos con tu propuesta preliminar.\n\n` +
+        `— Equipo Mexillum`;
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from, to: correo, subject: 'Recibimos tus datos — Mexillum', text: textoCliente
+          })
+        });
+      } catch (err) { console.error('correo cliente falló', err); }
+    }
+
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('lead handler error', err);
