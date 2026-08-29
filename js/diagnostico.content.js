@@ -536,7 +536,13 @@ const content = {
     recomendacionLabel: 'Configuración a evaluar',
     rankingLabel: 'Prioridad técnica',
     limitacionesLabel: 'Para cerrar el número, todavía falta',
-    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.'
+    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.',
+    aplicaFrase: {
+      'Muy Alto': 'aplica muy bien a tu operación',
+      'Alto': 'aplica bien a tu operación',
+      'Medio': 'podría aplicar a tu operación',
+      'Bajo': 'quizá aplique, habría que revisarlo'
+    }
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

@@ -74,3 +74,62 @@ test('tipo_cierre llamada NO manda correo al cliente', async () => {
   const { emails } = await enviar({ ...base, tipo_cierre: 'llamada' });
   assert.equal(emails.find((e) => e.to === 'ana@acme.mx'), undefined);
 });
+
+// Envía el lead con fetch stubeado (Resend + DocuSeal), capturando por URL.
+async function enviarConDocuseal(payload, { docuseal = true } = {}) {
+  const capturado = [];
+  const fetchReal = globalThis.fetch;
+  const envs = {
+    r: process.env.RESEND_API_KEY,
+    du: process.env.DOCUSEAL_URL, dt: process.env.DOCUSEAL_API_TOKEN, dtpl: process.env.DOCUSEAL_TEMPLATE_ID
+  };
+  globalThis.fetch = async (url, opts) => {
+    capturado.push({ url: String(url), body: opts && opts.body ? JSON.parse(opts.body) : null });
+    return { ok: true, json: async () => ({}), text: async () => '' };
+  };
+  process.env.RESEND_API_KEY = 'test-key';
+  if (docuseal) {
+    process.env.DOCUSEAL_URL = 'https://docuseal.example.com';
+    process.env.DOCUSEAL_API_TOKEN = 'ds-token';
+    process.env.DOCUSEAL_TEMPLATE_ID = '2';
+  } else {
+    delete process.env.DOCUSEAL_URL; delete process.env.DOCUSEAL_API_TOKEN; delete process.env.DOCUSEAL_TEMPLATE_ID;
+  }
+  const res = fakeRes();
+  try { await handler({ method: 'POST', body: payload }, res); }
+  finally {
+    globalThis.fetch = fetchReal;
+    process.env.RESEND_API_KEY = envs.r;
+    if (envs.du === undefined) delete process.env.DOCUSEAL_URL; else process.env.DOCUSEAL_URL = envs.du;
+    if (envs.dt === undefined) delete process.env.DOCUSEAL_API_TOKEN; else process.env.DOCUSEAL_API_TOKEN = envs.dt;
+    if (envs.dtpl === undefined) delete process.env.DOCUSEAL_TEMPLATE_ID; else process.env.DOCUSEAL_TEMPLATE_ID = envs.dtpl;
+  }
+  return { res, requests: capturado };
+}
+
+test('preliminar con DocuSeal configurado dispara el envío del NDA', async () => {
+  const { res, requests } = await enviarConDocuseal({
+    ...base, correo: 'nda-preliminar@acme.mx', empresa: 'Acme', tipo_cierre: 'preliminar'
+  });
+  assert.equal(res.statusCode, 200);
+  const ndaCall = requests.find((r) => r.url.includes('/api/submissions'));
+  assert.ok(ndaCall, 'debió llamar a DocuSeal para el NDA');
+});
+
+test('tipo_cierre llamada NO dispara el NDA desde lead.js', async () => {
+  const { res, requests } = await enviarConDocuseal({
+    ...base, correo: 'nda-llamada@acme.mx', empresa: 'Acme', tipo_cierre: 'llamada'
+  });
+  assert.equal(res.statusCode, 200);
+  const ndaCall = requests.find((r) => r.url.includes('/api/submissions'));
+  assert.equal(ndaCall, undefined);
+});
+
+test('preliminar sin env de DocuSeal sigue devolviendo 200 y no revienta', async () => {
+  const { res, requests } = await enviarConDocuseal({
+    ...base, correo: 'nda-sin-config@acme.mx', empresa: 'Acme', tipo_cierre: 'preliminar'
+  }, { docuseal: false });
+  assert.equal(res.statusCode, 200);
+  const ndaCall = requests.find((r) => r.url.includes('/api/submissions'));
+  assert.equal(ndaCall, undefined);
+});

@@ -361,6 +361,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       <div class="dx__view">
         <h2 class="dx__question" data-dx-focus tabindex="-1">Sube tus últimas 12 facturas</h2>
         <p class="dx__col-sub">Con tus facturas de CFE calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.</p>
+        <p class="dx__col-sub">Tus recibos son confidenciales. Solo los usamos para tu diagnóstico y no los compartimos.</p>
         <div class="dx-fac-mount"></div>
         <div class="dx__nav dx__nav--end">
           <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
@@ -395,13 +396,16 @@ export function initDiagnostico({ content, calLink, origen }) {
           <label class="dx-cierre__field">Nombre
             <input type="text" data-f="nombre" autocomplete="name">
           </label>
+          <label class="dx-cierre__field">Empresa
+            <input type="text" data-f="empresa" autocomplete="organization" required>
+          </label>
           <label class="dx-cierre__field">Correo
             <input type="email" data-f="correo" autocomplete="email" required>
           </label>
           <label class="dx-cierre__field">Teléfono (opcional)
             <input type="tel" data-f="telefono" autocomplete="tel">
           </label>
-          <p class="dx-cierre__err" role="alert" hidden>Escribe un correo válido.</p>
+          <p class="dx-cierre__err" role="alert" hidden>Escribe tu empresa y un correo válido.</p>
         </div>
 
         <div class="dx-cierre__paths">
@@ -418,6 +422,12 @@ export function initDiagnostico({ content, calLink, origen }) {
             <div class="dx__cal" id="agenda" hidden></div>
           </div>
         </div>
+        <aside class="dx__checklist" aria-label="Qué tener a mano para la llamada">
+          <h3>${esc(content.anteproyectoTituloLead)}</h3>
+          <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+          <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
+        </aside>
+        <p class="dx__fin">${esc(res.financiamiento)}</p>
         <div class="dx__nav">
           <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
         </div>
@@ -428,12 +438,14 @@ export function initDiagnostico({ content, calLink, origen }) {
     const errEl = view.querySelector('.dx-cierre__err');
 
     function capturarContacto() {
+      const empresa = getField('empresa');
       const correo = getField('correo');
-      if (!EMAIL_RE.test(correo)) { errEl.hidden = false; return false; }
+      if (!empresa || !EMAIL_RE.test(correo)) { errEl.hidden = false; return false; }
       errEl.hidden = true;
       estado.contacto = {
         ...estado.contacto,
         nombre: getField('nombre'),
+        empresa,
         correo,
         telefono: getField('telefono')
       };
@@ -495,7 +507,6 @@ export function initDiagnostico({ content, calLink, origen }) {
             ${palancaLi('Principal', '', p.principal.nombre, p.principal.text)}
             ${p.secundaria ? palancaLi('Secundaria', '', p.secundaria.nombre, p.secundaria.text) : ''}
             ${p.factorPotencia ? palancaLi('Secundaria', '', p.factorPotencia.nombre, p.factorPotencia.text) : ''}
-            ${palancaLi(p.descarte.tag, ' dx__palanca-tag--off', p.descarte.nombre, p.descarte.text)}
           </ul>`;
 
     // Resumen comercial discreto (mejora #1): potencial + recomendación + top 3 del
@@ -512,12 +523,11 @@ export function initDiagnostico({ content, calLink, origen }) {
       ? `<p class="dx__resumen-k">${esc(rz.limitacionesLabel)}:</p>
          <ul class="dx__resumen-lim">${limCriticas.map((l) => `<li>${esc(l.dato)}</li>`).join('')}</ul>`
       : '';
+    const tipoRec = res.recomendacion_solucion.tipo;
+    const aplicaFrase = rz.aplicaFrase[res.potencial_general] || 'podría aplicar a tu operación';
     const resumenHtml = `
           <aside class="dx__resumen" aria-label="Resumen del diagnóstico">
-            <div class="dx__resumen-heads">
-              <p class="dx__resumen-line"><span class="dx__resumen-k">${esc(rz.potencialLabel)}</span><strong>${esc(res.potencial_general)}</strong></p>
-              <p class="dx__resumen-line"><span class="dx__resumen-k">${esc(rz.recomendacionLabel)}</span><strong>${esc(res.recomendacion_solucion.tipo)}</strong></p>
-            </div>
+            <p class="dx__resumen-frase">Por lo que nos contaste, <strong>${esc(tipoRec)}</strong> ${esc(aplicaFrase)}.</p>
             ${/BESS/.test(res.recomendacion_solucion.tipo) ? `<p class="dx__resumen-glosa">${esc(rz.bessGlosa)}</p>` : ''}
             <p class="dx__resumen-razon">${esc(res.recomendacion_solucion.razon)}</p>
             <p class="dx__resumen-k">${esc(rz.rankingLabel)}</p>
@@ -536,16 +546,11 @@ export function initDiagnostico({ content, calLink, origen }) {
           ${bloqueBHtml}
           ${palancasHtml}
           ${resumenHtml}
-          <p>${esc(res.dato_faltante)}</p>
-          <p class="dx__close">${esc(res.cierre_llamada)}</p>
-          <p class="dx__fin">${esc(res.financiamiento)}</p>
-          <aside class="dx__checklist" aria-label="Qué tener a mano para la llamada">
-            <h3>${esc(content.anteproyectoTituloLead)}</h3>
-            <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
-            <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
-          </aside>
+          <div class="dx__cta">
+            <p class="dx__cta-p">Esto es un primer vistazo. Para afinar el número a tu caso, dinos 2 datos más: marca tu techo y sube tus recibos de luz. Te toma 2 minutos.</p>
+          </div>
           <div class="dx__actions">
-            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">Continuar</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">Afinar mi diagnóstico</button>
             <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
           </div>
         </section>

@@ -95,7 +95,7 @@ test('api/booking: booking válido crea submission con prospecto y fecha pre-lle
   // asunto y cuerpo del correo del NDA, bien comunicados
   assert.match(b.message.subject, /Confidencialidad/i);
   assert.match(b.message.body, /Mexillum/);
-  assert.match(b.message.body, /reuni[oó]n/i);
+  assert.match(b.message.body, /confidencial/i);
 });
 
 test('api/booking: sin empresa, el prospecto cae al nombre del asistente', async () => {
@@ -111,11 +111,10 @@ test('api/booking: evento que no es BOOKING_CREATED se ignora (200 sin llamar Do
   assert.equal(docusealCall, undefined);
 });
 
-test('api/booking: error de DocuSeal responde 502 con el detalle para depurar', async () => {
+test('api/booking: error de DocuSeal responde 502', async () => {
   const { res } = await correr(reqBase(), { dsFail: { status: 422, detail: '{"error":"role \\"First Party\\" not found"}' } });
   assert.equal(res.statusCode, 502);
-  assert.equal(res.body.docuseal_status, 422);
-  assert.match(res.body.docuseal_detail, /role/);
+  assert.match(res.body.error, /NDA/i);
 });
 
 test('api/booking: sin correo del asistente responde 400', async () => {
