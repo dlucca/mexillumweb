@@ -103,8 +103,15 @@ export default async function handler(req, res) {
         lng: Number(body.ubicacion.lng)
       }
     : null;
-  const techoArea = (body.techo && Number.isFinite(Number(body.techo.area_m2)))
+  const techoArea = (body.techo && Number.isFinite(Number(body.techo.area_m2)) && Number(body.techo.area_m2) > 0)
     ? Math.round(Number(body.techo.area_m2))
+    : null;
+  // Nº de áreas dibujadas: soporta el shape nuevo (poligonos[]) y el viejo (poligono).
+  const techoN = (body.techo && Array.isArray(body.techo.poligonos))
+    ? body.techo.poligonos.length
+    : (body.techo && body.techo.poligono ? 1 : 0);
+  const techoTxt = techoArea != null
+    ? `~${techoArea} m²${techoN > 1 ? ` en ${techoN} áreas` : ''}`
     : null;
   const facturaPaths = (body.facturas && Array.isArray(body.facturas.paths))
     ? body.facturas.paths.slice(0, 12).map((p) => clean(p, 300)).filter(Boolean)
@@ -212,7 +219,7 @@ export default async function handler(req, res) {
     ranking.length ? 'Ranking: ' + ranking.map((o) => `${o.nombre} ${o.score}`).join(' · ') : null,
     '',
     ubic ? `Ubicación: ${ubicTexto}` : null,
-    techoArea != null ? `Techo dibujado: ~${techoArea} m²` : null,
+    techoArea != null ? `Techo dibujado: ${techoTxt}` : null,
     facturaLinks.length ? `${facturaLinks.length} facturas subidas:` : null,
     ...facturaLinks.map((l) => `  - ${l}`),
     'Respuestas:',
@@ -259,7 +266,7 @@ export default async function handler(req, res) {
     (ubic || techoArea != null || facturaLinks.length
       ? `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
         (ubic ? fila('Ubicación', ubicTexto) : '') +
-        (techoArea != null ? fila('Techo dibujado', `~${techoArea} m²`) : '') +
+        (techoArea != null ? fila('Techo dibujado', techoTxt) : '') +
         (facturaLinks.length
           ? `<tr><td style="padding:6px 16px 6px 0;color:#6F796E;vertical-align:top">Facturas</td>` +
             `<td style="padding:6px 0">` +
@@ -323,7 +330,7 @@ export default async function handler(req, res) {
         : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
 
       const yaPartes = ['tus respuestas del diagnóstico y tu tarifa CFE'];
-      if (tieneTecho) yaPartes.push(`la medida de tu techo (~${techoArea} m²)`);
+      if (tieneTecho) yaPartes.push(`la medida de tu techo (${techoTxt})`);
       if (tieneRecibos) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'} de CFE`);
       const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
 
