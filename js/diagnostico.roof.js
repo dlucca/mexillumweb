@@ -102,6 +102,8 @@ export function mountRoofPicker(container, { onLocation, onRoof }) {
     polys.push(current);   // cierra la actual (queda editable)
     newCurrent();          // empieza una nueva
     recompute();
+    // Feedback claro: recompute deja el total; lo sustituimos por la instrucción.
+    setStatus(`Área ${polys.length} lista ✓ — ahora toca las esquinas de la siguiente.`);
   });
 
   clearBtn.addEventListener('click', () => { startDraw(); });
