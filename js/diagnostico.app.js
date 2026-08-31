@@ -11,8 +11,14 @@ const CAL_ORIGIN = 'https://cal.mexillum.com';
 export function initDiagnostico({ content, calLink, origen }) {
   const root = document.getElementById('dx-root');
 
+  // Modo rápido: el link `?rapido` es para pasarle a un prospecto directo. Salta
+  // el cuestionario y arranca en el mapa: marcar espacio → facturas → formulario.
+  const rapido = new URLSearchParams(globalThis.location?.search || '').has('rapido');
+  // Etiqueta el lead para que ventas sepa que vino del link corto (sin cuestionario).
+  const origenEfectivo = rapido ? (origen ? `${origen}-rapido` : 'rapido') : origen;
+
   const estado = {
-    paso: 'intro',            // 'intro' | 0..7 | 'result' | 'techo' | 'facturas' | 'cierre'
+    paso: rapido ? 'techo' : 'intro',   // 'intro' | 0..7 | 'result' | 'techo' | 'facturas' | 'cierre'
     respuestas: {},
     contacto: {},
     resultado: null,          // cache del assembleResult
@@ -322,20 +328,32 @@ export function initDiagnostico({ content, calLink, origen }) {
           tipo_cierre: estado.contacto.tipo_cierre || 'llamada'
         };
         estado.resultado = assembleResult(estado, content);
-        submitLead(origen ? { ...estado.resultado.leadPayload, origen } : estado.resultado.leadPayload);
+        submitLead(origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload);
       }
     });
   }
 
   // ---- Paso: dibujar techo (opcional) -----------------------------------------
   function renderTecho() {
+    // En modo rápido la persona llega en frío: copy que orienta y engancha.
+    // En el flujo normal ya vio su resultado, así que el copy es más breve.
+    const titulo = rapido
+      ? '¿Cuánto espacio tienes para generar tu propia energía?'
+      : 'Dibuja tu techo';
+    const sub = rapido
+      ? 'Búscate en el mapa y marca tu techo o terreno libre: toca cada esquina para dibujar el área. Con eso calculamos cuánta energía cabe y armamos tu propuesta.'
+      : 'Marca las esquinas de tu techo en el mapa. Con esto tu anteproyecto sale más rápido y preciso.';
+    const botonAtras = rapido
+      ? ''
+      : '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
+
     const view = el(`
       <div class="dx__view">
-        <h2 class="dx__question" data-dx-focus tabindex="-1">Dibuja tu techo</h2>
-        <p class="dx__col-sub">Marca las esquinas de tu techo en el mapa. Con esto tu anteproyecto sale más rápido y preciso.</p>
+        <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(titulo)}</h2>
+        <p class="dx__col-sub">${esc(sub)}</p>
         <div class="dx-roof-mount"></div>
         <div class="dx__nav dx__nav--end">
-          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          ${botonAtras}
           <span class="dx__skiprow">
             <button type="button" class="dx__skip" data-act="saltar">Saltar por ahora</button>
             <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente">Continuar</button>
@@ -347,7 +365,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       onLocation: (u) => { estado.ubicacion = u; },
       onRoof: (r) => { estado.techo = r; }
     });
-    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'result'; render(); });
+    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => { estado.paso = 'result'; render(); });
     view.querySelector('[data-act="saltar"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
     view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
 
@@ -457,7 +475,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       if (!capturarContacto()) return;
       estado.contacto.tipo_cierre = 'preliminar';
       estado.resultado = assembleResult(estado, content);
-      const payload = origen ? { ...estado.resultado.leadPayload, origen } : estado.resultado.leadPayload;
+      const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
       submitLead(payload);
       view.querySelector('[data-slot="okA"]').hidden = false;
     });

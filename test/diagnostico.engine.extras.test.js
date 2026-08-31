@@ -36,3 +36,19 @@ test('assembleResult sin extras deja los campos en null', () => {
   assert.equal(leadPayload.facturas, null);
   assert.equal(leadPayload.tipo_cierre, '');
 });
+
+// Link rápido (?rapido): la persona salta el cuestionario. El motor debe armar
+// un lead válido solo con techo + facturas + contacto, sin respuestas.
+test('assembleResult sin respuestas (link rápido) arma un lead válido', () => {
+  const estado = {
+    respuestas: {},
+    contacto: { empresa: 'Acme', correo: 'a@acme.mx', tipo_cierre: 'preliminar' },
+    techo: { area_m2: 200, poligono: [{ lat: 19.4, lng: -99.1 }] },
+    facturas: { paths: ['acme/1-a.pdf'], count: 1 }
+  };
+  const { leadPayload } = assembleResult(estado, content);
+  assert.equal(leadPayload.empresa, 'Acme');
+  assert.equal(leadPayload.techo.area_m2, 200);
+  assert.equal(leadPayload.facturas.count, 1);
+  assert.ok(typeof leadPayload.rango_texto === 'string' && leadPayload.rango_texto);
+});
