@@ -108,7 +108,7 @@ export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint,
 
   function newCurrent() {
     current = new g.maps.Polygon({
-      map, editable: true, fillColor: ROOF_COLOR, fillOpacity: 0.25,
+      map, editable: true, clickable: false, fillColor: ROOF_COLOR, fillOpacity: 0.25,
       strokeColor: ROOF_COLOR, strokeWeight: 2
     });
     attachPoly(current);

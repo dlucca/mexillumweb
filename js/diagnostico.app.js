@@ -1,5 +1,5 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=9';
-import { mountRoofPicker } from './diagnostico.roof.js?v=9';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=10';
+import { mountRoofPicker } from './diagnostico.roof.js?v=10';
 import { mountFacturasUploader } from './diagnostico.facturas.js';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
@@ -487,7 +487,7 @@ export function initDiagnostico({ content, calLink, origen }) {
           <div class="dx-cierre__path">
             <h3>Afinar mi anteproyecto</h3>
             <p class="dx__col-sub">Agrega facturas y, cuando aplique, espacio disponible. Puedes saltar cualquier dato.</p>
-            <button type="button" class="mx-btn mx-btn--ghost" data-act="afinar">Afinar mi anteproyecto</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="afinar">Afinar mi anteproyecto</button>
           </div>
         </div>
         <div class="dx__nav">
