@@ -77,6 +77,17 @@ test('tipo_cierre llamada NO manda correo al cliente', async () => {
   assert.equal(emails.find((e) => e.to === 'ana@acme.mx'), undefined);
 });
 
+test('propuesta preliminar acepta empresa vacía', async () => {
+  const { res } = await enviar({ ...base, empresa: '', tipo_cierre: 'preliminar' });
+  assert.equal(res.statusCode, 200);
+});
+
+test('agenda requiere empresa para calificar el lead', async () => {
+  const { res, emails } = await enviar({ ...base, empresa: '', tipo_cierre: 'llamada' });
+  assert.equal(res.statusCode, 400);
+  assert.equal(emails.length, 0);
+});
+
 // Envía el lead con fetch stubeado (Resend + DocuSeal), capturando por URL.
 async function enviarConDocuseal(payload, { docuseal = true } = {}) {
   const capturado = [];

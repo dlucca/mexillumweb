@@ -2,12 +2,18 @@
 // reordenar prioridades = editar este archivo. Sin lógica: engine.js lee de acá. Copy es-MX (tuteo).
 
 const content = {
+  profile: {
+    id: 'hoteles',
+    label: 'Hoteles',
+    route: '/diagnostico-hoteles',
+    version: '2.0'
+  },
   intro: {
     titulo: 'Diagnóstico energético para tu hotel en 2 minutos',
     cuerpo: 'Ocho preguntas sobre tu propiedad —climatización, ocupación, tarifa CFE—. Al final ves qué oportunidades de ahorro aplican a tu hotel, cuál atacar primero y, cuando tu tarifa lo permite, un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
     // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
     // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
-    pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres agendar la llamada.',
+    pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres recibirlo por correo o avanzar con el anteproyecto.',
     cta: 'Empezar'
   },
 
@@ -535,7 +541,22 @@ const content = {
     recomendacionLabel: 'Configuración a evaluar',
     rankingLabel: 'Prioridad técnica',
     limitacionesLabel: 'Para cerrar el número, todavía falta',
-    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías de grado industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.'
+    bessGlosa: 'BESS son las siglas de Battery Energy Storage System: un banco de baterías de grado industrial que almacena energía para usarla cuando más te conviene —recortar tu pico de demanda, mover consumo a horas baratas o sostener la operación ante un corte.',
+    aplicaFrase: {
+      'Muy Alto': 'tiene un encaje preliminar muy alto para tu hotel',
+      'Alto': 'tiene buen encaje preliminar para tu hotel',
+      'Medio': 'podría aplicar en tu hotel',
+      'Bajo': 'requiere más datos antes de recomendarlo para tu hotel'
+    }
+  },
+
+  postResult: {
+    label: 'Precisar mi hotel'
+  },
+
+  emailVocabulary: {
+    site: 'hotel',
+    technicalContact: 'responsable de mantenimiento o ingeniería'
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

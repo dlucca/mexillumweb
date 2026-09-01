@@ -2,12 +2,18 @@
 // prioridades = editar este archivo. Sin lógica: engine.js lee de acá. Copy es-MX (tuteo).
 
 const content = {
+  profile: {
+    id: 'industria_comercio',
+    label: 'Industria y comercio',
+    route: '/diagnostico-industria-comercio',
+    version: '2.0'
+  },
   intro: {
     titulo: 'Diagnóstico energético en 2 minutos',
     cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué oportunidades de ahorro aplican en tu caso, cuál atacar primero, y —cuando tu tarifa lo permite— un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
     // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
     // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
-    pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres agendar la llamada.',
+    pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres recibirlo por correo o avanzar con el anteproyecto.',
     cta: 'Empezar'
   },
 
@@ -544,6 +550,15 @@ const content = {
       'Medio': 'podría aplicar a tu operación',
       'Bajo': 'quizá aplique, habría que revisarlo'
     }
+  },
+
+  postResult: {
+    label: 'Precisar mi proyecto'
+  },
+
+  emailVocabulary: {
+    site: 'operación',
+    technicalContact: 'responsable de energía o mantenimiento'
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

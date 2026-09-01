@@ -61,6 +61,7 @@ export function plantaLabel() {
 // BLOQUE A — línea de perfil.
 export function buildProfile(resp, content) {
   const sector = content.perfilSector[resp.sector] || resp.sector;
+  if (!sector) return `Perfil: solicitud de anteproyecto para ${content.profile?.label?.toLowerCase() || 'tu operación'}.`;
   const exp = content.perfilExposicion.find((r) => matchesWhen(resp, r.when));
   const exposicion = exp ? exp.text : content.perfilExposicionDefault;
   return `Perfil: ${sector} ${exposicion}.`;
@@ -70,6 +71,7 @@ export function buildProfile(resp, content) {
 export function toReadable(resp, content) {
   const legibles = {};
   const labelDe = (paso, cod) => {
+    if (cod == null || cod === '') return '—';
     const o = paso.opciones.find((op) => op.codigo === cod);
     return o ? o.label : cod;
   };
@@ -609,6 +611,10 @@ export function assembleResult(estado, content) {
     rol: contacto.rol || '',
     presupuesto: contacto.presupuesto || '',
     tipo_cierre: contacto.tipo_cierre || '',
+    profile_id: content.profile?.id || 'industria_comercio',
+    profile_label: content.profile?.label || 'Industria y comercio',
+    profile_version: content.profile?.version || '1.0',
+    email_vocabulary: content.emailVocabulary || {},
     ubicacion: estado.ubicacion || null,
     techo: estado.techo || null,
     facturas: estado.facturas || null,

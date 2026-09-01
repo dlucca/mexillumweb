@@ -77,8 +77,24 @@ export default async function handler(req, res) {
   const telefono = clean(body.telefono, 40);
   const rol = clean(body.rol, 60);
   const origen = clean(body.origen, 40);
+  const profileId = clean(body.profile_id, 60);
+  const profileLabel = clean(body.profile_label, 80);
+  const profileVersion = clean(body.profile_version, 20);
+  const leadStage = clean(body.lead_stage, 40);
+  const vocabulary = (body.email_vocabulary && typeof body.email_vocabulary === 'object' && !Array.isArray(body.email_vocabulary))
+    ? body.email_vocabulary : {};
+  const attribution = (body.attribution && typeof body.attribution === 'object' && !Array.isArray(body.attribution))
+    ? body.attribution : {};
+  const sourceDetail = [
+    clean(attribution.utm_source, 80), clean(attribution.utm_medium, 80),
+    clean(attribution.utm_campaign, 120), clean(attribution.source, 80)
+  ].filter(Boolean).join(' · ');
+  const referrer = clean(attribution.referrer, 300);
+  const siteWord = clean(vocabulary.site, 80) || 'operación';
+  const technicalContact = clean(vocabulary.technicalContact, 100) || 'responsable de energía o mantenimiento';
+  const tipoCierre = clean(body.tipo_cierre, 20);
 
-  if (!nombre || !EMAIL_RE.test(correo)) {
+  if (!nombre || !EMAIL_RE.test(correo) || (tipoCierre === 'llamada' && !empresa)) {
     return res.status(400).json({ error: 'Datos incompletos o inválidos.' });
   }
 
@@ -95,7 +111,6 @@ export default async function handler(req, res) {
   const palS = palancasLead && palancasLead.secundaria && typeof palancasLead.secundaria === 'object'
     ? { nombre: clean(palancasLead.secundaria.nombre, 60), text: clean(palancasLead.secundaria.text, 300) } : null;
 
-  const tipoCierre = clean(body.tipo_cierre, 20);
   const ubic = (body.ubicacion && typeof body.ubicacion === 'object' && !Array.isArray(body.ubicacion))
     ? {
         direccion: clean(body.ubicacion.direccion, 200),
@@ -157,7 +172,7 @@ export default async function handler(req, res) {
     : '';
 
   const respuestas = PREGUNTAS.map(([key, label]) => {
-    const etiqueta = (origen === 'hoteles' && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
+    const etiqueta = (origen.startsWith('hoteles') && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
     const visible = clean(legibles[key], 240);
     const codigo = clean(codigos[key], 40);
     return { label: etiqueta, visible: visible || codigo || '—' };
@@ -172,9 +187,11 @@ export default async function handler(req, res) {
   }
 
   const quien = empresa ? `${nombre} — ${empresa}` : nombre;
-  const subject = origen === 'hoteles'
+  const subject = origen.startsWith('hoteles')
     ? `Diagnóstico Hoteles — ${quien}`
-    : `Diagnóstico — ${quien}`;
+    : (profileId && profileId !== 'industria_comercio' && profileLabel
+        ? `Diagnóstico ${profileLabel} — ${quien}`
+        : `Diagnóstico — ${quien}`);
 
   // Links firmados temporales (30 días) para que ventas abra las facturas privadas.
   async function firmarFacturas(paths) {
@@ -210,6 +227,10 @@ export default async function handler(req, res) {
     `Teléfono: ${telefono || '—'}`,
     `Rol:      ${rol || '—'}`,
     origen ? `Origen:   ${origen}` : null,
+    profileLabel ? `Diagnóstico: ${profileLabel}${profileVersion ? ` · v${profileVersion}` : ''}` : null,
+    leadStage ? `Etapa:    ${leadStage}` : null,
+    sourceDetail ? `Campaña:  ${sourceDetail}` : null,
+    referrer ? `Referente: ${referrer}` : null,
     '',
     perfil,
     `Rango estimado: ${rangoTexto}`,
@@ -261,6 +282,10 @@ export default async function handler(req, res) {
     (telefono ? fila('Teléfono', telefono) : '') +
     (rol ? fila('Rol', rol) : '') +
     (origen ? fila('Origen', origen) : '') +
+    (profileLabel ? fila('Diagnóstico', `${profileLabel}${profileVersion ? ` · v${profileVersion}` : ''}`) : '') +
+    (leadStage ? fila('Etapa', leadStage) : '') +
+    (sourceDetail ? fila('Campaña', sourceDetail) : '') +
+    (referrer ? fila('Referente', referrer) : '') +
     `</table>` +
 
     (ubic || techoArea != null || facturaLinks.length
@@ -335,12 +360,12 @@ export default async function handler(req, res) {
       const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
 
       const faltan = [
-        'Horario u operación detallada de la planta.',
+        `Horario u operación detallada de tu ${siteWord}.`,
         'Capacidad del transformador y tablero principal (diagrama unifilar).',
         'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.',
         'Frecuencia y duración de los cortes de energía.',
         'Número de servicio (RPU) de tu recibo CFE.',
-        'Contacto técnico o eléctrico de tu planta.',
+        `Contacto del ${technicalContact}.`,
         'Rango de inversión y forma preferida (compra directa o servicio/PPA).'
       ];
       if (!tieneRecibos) faltan.push('Tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa).');
@@ -354,7 +379,7 @@ export default async function handler(req, res) {
       const lineasCliente = [
         `Hola ${nombre || ''},`,
         '',
-        'Gracias por completar tu diagnóstico. Esto es lo que vemos para tu operación:',
+        `Gracias por completar tu diagnóstico. Esto es lo que vemos para tu ${siteWord}:`,
         '',
         'Tu perfil',
         perfil || '—',
@@ -387,7 +412,7 @@ export default async function handler(req, res) {
       const htmlCliente =
         `<div style="font-family:Arial,Helvetica,sans-serif;color:#16221A;max-width:560px;font-size:14px;line-height:1.5">` +
         `<p style="margin:0 0 12px">Hola ${esc(nombre || '')},</p>` +
-        `<p style="margin:0 0 12px">Gracias por completar tu diagnóstico. Esto es lo que vemos para tu operación:</p>` +
+        `<p style="margin:0 0 12px">Gracias por completar tu diagnóstico. Esto es lo que vemos para tu ${esc(siteWord)}:</p>` +
         seccion('Tu perfil', `<p style="margin:0 0 8px">${esc(perfil || '—')}</p>`) +
         (rangoReal ? seccion('Ahorro estimado (referencia)', `<p style="margin:0 0 8px;font-weight:bold">${esc(rangoReal)}</p>`) : '') +
         seccion('Lo que más te conviene',

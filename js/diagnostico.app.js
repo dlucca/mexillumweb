@@ -1,6 +1,8 @@
 import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { mountFacturasUploader } from './diagnostico.facturas.js';
+import { trackDx } from './diagnostico.analytics.js';
+import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
 
 // Instancia self-hosted de cal.diy. El origen es común a todas las versiones.
 const CAL_ORIGIN = 'https://cal.mexillum.com';
@@ -10,15 +12,26 @@ const CAL_ORIGIN = 'https://cal.mexillum.com';
 // el lead. Toda la lógica de pantallas vive aquí; los archivos *.view.js solo arrancan.
 export function initDiagnostico({ content, calLink, origen }) {
   const root = document.getElementById('dx-root');
+  const profileId = content.profile?.id || origen || 'industria_comercio';
+  const stateId = `${profileId}:${content.profile?.version || '1.0'}`;
 
   // Modo rápido: el link `?rapido` es para pasarle a un prospecto directo. Salta
   // el cuestionario y arranca en el mapa: marcar espacio → facturas → formulario.
-  const rapido = new URLSearchParams(globalThis.location?.search || '').has('rapido');
+  const query = new URLSearchParams(globalThis.location?.search || '');
+  const rapido = query.has('rapido');
+  const attribution = {
+    utm_source: query.get('utm_source') || '',
+    utm_medium: query.get('utm_medium') || '',
+    utm_campaign: query.get('utm_campaign') || '',
+    source: query.get('source') || '',
+    referrer: document.referrer || ''
+  };
   // Etiqueta el lead para que ventas sepa que vino del link corto (sin cuestionario).
   const origenEfectivo = rapido ? (origen ? `${origen}-rapido` : 'rapido') : origen;
 
+  const saved = rapido ? null : loadDxState(stateId);
   const estado = {
-    paso: rapido ? 'techo' : 'intro',   // 'intro' | 0..7 | 'result' | 'techo' | 'facturas' | 'cierre'
+    paso: rapido ? (content.postResult?.skipRoof ? 'facturas' : 'techo') : (saved?.paso ?? 'intro'),
     respuestas: {},
     contacto: {},
     resultado: null,          // cache del assembleResult
@@ -26,7 +39,17 @@ export function initDiagnostico({ content, calLink, origen }) {
     ubicacion: null,
     techo: null,
     facturas: null,
+    ...(saved || {}),
   };
+  let resultTracked = false;
+  trackDx('viewed', { profile_id: profileId, rapido });
+
+  function enrichmentStep(res = estado.resultado) {
+    if (content.postResult?.skipRoof) return 'facturas';
+    if (content.postResult?.alwaysRoof) return 'techo';
+    const family = res?.recomendacion_solucion?.familia || '';
+    return ['solar', 'bess_solar', 'off_grid'].includes(family) ? 'techo' : 'facturas';
+  }
 
   function el(html) {
     const t = document.createElement('template');
@@ -64,6 +87,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       </div>`);
     view.querySelector('[data-act="empezar"]').addEventListener('click', () => {
       estado.paso = 0;
+      trackDx('started', { profile_id: profileId });
       render();
     });
     root.replaceChildren(view);
@@ -150,6 +174,7 @@ export function initDiagnostico({ content, calLink, origen }) {
     });
     siguiente.addEventListener('click', () => {
       if (!estado.respuestas[paso.key]) return;
+      trackDx('step_completed', { profile_id: profileId, step: paso.key, step_number: idx + 1 });
       if (estado.paso < content.pasos.length - 1) estado.paso += 1;
       else estado.paso = 'result';
       render();
@@ -253,6 +278,7 @@ export function initDiagnostico({ content, calLink, origen }) {
     });
     siguiente.addEventListener('click', () => {
       if (!estado.respuestas[paso.key].length) return;
+      trackDx('step_completed', { profile_id: profileId, step: paso.key, step_number: idx + 1 });
       if (estado.paso < content.pasos.length - 1) estado.paso += 1;
       else estado.paso = 'result';
       render();
@@ -316,7 +342,6 @@ export function initDiagnostico({ content, calLink, origen }) {
     window.Cal('on', {
       action: 'bookingSuccessful',
       callback: (e) => {
-        if (leadEnviado) return;
         const c = bookingContact(e?.detail?.data);
         estado.contacto = {
           nombre: estado.contacto.nombre || c.nombre,
@@ -328,7 +353,9 @@ export function initDiagnostico({ content, calLink, origen }) {
           tipo_cierre: estado.contacto.tipo_cierre || 'llamada'
         };
         estado.resultado = assembleResult(estado, content);
-        submitLead(origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload);
+        const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
+        submitLead(payload, 'calendar_booked');
+        trackDx('calendar_booked', { profile_id: profileId });
       }
     });
   }
@@ -375,14 +402,17 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   // ---- Paso: subir facturas (opcional) ----------------------------------------
   function renderFacturas() {
+    const botonAtras = rapido && content.postResult?.skipRoof
+      ? ''
+      : '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
     const view = el(`
       <div class="dx__view">
-        <h2 class="dx__question" data-dx-focus tabindex="-1">Sube tus últimas 12 facturas</h2>
-        <p class="dx__col-sub">Con tus facturas de CFE calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.</p>
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Sube tus últimas 12 facturas de energía</h2>
+        <p class="dx__col-sub">Con tus facturas de CFE o de tu suministrador calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.</p>
         <p class="dx__col-sub">Tus recibos son confidenciales. Solo los usamos para tu diagnóstico y no los compartimos.</p>
         <div class="dx-fac-mount"></div>
         <div class="dx__nav dx__nav--end">
-          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          ${botonAtras}
           <span class="dx__skiprow">
             <button type="button" class="dx__skip" data-act="saltar">Saltar por ahora</button>
             <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente">Continuar</button>
@@ -394,9 +424,16 @@ export function initDiagnostico({ content, calLink, origen }) {
       leadId: estado.lead_id,
       onChange: (f) => { estado.facturas = f; }
     });
-    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'techo'; render(); });
-    view.querySelector('[data-act="saltar"]').addEventListener('click', () => { estado.paso = 'cierre'; render(); });
-    view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { estado.paso = 'cierre'; render(); });
+    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => {
+      estado.paso = rapido ? (content.postResult?.skipRoof ? 'facturas' : 'techo') : (enrichmentStep() === 'techo' ? 'techo' : 'cierre');
+      render();
+    });
+    const finishEnrichment = () => {
+      estado.paso = estado.contacto.nombre ? 'agenda' : 'cierre';
+      render();
+    };
+    view.querySelector('[data-act="saltar"]').addEventListener('click', finishEnrichment);
+    view.querySelector('[data-act="siguiente"]').addEventListener('click', finishEnrichment);
 
     root.replaceChildren(view);
     focusMain();
@@ -409,40 +446,35 @@ export function initDiagnostico({ content, calLink, origen }) {
 
     const view = el(`
       <div class="dx__view">
-        <h2 class="dx__question" data-dx-focus tabindex="-1">Elige cómo quieres tu anteproyecto</h2>
+        <h2 class="dx__question" data-dx-focus tabindex="-1">¿Cómo quieres continuar?</h2>
         <div class="dx-cierre">
           <label class="dx-cierre__field">Nombre
-            <input type="text" data-f="nombre" autocomplete="name">
+            <input type="text" data-f="nombre" autocomplete="name" required value="${esc(estado.contacto.nombre || '')}">
           </label>
-          <label class="dx-cierre__field">Empresa
-            <input type="text" data-f="empresa" autocomplete="organization" required>
+          <label class="dx-cierre__field">Empresa (opcional)
+            <input type="text" data-f="empresa" autocomplete="organization" value="${esc(estado.contacto.empresa || '')}">
           </label>
           <label class="dx-cierre__field">Correo
-            <input type="email" data-f="correo" autocomplete="email" required>
+            <input type="email" data-f="correo" autocomplete="email" required value="${esc(estado.contacto.correo || '')}">
           </label>
           <label class="dx-cierre__field">Teléfono (opcional)
-            <input type="tel" data-f="telefono" autocomplete="tel">
+            <input type="tel" data-f="telefono" autocomplete="tel" value="${esc(estado.contacto.telefono || '')}">
           </label>
-          <p class="dx-cierre__err" role="alert" hidden>Escribe tu empresa y un correo válido.</p>
+          <p class="dx-cierre__err" role="alert" hidden></p>
+          <p class="dx-cierre__privacy">Al continuar, autorizas a Mexillum a usar estos datos para dar seguimiento a tu diagnóstico. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</p>
         </div>
 
         <div class="dx-cierre__paths">
           <div class="dx-cierre__path">
             <h3>Propuesta preliminar por correo</h3>
-            <p class="dx__col-sub">Déjanos tu correo y te contactamos con tu propuesta preliminar.</p>
+            <p class="dx__col-sub">Déjanos tu nombre y correo y te contactamos con tu propuesta preliminar.</p>
             <button type="button" class="mx-btn mx-btn--primary" data-act="preliminar">Recibir propuesta preliminar</button>
             <p class="dx-cierre__ok" data-slot="okA" hidden>¡Listo! Pronto te contactaremos.</p>
           </div>
           <div class="dx-cierre__path">
-            <h3>Agendar una llamada</h3>
-            <p class="dx__col-sub">Para un aproximado con más detalle, agenda una llamada.</p>
-            <button type="button" class="mx-btn mx-btn--ghost" data-act="agendar">Agendar llamada</button>
-            <div class="dx__cal" id="agenda" hidden></div>
-            <aside class="dx__checklist" data-slot="checklist" aria-label="Qué tener a mano para la llamada" hidden>
-              <h3>${esc(content.anteproyectoTituloLead)}</h3>
-              <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
-              <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
-            </aside>
+            <h3>Afinar mi anteproyecto</h3>
+            <p class="dx__col-sub">Agrega facturas y, cuando aplique, espacio disponible. Puedes saltar cualquier dato.</p>
+            <button type="button" class="mx-btn mx-btn--ghost" data-act="afinar">Afinar mi anteproyecto</button>
           </div>
         </div>
         <div class="dx__nav">
@@ -454,14 +486,24 @@ export function initDiagnostico({ content, calLink, origen }) {
     const getField = (f) => view.querySelector(`[data-f="${f}"]`).value.trim();
     const errEl = view.querySelector('.dx-cierre__err');
 
-    function capturarContacto() {
+    function capturarContacto(tipo) {
+      const nombre = getField('nombre');
       const empresa = getField('empresa');
       const correo = getField('correo');
-      if (!empresa || !EMAIL_RE.test(correo)) { errEl.hidden = false; return false; }
+      if (!nombre || !EMAIL_RE.test(correo)) {
+        errEl.textContent = 'Escribe tu nombre y un correo válido.';
+        errEl.hidden = false;
+        return false;
+      }
+      if (tipo === 'llamada' && !empresa) {
+        errEl.textContent = 'Para agendar, agrega también el nombre de tu empresa.';
+        errEl.hidden = false;
+        return false;
+      }
       errEl.hidden = true;
       estado.contacto = {
         ...estado.contacto,
-        nombre: getField('nombre'),
+        nombre,
         empresa,
         correo,
         telefono: getField('telefono')
@@ -469,27 +511,140 @@ export function initDiagnostico({ content, calLink, origen }) {
       return true;
     }
 
-    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'result'; render(); });
 
-    view.querySelector('[data-act="preliminar"]').addEventListener('click', () => {
-      if (!capturarContacto()) return;
+    view.querySelector('[data-act="preliminar"]').addEventListener('click', async (event) => {
+      if (!capturarContacto('preliminar')) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      const previousText = button.textContent;
+      button.textContent = 'Enviando…';
       estado.contacto.tipo_cierre = 'preliminar';
       estado.resultado = assembleResult(estado, content);
       const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
-      submitLead(payload);
-      view.querySelector('[data-slot="okA"]').hidden = false;
+      const ok = await submitLead(payload, 'proposal_requested');
+      button.textContent = previousText;
+      button.disabled = ok;
+      if (ok) {
+        view.querySelector('[data-slot="okA"]').hidden = false;
+        trackDx('proposal_requested', { profile_id: profileId });
+      } else {
+        errEl.textContent = 'No pudimos enviar tu solicitud. Intenta de nuevo en un momento.';
+        errEl.hidden = false;
+      }
     });
 
-    view.querySelector('[data-act="agendar"]').addEventListener('click', () => {
-      if (!capturarContacto()) return;
-      estado.contacto.tipo_cierre = 'llamada';
+    view.querySelector('[data-act="afinar"]').addEventListener('click', async (event) => {
+      if (!capturarContacto('anteproyecto')) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      const previousText = button.textContent;
+      button.textContent = 'Guardando…';
+      estado.contacto.tipo_cierre = 'anteproyecto';
       estado.resultado = assembleResult(estado, content);
-      const calEl = view.querySelector('#agenda');
-      calEl.hidden = false;
+      const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
+      const ok = await submitLead(payload, 'enrichment_started');
+      button.textContent = previousText;
+      button.disabled = false;
+      if (!ok) {
+        errEl.textContent = 'No pudimos guardar tus datos. Intenta de nuevo en un momento.';
+        errEl.hidden = false;
+        return;
+      }
+      trackDx('enrichment_started', { profile_id: profileId });
+      estado.paso = enrichmentStep(res);
+      render();
+    });
+
+    root.replaceChildren(view);
+    focusMain();
+  }
+
+  // ---- Handoff después de aportar datos técnicos ------------------------------
+  function renderAgenda() {
+    const res = assembleResult(estado, content);
+    estado.resultado = res;
+    const view = el(`
+      <div class="dx__view">
+        <p class="dx__diag-kicker">Información recibida</p>
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Elige el siguiente paso</h2>
+        <p class="dx__col-sub">Ya guardamos lo que compartiste. Puedes pedir la revisión por correo o reservar una llamada.</p>
+        <div class="dx-cierre">
+          <label class="dx-cierre__field">Empresa (necesaria para agendar)
+            <input type="text" data-f="empresa" autocomplete="organization" value="${esc(estado.contacto.empresa || '')}">
+          </label>
+          <p class="dx-cierre__err" role="alert" hidden></p>
+        </div>
+        <div class="dx-cierre__paths">
+          <div class="dx-cierre__path">
+            <h3>Recibir revisión por correo</h3>
+            <p class="dx__col-sub">Un asesor revisará tu diagnóstico y la información aportada.</p>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="enviar">Enviar para revisión</button>
+            <p class="dx-cierre__ok" data-slot="ok" hidden>¡Listo! Recibirás el seguimiento en tu correo.</p>
+          </div>
+          <div class="dx-cierre__path">
+            <h3>Agendar una llamada</h3>
+            <p class="dx__col-sub">Revisa el caso directamente con un especialista.</p>
+            <button type="button" class="mx-btn mx-btn--ghost" data-act="agendar">Agendar llamada</button>
+            <div class="dx__cal" id="agenda" hidden></div>
+            <aside class="dx__checklist" data-slot="checklist" hidden>
+              <h3>${esc(content.anteproyectoTituloLead)}</h3>
+              <ul>${res.anteproyecto.lead.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+              <p class="dx__checklist__foot">${esc(content.checklistPie)}</p>
+            </aside>
+          </div>
+        </div>
+        <div class="dx__nav"><button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button></div>
+      </div>`);
+    const errEl = view.querySelector('.dx-cierre__err');
+    const payload = (stage) => {
+      estado.contacto.empresa = view.querySelector('[data-f="empresa"]').value.trim();
+      estado.resultado = assembleResult(estado, content);
+      const base = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
+      return submitLead(base, stage);
+    };
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+    view.querySelector('[data-act="enviar"]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Enviando…';
+      estado.contacto.tipo_cierre = 'preliminar';
+      const ok = await payload('proposal_requested');
+      button.textContent = 'Enviar para revisión';
+      button.disabled = ok;
+      if (ok) {
+        view.querySelector('[data-slot="ok"]').hidden = false;
+        trackDx('proposal_requested', { profile_id: profileId, enriched: true });
+      } else {
+        errEl.textContent = 'No pudimos enviar la información. Intenta de nuevo.';
+        errEl.hidden = false;
+      }
+    });
+    view.querySelector('[data-act="agendar"]').addEventListener('click', async (event) => {
+      const empresa = view.querySelector('[data-f="empresa"]').value.trim();
+      if (!empresa) {
+        errEl.textContent = 'Agrega el nombre de tu empresa para abrir la agenda.';
+        errEl.hidden = false;
+        return;
+      }
+      errEl.hidden = true;
+      estado.contacto.tipo_cierre = 'llamada';
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Preparando agenda…';
+      const ok = await payload('calendar_opened');
+      button.textContent = 'Agendar llamada';
+      button.disabled = ok;
+      if (!ok) {
+        errEl.textContent = 'No pudimos preparar la agenda. Intenta de nuevo.';
+        errEl.hidden = false;
+        return;
+      }
+      view.querySelector('#agenda').hidden = false;
       view.querySelector('[data-slot="checklist"]').hidden = false;
       mountCal('#agenda', estado.resultado);
+      trackDx('calendar_opened', { profile_id: profileId });
     });
-
     root.replaceChildren(view);
     focusMain();
   }
@@ -497,6 +652,14 @@ export function initDiagnostico({ content, calLink, origen }) {
   // ---- Pantalla final: diagnóstico (A–E) + agenda ------------------------------
   function renderResult() {
     const res = estado.resultado || assembleResult(estado, content);
+    if (!resultTracked) {
+      resultTracked = true;
+      trackDx('result_viewed', {
+        profile_id: profileId,
+        potential: res.potencial_general,
+        recommendation: res.recomendacion_solucion?.familia
+      });
+    }
     const c = res.calculo;
     const p = res.palancas;
 
@@ -515,45 +678,49 @@ export function initDiagnostico({ content, calLink, origen }) {
       ...c.notas.map((n) => `<p>${esc(n)}</p>`)
     ].join('');
 
-    // Bloque C: gancho (casi siempre ausente) + palancas como lista de tres jerárquica.
+    // Una palanca principal y, como máximo, una secundaria: evita repetir el ranking.
     const ganchoHtml = res.gancho ? `<p class="dx__gancho"><em>${esc(res.gancho)}</em></p>` : '';
+    const secundaria = p.secundaria || p.factorPotencia;
     const palancaLi = (tag, tagMod, nombre, text) =>
       `<li><span class="dx__palanca-tag${tagMod}">${esc(tag)}</span> <strong>${esc(nombre)}.</strong> ${esc(text)}</li>`;
     const palancasHtml = `
           ${ganchoHtml}
           <ul class="dx__palancas">
             ${palancaLi('Principal', '', p.principal.nombre, p.principal.text)}
-            ${p.secundaria ? palancaLi('Secundaria', '', p.secundaria.nombre, p.secundaria.text) : ''}
-            ${p.factorPotencia ? palancaLi('Secundaria', '', p.factorPotencia.nombre, p.factorPotencia.text) : ''}
+            ${secundaria ? palancaLi('Secundaria', '', secundaria.nombre, secundaria.text) : ''}
           </ul>`;
 
-    // Resumen comercial discreto (mejora #1): potencial + recomendación + top 3 del
-    // ranking + hasta 2 limitaciones críticas. Parte del diagnóstico, no un dashboard.
+    // Configuración y confianza se presentan como conclusiones; el ranking queda interno.
     const rz = content.resumen;
-    const aplicacionRank = res.ranking.find((o) => o.id === res.aplicacion_principal.id);
-    const top3 = [aplicacionRank, ...res.ranking.filter((o) => o.id !== res.aplicacion_principal.id)]
-      .filter(Boolean)
-      .slice(0, 3);
-    const rankingLis = top3.map((o) =>
-      `<li><span class="dx__rank-name">${esc(o.nombre)}</span></li>`).join('');
     const limCriticas = res.limitaciones.slice(0, 2);
     const limHtml = limCriticas.length
       ? `<p class="dx__resumen-k">${esc(rz.limitacionesLabel)}:</p>
          <ul class="dx__resumen-lim">${limCriticas.map((l) => `<li>${esc(l.dato)}</li>`).join('')}</ul>`
       : '';
     const tipoRec = res.recomendacion_solucion.tipo;
-    const aplicaFrase = rz.aplicaFrase[res.potencial_general] || 'podría aplicar a tu operación';
-    const resumenHtml = `
-          <aside class="dx__resumen" aria-label="Resumen del diagnóstico">
+    const aplicaFrase = rz.aplicaFrase?.[res.potencial_general] || 'podría aplicar a tu operación';
+    const unknowns = ['perfil', 'tarifa', 'factura'].filter((key) => estado.respuestas[key] === 'nolose').length;
+    const confianza = unknowns >= 2 || limCriticas.length >= 2 ? 'Preliminar' : (unknowns || limCriticas.length ? 'Media' : 'Alta');
+    const tamano = c.sin_numero ? 'Sin cuantificar' : c.rango_texto;
+    const nextCopy = 'Elige si quieres recibir este diagnóstico por correo o aportar datos para afinar el anteproyecto.';
+    const configuracionHtml = `
+          <aside class="dx__resumen" aria-label="Configuración a evaluar">
+            <p class="dx__resumen-k">Configuración a evaluar</p>
             <p class="dx__resumen-frase">Por lo que nos contaste, <strong>${esc(tipoRec)}</strong> ${esc(aplicaFrase)}.</p>
             ${/BESS/.test(res.recomendacion_solucion.tipo) ? `<p class="dx__resumen-glosa">${esc(rz.bessGlosa)}</p>` : ''}
             <p class="dx__resumen-razon">${esc(res.recomendacion_solucion.razon)}</p>
-            <p class="dx__resumen-k">${esc(rz.rankingLabel)}</p>
-            <ol class="dx__ranking">${rankingLis}</ol>
+          </aside>`;
+    const confianzaHtml = `
+          <aside class="dx__resumen" aria-label="Firmeza de la conclusión">
+            <p class="dx__resumen-k">Qué tan firme es esta conclusión</p>
+            <div class="dx__resumen-heads">
+              <p class="dx__resumen-line"><span class="dx__resumen-k">Encaje técnico</span><strong>${esc(res.potencial_general)}</strong></p>
+              <p class="dx__resumen-line"><span class="dx__resumen-k">Tamaño</span><strong>${esc(tamano)}</strong></p>
+              <p class="dx__resumen-line"><span class="dx__resumen-k">Confianza</span><strong>${esc(confianza)}</strong></p>
+            </div>
             ${limHtml}
           </aside>`;
 
-    const items = res.checklist.web.map((b) => `<li>${esc(b)}</li>`).join('');
     const itemsFull = res.checklist.full.map((b) => `<li>${esc(b)}</li>`).join('');
 
     const view = el(`
@@ -561,15 +728,17 @@ export function initDiagnostico({ content, calLink, origen }) {
         <section class="dx__diag" aria-labelledby="dx-diag-h">
           <p class="dx__diag-kicker">Diagnóstico listo</p>
           <h2 class="dx__col-title" id="dx-diag-h" data-dx-focus tabindex="-1">${esc(res.perfil)}</h2>
+          ${configuracionHtml}
+          <p class="dx__resumen-k">Qué puede mejorar</p>
           ${bloqueBHtml}
           ${palancasHtml}
-          ${resumenHtml}
+          ${confianzaHtml}
           <p class="dx__fin">${esc(res.financiamiento)}</p>
           <div class="dx__cta">
-            <p class="dx__cta-p">Esto es un primer diagnóstico. Para determinar tu proyecto con mayor precisión, dinos 2 datos más: marca tu techo y sube tus recibos de luz. Te toma 2 minutos.</p>
+            <p class="dx__cta-p">${esc(nextCopy)}</p>
           </div>
           <div class="dx__actions">
-            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">Precisar mi proyecto</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="continuar">${esc(content.postResult?.label || 'Precisar mi proyecto')}</button>
             <button type="button" class="mx-btn mx-btn--ghost" data-act="reiniciar">${esc(content.resultado.reiniciar)}</button>
           </div>
         </section>
@@ -592,12 +761,16 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.techo = null;
       estado.facturas = null;
       estado.lead_id = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
-      leadEnviado = false;
+      submittedStages.clear();
+      resultTracked = false;
+      clearDxState(stateId);
+      trackDx('restarted', { profile_id: profileId });
       render();
     });
 
     view.querySelector('[data-act="continuar"]').addEventListener('click', () => {
-      estado.paso = 'techo';
+      estado.paso = 'cierre';
+      trackDx('result_cta_clicked', { profile_id: profileId, next_step: 'contact' });
       render();
     });
 
@@ -606,28 +779,29 @@ export function initDiagnostico({ content, calLink, origen }) {
   }
 
   function render() {
+    saveDxState(stateId, estado);
     if (estado.paso === 'intro') return renderIntro();
     if (estado.paso === 'result') return renderResult();
     if (estado.paso === 'techo') return renderTecho();
     if (estado.paso === 'facturas') return renderFacturas();
     if (estado.paso === 'cierre') return renderCierre();
+    if (estado.paso === 'agenda') return renderAgenda();
     return renderStep();
   }
 
-  // Envía el lead a /api/lead (Resend). Fire-and-forget: un fallo no rompe la pantalla.
-  let leadEnviado = false;
-  function submitLead(payload) {
-    if (leadEnviado) return Promise.resolve(false);
-    leadEnviado = true;
+  const submittedStages = new Set();
+  function submitLead(payload, stage) {
+    if (submittedStages.has(stage)) return Promise.resolve(true);
+    submittedStages.add(stage);
     return fetch('/api/lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, lead_stage: stage, attribution }),
       keepalive: true
     })
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return true; })
       .catch((err) => {
-        leadEnviado = false;
+        submittedStages.delete(stage);
         console.error('[diagnostico] no se pudo registrar el lead', err);
         return false;
       });

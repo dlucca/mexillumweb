@@ -1,62 +1,28 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Diagnóstico energético — Mexillum</title>
-<meta name="description" content="Ocho preguntas sobre tu operación: qué oportunidades de ahorro aplican a tu planta, cuál atacar primero y un orden de magnitud de lo que hay en juego. Sin costo y sin formulario.">
-<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-<link rel="canonical" href="https://www.mexillum.com/diagnostico">
-<meta name="theme-color" content="#080A08">
-
-<!-- Open Graph / LinkedIn. og:image debe ser absoluta: los scrapers no resuelven rutas relativas. -->
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Mexillum">
-<meta property="og:locale" content="es_MX">
-<meta property="og:url" content="https://www.mexillum.com/diagnostico">
-<meta property="og:title" content="¿Qué parte de tu factura de CFE es evitable?">
-<meta property="og:description" content="Diagnóstico energético en 2 minutos. Ocho preguntas y ves qué oportunidades de ahorro aplican a tu planta. Sin costo y sin formulario.">
-<meta property="og:image" content="https://www.mexillum.com/assets/og-diagnostico.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:type" content="image/png">
-<meta property="og:image:alt" content="Mexillum — ¿Qué parte de tu factura de CFE es evitable? Diagnóstico energético en 2 minutos, sin costo y sin formulario.">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="¿Qué parte de tu factura de CFE es evitable?">
-<meta name="twitter:description" content="Diagnóstico energético en 2 minutos. Ocho preguntas y ves qué oportunidades de ahorro aplican a tu planta. Sin costo y sin formulario.">
-<meta name="twitter:image" content="https://www.mexillum.com/assets/og-diagnostico.png">
-<link rel="stylesheet" href="../css/tokens.css">
-<link rel="stylesheet" href="../css/components.css">
-<link rel="stylesheet" href="../css/diagnostico.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elige tu diagnóstico energético — Mexillum</title>
+<meta name="description" content="Selecciona el diagnóstico que mejor describe tu operación y recibe una recomendación preliminar de generación y almacenamiento de energía.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml"><link rel="canonical" href="https://www.mexillum.com/diagnostico"><meta name="theme-color" content="#080A08">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Mexillum"><meta property="og:locale" content="es_MX"><meta property="og:url" content="https://www.mexillum.com/diagnostico"><meta property="og:title" content="Encuentra el diagnóstico energético para tu operación"><meta property="og:description" content="Cuestionarios breves por tipo de operación. Sin costo y sin formulario para ver el resultado."><meta property="og:image" content="https://www.mexillum.com/assets/og-diagnostico.png">
+<link rel="stylesheet" href="../css/tokens.css"><link rel="stylesheet" href="../css/components.css"><link rel="stylesheet" href="../css/diagnostico.css?v=8">
 </head>
 <body>
-<header class="dx__top">
-  <a class="dx__brand" href="/" aria-label="Mexillum — inicio">
-    <img class="dx__brand-mark" src="../assets/logo-mark-white.png" alt="">
-    <span class="dx__brand-word">mexillum</span>
-  </a>
-</header>
-<main class="dx">
-<h1 class="dx__sronly">Diagnóstico energético — Mexillum</h1>
-<div id="dx-root"></div>
+<header class="dx__top"><a class="dx__brand" href="/" aria-label="Mexillum — inicio"><img class="dx__brand-mark" src="../assets/logo-mark-white.png" alt=""><span class="dx__brand-word">mexillum</span></a></header>
+<main class="dx dx-hub">
+  <section class="dx-hub__intro" aria-labelledby="hub-title"><p class="dx__diag-kicker">Diagnóstico energético</p><h1 class="dx-hub__title" id="hub-title">¿Qué operación quieres evaluar?</h1><p class="dx-hub__lead">Elige el perfil que más se parece a tu proyecto. En ocho preguntas conocerás la configuración energética que vale la pena estudiar primero.</p><p class="dx__close">El resultado aparece antes de pedir tus datos.</p></section>
+  <section class="dx-hub__catalog" aria-label="Diagnósticos disponibles">
+    <a class="dx-hub__card dx-hub__card--primary" href="/diagnostico-industria-comercio" data-profile="industria_comercio"><span class="dx-hub__index">01</span><span><strong>Industria y comercio</strong><small>Manufactura, plantas, retail, oficinas e infraestructura general.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__card" href="/diagnostico-hoteles" data-profile="hoteles"><span class="dx-hub__index">02</span><span><strong>Hoteles</strong><small>Propiedades, resorts y operaciones con climatización, bombeo y continuidad.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__card" href="/diagnostico-electromovilidad" data-profile="electromovilidad"><span class="dx-hub__index">03</span><span><strong>Electromovilidad</strong><small>Flotillas, patios, estaciones públicas y expansión de cargadores.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__card" href="/diagnostico-cadena-frio" data-profile="cadena_frio"><span class="dx-hub__index">04</span><span><strong>Cadena de frío</strong><small>Refrigeración, congelación, CEDIS y conservación de producto.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__card" href="/diagnostico-microred" data-profile="microred"><span class="dx-hub__index">05</span><span><strong>Microredes y sitios remotos</strong><small>Operaciones con red débil, sin red o alto consumo de diésel.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__card" href="/diagnostico-bombeo" data-profile="bombeo"><span class="dx-hub__index">06</span><span><strong>Bombeo de agua</strong><small>Pozos, riego, cárcamos, tratamiento y distribución.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__card" href="/diagnostico-centros-datos" data-profile="centros_datos"><span class="dx-hub__index">07</span><span><strong>Centros de datos</strong><small>Infraestructura crítica, UPS, respaldo y expansión de capacidad.</small></span><span class="dx-hub__arrow" aria-hidden="true">↗</span></a>
+    <a class="dx-hub__unsure" href="/diagnostico-industria-comercio" data-profile="industria_comercio">¿No sabes cuál elegir? Empieza con industria y comercio.</a>
+  </section>
 </main>
-<footer class="dx__footer theme-dark">
-  <div class="dx__footer-inner">
-    <a class="dx__brand" href="/" aria-label="Mexillum — inicio">
-      <img class="dx__brand-mark" src="../assets/logo-mark-white.png" alt="" style="height:20px">
-      <span class="dx__brand-word">mexillum</span>
-    </a>
-    <span class="dx__footer-note">Almacenamiento y generación para industria · México</span>
-  </div>
-  <div class="dx__footer-legal">
-    <address class="dx__footer-addr">
-      <span class="dx__footer-co">Mexillum Energy S.A. de C.V.</span>
-      <span>Calle Cedro 249, Atlampa, Cuauhtémoc, 06450, CDMX</span>
-      <a href="mailto:info@mexillum.com">info@mexillum.com</a>
-    </address>
-    <span class="dx__footer-copy">© 2026 Mexillum Energy</span>
-  </div>
-</footer>
-<script type="module" src="../js/diagnostico.view.js"></script>
-</body>
-</html>
+<footer class="dx__footer theme-dark"><div class="dx__footer-inner"><a class="dx__brand" href="/"><img class="dx__brand-mark" src="../assets/logo-mark-white.png" alt="" style="height:20px"><span class="dx__brand-word">mexillum</span></a><span class="dx__footer-note">Almacenamiento y generación para operaciones críticas · México</span></div><div class="dx__footer-legal"><address class="dx__footer-addr"><span class="dx__footer-co">Mexillum Energy S.A. de C.V.</span><span>Calle Cedro 249, Atlampa, Cuauhtémoc, 06450, CDMX</span><a href="mailto:info@mexillum.com">info@mexillum.com</a></address><span class="dx__footer-copy">© 2026 Mexillum Energy</span></div></footer>
+<script type="module" src="../js/diagnostico.hub.js"></script>
+</body></html>
