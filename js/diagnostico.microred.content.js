@@ -67,6 +67,43 @@ export default createProfileContent({
   postResult: { label: 'Precisar mi microred', alwaysRoof: true },
   emailVocabulary: { site: 'sitio remoto', technicalContact: 'responsable de generación o mantenimiento' },
   overrides: {
-    financiamientoDefault: 'Una microred puede estructurarse como inversión propia o servicio, sujeto a viabilidad técnica, logística y crediticia. Primero se valida consumo, combustible, recurso renovable y autonomía requerida.'
+    financiamientoDefault: 'Una microred puede estructurarse como inversión propia o servicio, sujeto a viabilidad técnica, logística y crediticia. Primero se valida consumo, combustible, recurso renovable y autonomía requerida.',
+    palancasRespaldoVariantes: {
+      producto: 'Un corte se lleva producción, producto o material — el almacenamiento sostiene la carga esencial cuando la red o el generador fallan.',
+      reinicio: 'Cada paro detiene la operación y reiniciar toma horas; el almacenamiento lo evita.',
+      servicio: 'Cada hora sin energía es comunicación, servicio o ingreso perdido — el almacenamiento lo sostiene.'
+    },
+    // Sitios remotos pueden no tener CFE ni recibo: el andamiaje de datos habla de
+    // consumo, combustible y autonomía, no de recibos de CFE.
+    checklistBase: [
+      'Consumo del sitio: kWh al día o al mes; y si hay red, tus recibos de los últimos 12 meses',
+      'Horas de operación del diésel o generador y su costo aproximado de combustible'
+    ],
+    checklistRefuerzos: {
+      horario: 'Ventanas y turnos de operación del sitio y, si hay medición, tu curva de carga por horario'
+    },
+    datoFaltante: [
+      { when: { factura: 'nolose' }, text: 'Para volver esto un número exacto, el dato clave es el consumo de tu sitio (kWh al día o al mes) y, si usas diésel, sus horas y costo de combustible. Con eso dimensionamos la microred.' },
+      { when: { tarifa: 'privado' }, text: 'El dato que define tu caso es la estructura de tu contrato de suministro — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.' }
+    ],
+    datoFaltanteDefault: 'El dato que vuelve esto exacto son tu consumo (kWh al día o al mes), tus horas y costo de diésel, y el recurso solar del sitio.',
+    anteproyecto: {
+      base: {
+        interno: [
+          'Consumo del sitio (kWh/día o mes) y, si hay red o recibo, tus últimos 12 meses.',
+          'Perfil de carga u horario de operación del sitio.',
+          'Generación actual: diésel (horas, consumo y costo) y/o solar en sitio.',
+          'Superficie disponible en m² (techo o terreno) y horas de autonomía requeridas.',
+          'Objetivo prioritario (autonomía, respaldo, costo o capacidad) y horizonte de decisión.'
+        ],
+        lead: [
+          'Cuánta energía consume tu sitio (kWh al día o al mes), o tus recibos si tienes red.',
+          'Si hoy usas diésel: cuántas horas al día y su costo aproximado.',
+          'Cuánto espacio libre tienes (techo o terreno).',
+          'Cuántas horas necesitas operar sin sol ni red.',
+          'Quién autoriza una inversión así y hasta qué monto.'
+        ]
+      }
+    }
   }
 });

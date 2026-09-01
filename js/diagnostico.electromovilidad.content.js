@@ -1,4 +1,4 @@
-import { createProfileContent } from './diagnostico.profile.js';
+import { createProfileContent, sharedOptions } from './diagnostico.profile.js';
 
 export default createProfileContent({
   id: 'electromovilidad', label: 'Electromovilidad', route: '/diagnostico-electromovilidad',
@@ -23,6 +23,7 @@ export default createProfileContent({
     { codigo: 'nolose', label: 'Todavía no definimos horarios ni simultaneidad' }
   ],
   profileHint: 'Piensa cuándo llegan los vehículos y cuánto tiempo permanecen conectados.',
+  generationOptions: sharedOptions.generation.filter((o) => o.codigo !== 'estacional'),
   qualityQuestion: '¿Qué limita hoy el despliegue de tus cargadores?',
   qualityOptions: [
     { codigo: 'factor', label: 'La demanda o factor de potencia ya genera penalizaciones' },
@@ -59,6 +60,11 @@ export default createProfileContent({
   postResult: { label: 'Precisar mi infraestructura de carga' },
   emailVocabulary: { site: 'operación de carga', technicalContact: 'responsable eléctrico o de infraestructura' },
   overrides: {
+    palancasRespaldoVariantes: {
+      producto: 'Un corte deja vehículos críticos sin completar ruta o servicio — el respaldo mantiene la carga en el momento clave.',
+      reinicio: 'Cada interrupción acumula carga y recuperar el programa toma horas; el respaldo lo evita.',
+      servicio: 'Cada hora sin carga es venta, disponibilidad o nivel de servicio perdido — el respaldo lo sostiene.'
+    },
     recomendaciones: {
       bessCapacidad: { tipo: 'BESS para habilitar carga', razon: 'La potencia disponible y el crecimiento de cargadores mandan en tu caso. Un BESS puede limitar el pico y diferir la ampliación; primero se valida contra potencia, simultaneidad y ventanas de carga.' },
       bess: { tipo: 'BESS para gestionar carga', razon: 'Tu oportunidad está en controlar el pico que generan los cargadores y mover consumo fuera de los periodos caros. El dimensionamiento depende de potencia, simultaneidad y tiempo conectado.' }

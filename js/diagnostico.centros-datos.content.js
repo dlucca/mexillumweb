@@ -1,4 +1,4 @@
-import { createProfileContent } from './diagnostico.profile.js';
+import { createProfileContent, sharedOptions } from './diagnostico.profile.js';
 
 export default createProfileContent({
   id: 'centros_datos', label: 'Centros de datos', route: '/diagnostico-centros-datos',
@@ -23,6 +23,7 @@ export default createProfileContent({
     { codigo: 'nolose', label: 'Solo tenemos capacidad nominal, no curva de carga' }
   ],
   profileHint: 'Usa la carga total del sitio, incluyendo enfriamiento e infraestructura.',
+  generationOptions: sharedOptions.generation.filter((o) => o.codigo !== 'estacional'),
   qualityQuestion: '¿Cuál es la principal señal de calidad o continuidad?',
   qualityOptions: [
     { codigo: 'factor', label: 'Penalización o gestión de potencia reactiva' },
@@ -60,6 +61,12 @@ export default createProfileContent({
   postResult: { label: 'Solicitar revisión especializada', skipRoof: true, servicePoint: true },
   emailVocabulary: { site: 'centro de datos', technicalContact: 'responsable de facilities o ingeniería eléctrica' },
   overrides: {
+    gancho: 'La mayoría de los centros de datos no dimensiona cuánto de su costo y su riesgo vive en la arquitectura de respaldo y en el límite de capacidad de su acometida. Eso es exactamente lo primero que revisamos.',
+    palancasRespaldoVariantes: {
+      producto: 'Un corte pone en riesgo datos y cumplimiento crítico — el respaldo sostiene la carga en el instante en que la red falla.',
+      reinicio: 'Recuperar la operación tras un evento es complejo y prolongado; el respaldo evita ese paro.',
+      servicio: 'Cada minuto sin energía compromete SLA, disponibilidad e ingresos — el respaldo lo sostiene.'
+    },
     recomendaciones: {
       bessRespaldo: { tipo: 'Estudio BESS de misión crítica', razon: 'La continuidad domina el caso, pero la integración depende de UPS, generadores, ATS, protecciones y redundancia. La recomendación permanece preliminar hasta revisar el unifilar y la arquitectura de respaldo.' },
       bessCapacidad: { tipo: 'BESS para capacidad crítica', razon: 'La expansión está limitada por potencia disponible. Un BESS puede evaluarse para diferir capacidad sin comprometer redundancia, sujeto a revisar carga IT, UPS, protecciones y fecha objetivo.' },

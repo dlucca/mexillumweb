@@ -58,5 +58,12 @@ export default createProfileContent({
     diferimiento: { rebombeo: 8, tratamiento: 8 }
   },
   postResult: { label: 'Precisar mi sistema de bombeo' },
-  emailVocabulary: { site: 'sistema de bombeo', technicalContact: 'responsable hidráulico o electromecánico' }
+  emailVocabulary: { site: 'sistema de bombeo', technicalContact: 'responsable hidráulico o electromecánico' },
+  overrides: {
+    palancasRespaldoVariantes: {
+      producto: 'Un corte compromete el proceso, el cultivo o la calidad del agua — la batería sostiene el bombeo en el momento crítico.',
+      reinicio: 'Cada paro obliga a recuperar niveles y presión durante horas; la batería evita esa pérdida.',
+      servicio: 'Cada hora sin bombeo interrumpe el servicio a usuarios o la producción — la batería lo sostiene.'
+    }
+  }
 });
