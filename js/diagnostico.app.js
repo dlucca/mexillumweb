@@ -1,5 +1,5 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=11';
-import { mountRoofPicker } from './diagnostico.roof.js?v=11';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=12';
+import { mountRoofPicker } from './diagnostico.roof.js?v=12';
 import { mountFacturasUploader } from './diagnostico.facturas.js';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
@@ -51,8 +51,17 @@ export function initDiagnostico({ content, calLink, origen }) {
     if (content.postResult?.servicePoint) return 'techo';
     if (content.postResult?.skipRoof) return 'facturas';
     if (content.postResult?.alwaysRoof) return 'techo';
+    // El mapa (techo/terreno) importa cuando el espacio es dato útil: cuando solar,
+    // BESS+solar o microred es la recomendación principal...
     const family = res?.recomendacion_solucion?.familia || '';
-    return ['solar', 'bess_solar', 'off_grid'].includes(family) ? 'techo' : 'facturas';
+    if (['solar', 'bess_solar', 'off_grid'].includes(family)) return 'techo';
+    // ...o cuando esa oportunidad aparece como palanca secundaria (misma regla que
+    // usa pickLevers: primera del ranking, distinta de la principal, sobre el umbral).
+    const umbral = content.scoring?.umbralSecundaria ?? 40;
+    const principalId = res?.aplicacion_principal?.id;
+    const secundaria = (res?.ranking || []).find((o) => o.id !== principalId && o.score >= umbral);
+    if (secundaria && ['solar_puro', 'bess_solar', 'off_grid'].includes(secundaria.id)) return 'techo';
+    return 'facturas';
   }
 
   function el(html) {
