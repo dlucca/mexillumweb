@@ -128,6 +128,30 @@ export default async function handler(req, res) {
   const techoTxt = techoArea != null
     ? `~${techoArea} m²${techoN > 1 ? ` en ${techoN} áreas` : ''}`
     : null;
+  const acometidaRaw = (body.acometida && typeof body.acometida === 'object' && !Array.isArray(body.acometida))
+    ? body.acometida : null;
+  const acometidaLat = acometidaRaw ? Number(acometidaRaw.lat) : NaN;
+  const acometidaLng = acometidaRaw ? Number(acometidaRaw.lng) : NaN;
+  const acometida = acometidaRaw
+    && String(acometidaRaw.lat ?? '').trim() && String(acometidaRaw.lng ?? '').trim()
+    && Number.isFinite(acometidaLat) && Number.isFinite(acometidaLng)
+    && Math.abs(acometidaLat) <= 90 && Math.abs(acometidaLng) <= 180
+    ? {
+        lat: acometidaLat,
+        lng: acometidaLng,
+        tipo: clean(acometidaRaw.tipo, 40) || 'acometida',
+        precision: clean(acometidaRaw.precision, 20) || 'aproximada',
+        capacidad_kva: Number(acometidaRaw.capacidad_kva) > 0 ? Number(acometidaRaw.capacidad_kva) : null
+      }
+    : null;
+  const acometidaLabels = {
+    acometida: 'Acometida o medidor', transformador: 'Transformador', subestacion: 'Subestación',
+    tablero_general: 'Tablero general', otro: 'Otro punto eléctrico'
+  };
+  const acometidaTxt = acometida
+    ? `${acometidaLabels[acometida.tipo] || acometida.tipo} · ${acometida.precision} · ${acometida.lat.toFixed(6)}, ${acometida.lng.toFixed(6)}`
+      + (acometida.capacidad_kva ? ` · ${acometida.capacidad_kva} kVA` : '')
+    : null;
   const facturaPaths = (body.facturas && Array.isArray(body.facturas.paths))
     ? body.facturas.paths.slice(0, 12).map((p) => clean(p, 300)).filter(Boolean)
     : [];
@@ -241,6 +265,7 @@ export default async function handler(req, res) {
     '',
     ubic ? `Ubicación: ${ubicTexto}` : null,
     techoArea != null ? `Techo dibujado: ${techoTxt}` : null,
+    acometida ? `Punto eléctrico: ${acometidaTxt}` : null,
     facturaLinks.length ? `${facturaLinks.length} facturas subidas:` : null,
     ...facturaLinks.map((l) => `  - ${l}`),
     'Respuestas:',
@@ -288,10 +313,11 @@ export default async function handler(req, res) {
     (referrer ? fila('Referente', referrer) : '') +
     `</table>` +
 
-    (ubic || techoArea != null || facturaLinks.length
+    (ubic || techoArea != null || acometida || facturaLinks.length
       ? `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
         (ubic ? fila('Ubicación', ubicTexto) : '') +
         (techoArea != null ? fila('Techo dibujado', techoTxt) : '') +
+        (acometida ? fila('Punto eléctrico', acometidaTxt) : '') +
         (facturaLinks.length
           ? `<tr><td style="padding:6px 16px 6px 0;color:#6F796E;vertical-align:top">Facturas</td>` +
             `<td style="padding:6px 0">` +
@@ -356,6 +382,7 @@ export default async function handler(req, res) {
 
       const yaPartes = ['tus respuestas del diagnóstico y tu tarifa CFE'];
       if (tieneTecho) yaPartes.push(`la medida de tu techo (${techoTxt})`);
+      if (acometida) yaPartes.push('la ubicación de tu punto eléctrico principal');
       if (tieneRecibos) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'} de CFE`);
       const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
 
@@ -369,7 +396,7 @@ export default async function handler(req, res) {
         'Rango de inversión y forma preferida (compra directa o servicio/PPA).'
       ];
       if (!tieneRecibos) faltan.push('Tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa).');
-      if (!tieneTecho) faltan.push('Superficie disponible en m² (techo o terreno).');
+      if (!tieneTecho && esSolar) faltan.push('Superficie disponible en m² (techo o terreno).');
       if (esSolar) faltan.push('Tipo y estado de la cubierta del techo (peso que soporta).');
       if (esBaterias) {
         faltan.push('Cargas críticas a respaldar (kW y kWh) y autonomía requerida.');

@@ -14,18 +14,20 @@ test('assembleResult reusa estado.lead_id si viene', () => {
   assert.equal(leadPayload.lead_id, 'fijo-123');
 });
 
-test('assembleResult adjunta ubicacion, techo, facturas y tipo_cierre', () => {
+test('assembleResult adjunta ubicacion, techo, acometida, facturas y tipo_cierre', () => {
   const estado = {
     respuestas,
     contacto: { nombre: 'Ana', correo: 'ana@acme.mx', tipo_cierre: 'preliminar' },
     ubicacion: { direccion: 'Calle 1', lat: 19.4, lng: -99.1 },
     techo: { area_m2: 250, poligono: [{ lat: 19.4, lng: -99.1 }] },
+    acometida: { lat: 19.4002, lng: -99.1003, tipo: 'transformador', precision: 'aproximada', capacidad_kva: 500 },
     facturas: { paths: ['abc/1-a.pdf'], count: 1 }
   };
   const { leadPayload } = assembleResult(estado, content);
   assert.equal(leadPayload.tipo_cierre, 'preliminar');
   assert.deepEqual(leadPayload.ubicacion, estado.ubicacion);
   assert.equal(leadPayload.techo.area_m2, 250);
+  assert.deepEqual(leadPayload.acometida, estado.acometida);
   assert.equal(leadPayload.facturas.count, 1);
 });
 
@@ -33,6 +35,7 @@ test('assembleResult sin extras deja los campos en null', () => {
   const { leadPayload } = assembleResult({ respuestas }, content);
   assert.equal(leadPayload.ubicacion, null);
   assert.equal(leadPayload.techo, null);
+  assert.equal(leadPayload.acometida, null);
   assert.equal(leadPayload.facturas, null);
   assert.equal(leadPayload.tipo_cierre, '');
 });

@@ -43,17 +43,20 @@ const base = {
   respuestas_legibles: {}, respuestas_codigos: {}
 };
 
-test('correo interno incluye ubicacion, techo y facturas cuando vienen', async () => {
+test('correo interno incluye ubicación, techo, acometida y facturas cuando vienen', async () => {
   const { emails } = await enviar({
     ...base,
     ubicacion: { direccion: 'Calle 1', lat: 19.4, lng: -99.1 },
     techo: { area_m2: 250, poligono: [] },
+    acometida: { lat: 19.4002, lng: -99.1003, tipo: 'transformador', precision: 'aproximada', capacidad_kva: 500 },
     facturas: { paths: ['abc/1-a.pdf', 'abc/2-b.pdf'], count: 2 }
   });
   const interno = emails.find((e) => e.to && e.to.includes('mexillum.com'));
   assert.ok(interno, 'hay correo interno');
   assert.match(interno.text, /Calle 1/);
   assert.match(interno.text, /250/);
+  assert.match(interno.text, /Punto eléctrico: Transformador/);
+  assert.match(interno.text, /500 kVA/);
   assert.match(interno.text, /2 factura/i);
 });
 
@@ -86,6 +89,19 @@ test('agenda requiere empresa para calificar el lead', async () => {
   const { res, emails } = await enviar({ ...base, empresa: '', tipo_cierre: 'llamada' });
   assert.equal(res.statusCode, 400);
   assert.equal(emails.length, 0);
+});
+
+test('un proyecto BESS con acometida no pide superficie solar en el correo', async () => {
+  const { emails } = await enviar({
+    ...base,
+    tipo_cierre: 'preliminar',
+    recomendacion_solucion: { tipo: 'BESS para capacidad', razon: 'Capacidad limitada.' },
+    acometida: { lat: 19.4, lng: -99.1, tipo: 'subestacion', precision: 'exacta' }
+  });
+  const alCliente = emails.find((e) => e.to === 'ana@acme.mx');
+  assert.ok(alCliente);
+  assert.doesNotMatch(alCliente.text, /Superficie disponible en m²/);
+  assert.match(alCliente.text, /ubicación de tu punto eléctrico principal/);
 });
 
 // Envía el lead con fetch stubeado (Resend + DocuSeal), capturando por URL.

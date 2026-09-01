@@ -57,7 +57,7 @@ export default createProfileContent({
     diferimiento: { expansion_dc: 26, greenfield_dc: 20 },
     peak_shaving: { colo: 8, expansion_dc: 8 }
   },
-  postResult: { label: 'Solicitar revisión especializada', skipRoof: true },
+  postResult: { label: 'Solicitar revisión especializada', skipRoof: true, servicePoint: true },
   emailVocabulary: { site: 'centro de datos', technicalContact: 'responsable de facilities o ingeniería eléctrica' },
   overrides: {
     recomendaciones: {

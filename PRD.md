@@ -1,6 +1,6 @@
 # PRD — Diagnóstico energético adaptativo multiindustria de Mexillum
 
-**Versión:** 1.0
+**Versión:** 1.1
 **Fecha:** 31 de agosto de 2026
 **Estado:** Plataforma base implementada; validación comercial y despliegue por etapas
 **Responsable de producto:** Mexillum Energy
@@ -898,6 +898,7 @@ El sistema selecciona módulos según la familia de recomendación.
 |---|---|---|
 | Recibos | Existe suministro eléctrico y oportunidad tarifaria | Hasta 12 recibos, tarifa, RPU |
 | Techo o terreno | Solar forma parte de la configuración | Ubicación, polígonos, área, fotos |
+| Punto eléctrico | Existe mapa del sitio o la distancia eléctrica puede cambiar el anteproyecto | Pin de acometida, medidor, transformador, subestación o tablero; precisión y kVA opcionales |
 | Perfil de carga | Peak shaving, arbitraje o capacidad | Archivo de 15 minutos o medición |
 | Continuidad | Respaldo o red débil | Cargas críticas, frecuencia, duración, costo |
 | Capacidad | Expansión o interconexión limitada | kW actuales/adicionales, fecha, solicitud CFE |
@@ -948,7 +949,7 @@ El cambio de rutas requiere además:
 ### 19.3 Compatibilidad
 
 - Las URLs actuales se conservan.
-- leadPayload mantiene campos actuales durante la migración.
+- leadPayload mantiene campos actuales durante la migración y agrega `acometida` como objeto opcional con coordenadas, tipo, precisión y capacidad_kva.
 - Se agregan profile_id, profile_version, session_id, lead_stage, fit, opportunity_size, confidence y commercial_intent.
 - respuestas_codigos conserva valores estables cuando el significado no cambia.
 - Los correos anteriores siguen funcionando con payloads sin los campos nuevos.
@@ -972,7 +973,7 @@ El cambio de rutas requiere además:
 ### 20.2 Persistencia local
 
 - Se guardan progreso y respuestas no personales durante siete días.
-- No se guardan archivos, tokens firmados, contacto, dirección precisa ni polígonos en almacenamiento local persistente.
+- No se guardan archivos, tokens firmados, contacto, dirección precisa, polígonos ni coordenadas de acometida en almacenamiento local persistente.
 - El usuario puede reiniciar y borrar el estado.
 - Una versión de esquema permite migrar o descartar estados incompatibles.
 

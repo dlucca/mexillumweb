@@ -1,5 +1,5 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js';
-import { mountRoofPicker } from './diagnostico.roof.js';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=9';
+import { mountRoofPicker } from './diagnostico.roof.js?v=9';
 import { mountFacturasUploader } from './diagnostico.facturas.js';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
@@ -31,13 +31,16 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   const saved = rapido ? null : loadDxState(stateId);
   const estado = {
-    paso: rapido ? (content.postResult?.skipRoof ? 'facturas' : 'techo') : (saved?.paso ?? 'intro'),
+    paso: rapido
+      ? (content.postResult?.servicePoint ? 'techo' : (content.postResult?.skipRoof ? 'facturas' : 'techo'))
+      : (saved?.paso ?? 'intro'),
     respuestas: {},
     contacto: {},
     resultado: null,          // cache del assembleResult
     lead_id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
     ubicacion: null,
     techo: null,
+    acometida: null,
     facturas: null,
     ...(saved || {}),
   };
@@ -45,6 +48,7 @@ export function initDiagnostico({ content, calLink, origen }) {
   trackDx('viewed', { profile_id: profileId, rapido });
 
   function enrichmentStep(res = estado.resultado) {
+    if (content.postResult?.servicePoint) return 'techo';
     if (content.postResult?.skipRoof) return 'facturas';
     if (content.postResult?.alwaysRoof) return 'techo';
     const family = res?.recomendacion_solucion?.familia || '';
@@ -362,14 +366,15 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   // ---- Paso: dibujar techo (opcional) -----------------------------------------
   function renderTecho() {
+    const allowRoof = !content.postResult?.skipRoof;
     // En modo rápido la persona llega en frío: copy que orienta y engancha.
     // En el flujo normal ya vio su resultado, así que el copy es más breve.
-    const titulo = rapido
-      ? '¿Cuánto espacio tienes para generar tu propia energía?'
-      : 'Dibuja tu techo';
-    const sub = rapido
-      ? 'Búscate en el mapa y marca tu techo o terreno libre: toca cada esquina para dibujar el área. Con eso calculamos cuánta energía cabe y armamos tu propuesta.'
-      : 'Marca las esquinas de tu techo en el mapa. Con esto tu anteproyecto sale más rápido y preciso.';
+    const titulo = allowRoof
+      ? (rapido ? '¿Dónde podría instalarse el sistema?' : 'Marca el espacio y el punto eléctrico')
+      : 'Ubica tu punto eléctrico principal';
+    const sub = allowRoof
+      ? 'Dibuja el techo o terreno disponible y, si la conoces, marca la acometida, medidor, transformador o tablero principal.'
+      : 'Marca en el mapa la acometida, medidor, transformador, subestación o tablero principal. Puede ser una ubicación aproximada.';
     const botonAtras = rapido
       ? ''
       : '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
@@ -390,9 +395,15 @@ export function initDiagnostico({ content, calLink, origen }) {
 
     mountRoofPicker(view.querySelector('.dx-roof-mount'), {
       onLocation: (u) => { estado.ubicacion = u; },
-      onRoof: (r) => { estado.techo = r; }
+      onRoof: (r) => { estado.techo = r; },
+      onServicePoint: (point) => {
+        const isFirst = !estado.acometida && point;
+        estado.acometida = point;
+        if (isFirst) trackDx('service_point_marked', { profile_id: profileId, type: point.tipo });
+      },
+      allowRoof
     });
-    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => { estado.paso = 'result'; render(); });
+    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => { estado.paso = 'cierre'; render(); });
     view.querySelector('[data-act="saltar"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
     view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
 
@@ -425,7 +436,9 @@ export function initDiagnostico({ content, calLink, origen }) {
       onChange: (f) => { estado.facturas = f; }
     });
     view.querySelector('[data-act="atras"]')?.addEventListener('click', () => {
-      estado.paso = rapido ? (content.postResult?.skipRoof ? 'facturas' : 'techo') : (enrichmentStep() === 'techo' ? 'techo' : 'cierre');
+      estado.paso = rapido
+        ? (content.postResult?.servicePoint ? 'techo' : (content.postResult?.skipRoof ? 'facturas' : 'techo'))
+        : (enrichmentStep() === 'techo' ? 'techo' : 'cierre');
       render();
     });
     const finishEnrichment = () => {
@@ -759,6 +772,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.resultado = null;
       estado.ubicacion = null;
       estado.techo = null;
+      estado.acometida = null;
       estado.facturas = null;
       estado.lead_id = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
       submittedStages.clear();

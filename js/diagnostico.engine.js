@@ -617,6 +617,7 @@ export function assembleResult(estado, content) {
     email_vocabulary: content.emailVocabulary || {},
     ubicacion: estado.ubicacion || null,
     techo: estado.techo || null,
+    acometida: estado.acometida || null,
     facturas: estado.facturas || null,
     respuestas_legibles: legibles,
     respuestas_codigos: { ...resp },
