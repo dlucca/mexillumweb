@@ -47,25 +47,12 @@ export function initDiagnostico({ content, calLink, origen }) {
   let resultTracked = false;
   trackDx('viewed', { profile_id: profileId, rapido });
 
-  function enrichmentStep(res = estado.resultado) {
-    if (content.postResult?.servicePoint) return 'techo';
-    if (content.postResult?.skipRoof) return 'facturas';
-    if (content.postResult?.alwaysRoof) return 'techo';
-    // El mapa (techo/terreno) importa cuando el espacio es dato útil: cuando solar,
-    // BESS+solar o microred es la recomendación principal...
-    const family = res?.recomendacion_solucion?.familia || '';
-    if (['solar', 'bess_solar', 'off_grid'].includes(family)) return 'techo';
-    // ...o cuando Solar/microred llega al umbral secundario en cualquier posición del
-    // ranking (no solo como la primera palanca tras la principal). El copy de la
-    // recomendación BESS ofrece Solar como "fase 2", así que necesitamos el espacio
-    // aunque otra palanca BESS (p. ej. peak shaving) quede por encima de Solar.
-    const umbral = content.scoring?.umbralSecundaria ?? 40;
-    const principalId = res?.aplicacion_principal?.id;
-    const espacioIds = ['solar_puro', 'bess_solar', 'off_grid'];
-    const solarRelevante = (res?.ranking || [])
-      .some((o) => o.id !== principalId && o.score >= umbral && espacioIds.includes(o.id));
-    if (solarRelevante) return 'techo';
-    return 'facturas';
+  function enrichmentStep() {
+    // El mapa siempre se muestra: sirve para marcar el espacio disponible (techo,
+    // áreas verdes, estacionamientos, terreno) y/o la acometida o punto de conexión.
+    // Los perfiles con `skipRoof` (p. ej. centros de datos) ocultan el dibujo de áreas
+    // pero conservan el mapa para ubicar el punto eléctrico.
+    return 'techo';
   }
 
   function el(html) {
