@@ -1,5 +1,5 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=12';
-import { mountRoofPicker } from './diagnostico.roof.js?v=12';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=13';
+import { mountRoofPicker } from './diagnostico.roof.js?v=13';
 import { mountFacturasUploader } from './diagnostico.facturas.js';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
