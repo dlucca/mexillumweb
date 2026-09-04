@@ -90,7 +90,7 @@ export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint,
     const poligonos = validas.map(puntos);
     const n = validas.length;
     if (n === 0) {
-      setStatus('Toca cada esquina de tu techo en el mapa (mínimo 3).');
+      setStatus('Toca cada esquina de un área disponible (techo, área verde, estacionamiento…). Mínimo 3 esquinas. Marca todas las que puedas usar.');
     } else {
       const m2 = Math.round(total).toLocaleString('es-MX');
       setStatus(`${n} ${n === 1 ? 'área' : 'áreas'} · Total ~${m2} m². Arrastra los puntos para ajustar, o agrega otra área.`);
@@ -252,7 +252,7 @@ export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint,
       goTo(loc.lat(), loc.lng(), place.formatted_address || undefined);
     });
     setStatus(allowRoof
-      ? 'Busca tu dirección. Luego dibuja el área y, si la conoces, marca la acometida.'
+      ? 'Busca tu dirección. Luego marca todas las áreas disponibles (techos, áreas verdes, estacionamientos…) y, si la conoces, la acometida.'
       : 'Busca tu dirección. Luego marca la acometida o el punto eléctrico principal.');
   }).catch(() => setStatus('No pudimos cargar el mapa. Revisa tu conexión e intenta de nuevo.'));
 

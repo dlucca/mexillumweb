@@ -382,7 +382,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       ? (rapido ? '¿Dónde podría instalarse el sistema?' : 'Marca el espacio y el punto eléctrico')
       : 'Ubica tu punto eléctrico principal';
     const sub = allowRoof
-      ? 'Dibuja el techo o terreno disponible y, si la conoces, marca la acometida, medidor, transformador o tablero principal.'
+      ? 'Marca todas las áreas donde podrían ir paneles: techos, áreas verdes, estacionamientos, patios o terreno libre. Dibuja cada una por separado. Si la conoces, marca también la acometida, medidor, transformador o tablero principal.'
       : 'Marca en el mapa la acometida, medidor, transformador, subestación o tablero principal. Puede ser una ubicación aproximada.';
     const botonAtras = rapido
       ? ''
