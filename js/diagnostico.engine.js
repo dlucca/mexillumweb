@@ -76,6 +76,8 @@ export function toReadable(resp, content) {
     return o ? o.label : cod;
   };
   for (const paso of content.pasos) {
+    // `paso.when` es una condición suelta; se envuelve como regla de matchesRule.
+    if (paso.when && !matchesRule(resp, { when: paso.when })) continue; // condicional no mostrada
     const val = resp[paso.key];
     if (Array.isArray(val)) {
       // Multi-select: array vacío se trata como ['costo'] (salvaguarda defensiva, v2.2).
@@ -542,6 +544,8 @@ export function normalizeResponses(resp) {
   const out = { ...resp };
   if (out.generacion === 'fisica') out.generacion = 'solar_sitio';
   out.disparador = asList(out.disparador);
+  // Condicional `corte` no mostrada: no marcar continuidad significa que un corte no cuesta.
+  if (out.corte == null) out.corte = 'nada';
   return out;
 }
 

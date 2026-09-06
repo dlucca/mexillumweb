@@ -12,7 +12,7 @@ export default createProfileContent({
   ],
   intro: {
     titulo: 'Diagnóstico de microred y diésel en 2 minutos',
-    cuerpo: 'Ocho preguntas sobre red, consumo, combustible, continuidad y generación. Al final ves qué arquitectura híbrida conviene estudiar y qué datos faltan para dimensionarla.',
+    cuerpo: 'Siete u ocho preguntas sobre red, consumo, combustible, continuidad y generación. Al final ves qué arquitectura híbrida conviene estudiar y qué datos faltan para dimensionarla.',
     pie: 'Sin costo y sin formulario: primero ves el diagnóstico.', cta: 'Empezar'
   },
   loadProfiles: [
@@ -45,7 +45,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Se pierde producción, producto o material' },
     { codigo: 'reinicio', label: 'La operación se detiene y reiniciar toma horas' },
     { codigo: 'servicio', label: 'Se pierde comunicación, servicio o ingreso' },
-    { codigo: 'nada', label: 'Las cargas pueden esperar sin costo relevante' }
+    { codigo: 'nada', label: 'Las cargas pueden esperar sin costo relevante', esNoLoSe: true }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'Necesitamos crecer y la red o generadores no alcanzan' },

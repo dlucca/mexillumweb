@@ -12,7 +12,7 @@ export default createProfileContent({
   ],
   intro: {
     titulo: 'Diagnóstico energético para cadena de frío en 2 minutos',
-    cuerpo: 'Ocho preguntas sobre refrigeración, compresores, continuidad, tarifa y factura. Al final ves qué combinación de ahorro y respaldo merece estudiarse primero.',
+    cuerpo: 'Siete u ocho preguntas sobre refrigeración, compresores, continuidad, tarifa y factura. Al final ves qué combinación de ahorro y respaldo merece estudiarse primero.',
     pie: 'Sin costo y sin formulario: primero ves el diagnóstico.', cta: 'Empezar'
   },
   loadProfiles: [
@@ -36,7 +36,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Se compromete temperatura, inocuidad o producto' },
     { codigo: 'reinicio', label: 'Reiniciar compresores y recuperar temperatura toma horas' },
     { codigo: 'servicio', label: 'Se frena despacho, producción o venta' },
-    { codigo: 'nada', label: 'La inercia térmica permite continuar sin pérdida relevante' }
+    { codigo: 'nada', label: 'La inercia térmica permite continuar sin pérdida relevante', esNoLoSe: true }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'Queremos ampliar cámaras o producción y falta capacidad eléctrica' },

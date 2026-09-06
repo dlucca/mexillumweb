@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
 
-test('hay 8 pasos con las keys esperadas', () => {
+test('hay 7 pasos con las keys esperadas (6 comunes + propia + condicional)', () => {
   assert.deepEqual(content.pasos.map((p) => p.key), [
-    'sector', 'perfil', 'generacion', 'calidad', 'tarifa', 'factura', 'corte', 'disparador'
+    'sector', 'disparador', 'perfil', 'generacion', 'tarifa', 'factura', 'calidad', 'corte'
   ]);
 });
 

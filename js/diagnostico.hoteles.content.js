@@ -21,7 +21,7 @@ const content = {
 
   pasos: [
     {
-      key: 'sector', notaLabel: 'Tipo de propiedad',
+      key: 'sector', rol: 'comun', notaLabel: 'Tipo de propiedad',
       pregunta: '¿Cómo describirías tu propiedad?',
       opciones: [
         { label: 'Gran resort all-inclusive — 500+ llaves, F&B, spa y amenidades todo el día', codigo: 'allinclusive' },
@@ -32,7 +32,20 @@ const content = {
       ]
     },
     {
-      key: 'perfil', notaLabel: 'Perfil de carga / horario',
+      key: 'disparador', rol: 'comun', notaLabel: 'Disparador', multi: true,
+      pregunta: 'Además de la factura, ¿algo de esto te suena familiar?',
+      hint: 'Cada una señala una oportunidad de ahorro distinta — puedes marcar más de una.',
+      opciones: [
+        { label: 'Queremos sumar llaves, torres o amenidades y CFE no da capacidad (o tarda)', codigo: 'capacidad' },
+        { label: 'Usamos planta de diésel de emergencia con frecuencia', codigo: 'diesel' },
+        { label: 'Tenemos (o tendremos) solar y desperdiciamos excedente', codigo: 'excedente' },
+        { label: 'Operamos aislados de CFE, o queremos hacerlo (propiedad remota / eco-resort)', codigo: 'aislado' },
+        { label: 'Los apagones o microcortes nos cuestan ingresos o experiencia del huésped', codigo: 'continuidad' },
+        { label: 'Ninguna: nuestro tema es puramente bajar el costo de energía', codigo: 'costo', exclusiva: true }
+      ]
+    },
+    {
+      key: 'perfil', rol: 'comun', notaLabel: 'Perfil de carga / horario',
       pregunta: 'Pensando en un día típico de tu propiedad, ¿cómo se comporta el consumo eléctrico?',
       hint: 'Piensa en climatización, cuartos fríos y lavandería — no necesitas números.',
       opciones: [
@@ -44,28 +57,17 @@ const content = {
       ]
     },
     {
-      key: 'generacion', notaLabel: 'Generación propia',
+      key: 'generacion', rol: 'comun', notaLabel: 'Generación propia',
       pregunta: '¿Generan parte de su propia energía?',
       opciones: [
         { label: 'Sí — paneles solares en techos o áreas comunes (detrás del medidor)', codigo: 'solar_sitio' },
         { label: 'Tenemos contrato de suministro renovable / calificado', codigo: 'contrato' },
         { label: 'No, compramos todo a CFE o a un suministrador', codigo: 'no' },
-        { label: 'Lo estamos evaluando (RFP de solar en curso)', codigo: 'evaluando' }
+        { label: 'Lo estamos evaluando (RFP de solar en curso)', codigo: 'evaluando', esNoLoSe: true }
       ]
     },
     {
-      key: 'calidad', notaLabel: 'Calidad eléctrica',
-      pregunta: '¿Reconoces problemas de calidad o confiabilidad eléctrica en tu propiedad?',
-      opciones: [
-        { label: 'Sí — CFE nos penaliza por bajo factor de potencia en el recibo', codigo: 'factor' },
-        { label: 'Sí — variaciones de voltaje que dañan equipo sensible (elevadores, cómputo, cocina, domótica)', codigo: 'variaciones' },
-        { label: 'Sí — microcortes o interrupciones de CFE (y temporada de huracanes)', codigo: 'cortes' },
-        { label: 'No, el suministro es estable', codigo: 'no' },
-        { label: 'No lo sé', codigo: 'nolose' }
-      ]
-    },
-    {
-      key: 'tarifa', notaLabel: 'Tarifa CFE',
+      key: 'tarifa', rol: 'comun', notaLabel: 'Tarifa CFE',
       pregunta: 'Busca el recibo de CFE de {planta}. Arriba a la derecha hay un código de tarifa — ¿cuál es?',
       hint: 'Aparece en la carátula frontal de tu recibo CFE en el recuadro superior derecho.',
       opciones: [
@@ -79,7 +81,7 @@ const content = {
       ]
     },
     {
-      key: 'factura', notaLabel: 'Factura mensual',
+      key: 'factura', rol: 'comun', notaLabel: 'Factura mensual',
       pregunta: 'De {planta}: ¿cuánto paga de electricidad al mes?',
       hint: 'Solo lo usamos para estimar el rango — nada se comparte.',
       opciones: [
@@ -91,25 +93,24 @@ const content = {
       ]
     },
     {
-      key: 'corte', notaLabel: 'Impacto de un corte',
+      key: 'calidad', rol: 'propia', notaLabel: 'Calidad eléctrica',
+      pregunta: '¿Reconoces problemas de calidad o confiabilidad eléctrica en tu propiedad?',
+      opciones: [
+        { label: 'Sí — CFE nos penaliza por bajo factor de potencia en el recibo', codigo: 'factor' },
+        { label: 'Sí — variaciones de voltaje que dañan equipo sensible (elevadores, cómputo, cocina, domótica)', codigo: 'variaciones' },
+        { label: 'Sí — microcortes o interrupciones de CFE (y temporada de huracanes)', codigo: 'cortes' },
+        { label: 'No, el suministro es estable', codigo: 'no' },
+        { label: 'No lo sé', codigo: 'nolose' }
+      ]
+    },
+    {
+      key: 'corte', rol: 'condicional', when: { disparador: 'continuidad' }, notaLabel: 'Impacto de un corte',
       pregunta: 'Si {planta} pierde energía 30 minutos en alta ocupación, ¿qué pasa?',
       opciones: [
         { label: 'Cocina y cadena de frío en riesgo: merma y tema de sanidad', codigo: 'producto' },
         { label: 'Se detiene la operación y recuperarla toma tiempo (bombeo, PMS, sistemas)', codigo: 'reinicio' },
         { label: 'Perdemos ingresos y experiencia del huésped por hora (clima, elevadores, eventos, reseñas)', codigo: 'servicio' },
-        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada' }
-      ]
-    },
-    {
-      key: 'disparador', notaLabel: 'Disparador', multi: true,
-      pregunta: 'Además de la factura, ¿algo de esto te suena familiar?',
-      hint: 'Cada una señala una oportunidad de ahorro distinta — puedes marcar más de una.',
-      opciones: [
-        { label: 'Queremos sumar llaves, torres o amenidades y CFE no da capacidad (o tarda)', codigo: 'capacidad' },
-        { label: 'Usamos planta de diésel de emergencia con frecuencia', codigo: 'diesel' },
-        { label: 'Tenemos (o tendremos) solar y desperdiciamos excedente', codigo: 'excedente' },
-        { label: 'Operamos aislados de CFE, o queremos hacerlo (propiedad remota / eco-resort)', codigo: 'aislado' },
-        { label: 'Ninguna: nuestro tema es puramente bajar el costo de energía', codigo: 'costo', exclusiva: true }
+        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada', esNoLoSe: true }
       ]
     }
   ],
@@ -196,7 +197,7 @@ const content = {
         corte: { producto: 52, reinicio: 42, servicio: 46, nada: 0 },
         calidad: { cortes: 24, variaciones: 14 },
         sector: { allinclusive: 12, boutique: 10, resort: 8, urbano: 6 },
-        disparador: { diesel: 8 }
+        disparador: { diesel: 8, continuidad: 18 }
       },
       diferimiento: {
         disparador: { capacidad: 62 },

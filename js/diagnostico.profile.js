@@ -23,7 +23,7 @@ const COMMON_GENERATION = [
   { label: 'Tenemos contrato renovable o suministro privado', codigo: 'contrato' },
   { label: 'Generamos parte del año o de forma estacional', codigo: 'estacional' },
   { label: 'No, compramos toda la energía', codigo: 'no' },
-  { label: 'Lo estamos evaluando', codigo: 'evaluando' }
+  { label: 'Lo estamos evaluando', codigo: 'evaluando', esNoLoSe: true }
 ];
 
 const COMMON_TARIFF = [
@@ -63,64 +63,90 @@ export function createProfileContent(definition) {
   const content = clone(baseContent);
   const site = definition.siteLabel;
   const sectorLabels = Object.fromEntries(definition.sectors.map((s) => [s.codigo, s.profileLabel || s.label]));
-  const commonSteps = {
-    sector: {
-      key: 'sector', notaLabel: definition.sectorNote || 'Tipo de operación',
+
+  const continuidadOpcion = {
+    label: definition.continuityLabel || 'Los cortes de energía nos cuestan dinero o servicio',
+    codigo: 'continuidad'
+  };
+  const triggerOptions = definition.triggerOptions.some((o) => o.codigo === 'continuidad')
+    ? definition.triggerOptions
+    : (() => {
+        const idx = definition.triggerOptions.findIndex((o) => o.exclusiva);
+        const copia = [...definition.triggerOptions];
+        copia.splice(idx < 0 ? copia.length : idx, 0, continuidadOpcion);
+        return copia;
+      })();
+
+  const comunes = [
+    {
+      key: 'sector', rol: 'comun', notaLabel: definition.sectorNote || 'Tipo de operación',
       pregunta: definition.sectorQuestion,
       opciones: definition.sectors.map(({ label, codigo }) => ({ label, codigo }))
     },
-    perfil: {
-      key: 'perfil', notaLabel: 'Perfil de carga / horario',
+    {
+      key: 'disparador', rol: 'comun', notaLabel: 'Objetivo principal', multi: true,
+      pregunta: definition.triggerQuestion || 'Además del costo, ¿algo de esto te suena familiar?',
+      hint: definition.triggerHint || 'Puedes marcar más de una.',
+      opciones: triggerOptions
+    },
+    {
+      key: 'perfil', rol: 'comun', notaLabel: 'Perfil de carga / horario',
       pregunta: definition.profileQuestion || `Pensando en un día típico de ${site}, ¿cómo se comporta el consumo eléctrico?`,
       hint: definition.profileHint || 'No necesitas números — elige la opción que mejor lo describa.',
       opciones: definition.loadProfiles
     },
-    generacion: {
-      key: 'generacion', notaLabel: 'Generación propia',
+    {
+      key: 'generacion', rol: 'comun', notaLabel: 'Generación propia',
       pregunta: definition.generationQuestion || `¿${definition.generationVerb || 'Generan'} parte de su propia energía?`,
       opciones: definition.generationOptions || COMMON_GENERATION
     },
-    calidad: {
-      key: 'calidad', notaLabel: 'Calidad y confiabilidad',
-      pregunta: definition.qualityQuestion || `¿Reconoces problemas de calidad o confiabilidad eléctrica en ${site}?`,
-      opciones: definition.qualityOptions
-    },
-    tarifa: {
-      key: 'tarifa', notaLabel: 'Tarifa o suministro',
+    {
+      key: 'tarifa', rol: 'comun', notaLabel: 'Tarifa o suministro',
       pregunta: definition.tariffQuestion || `Busca el recibo de energía de ${site}. ¿Qué tarifa o suministro tiene?`,
       hint: definition.tariffHint || 'Si es CFE, el código aparece en la carátula del recibo.',
       opciones: definition.tariffOptions || COMMON_TARIFF
     },
-    factura: {
-      key: 'factura', notaLabel: definition.billNote || 'Factura mensual',
+    {
+      key: 'factura', rol: 'comun', notaLabel: definition.billNote || 'Factura mensual',
       pregunta: definition.billQuestion || `¿Cuánto paga ${site} de electricidad al mes?`,
       hint: definition.billHint || 'Solo lo usamos para estimar el orden de magnitud.',
       opciones: definition.billOptions || COMMON_BILL
-    },
-    corte: {
-      key: 'corte', notaLabel: 'Impacto de una interrupción',
-      pregunta: definition.outageQuestion,
-      opciones: definition.outageOptions
-    },
-    disparador: {
-      key: 'disparador', notaLabel: 'Objetivo principal', multi: true,
-      pregunta: definition.triggerQuestion || 'Además del costo, ¿algo de esto te suena familiar?',
-      hint: definition.triggerHint || 'Puedes marcar más de una.',
-      opciones: definition.triggerOptions
     }
-  };
+  ];
+
+  // Pregunta propia: si la definición no trae una, se usa `calidad` (compatibilidad).
+  const propia = definition.propia
+    ? { ...clone(definition.propia), rol: 'propia' }
+    : {
+        key: 'calidad', rol: 'propia', notaLabel: 'Calidad y confiabilidad',
+        pregunta: definition.qualityQuestion || `¿Reconoces problemas de calidad o confiabilidad eléctrica en ${site}?`,
+        opciones: definition.qualityOptions
+      };
+
+  // Condicional: por defecto `corte`, visible con continuidad o si el perfil es de continuidad crítica.
+  const condicional = definition.condicional === null
+    ? null
+    : definition.condicional
+      ? { ...clone(definition.condicional), rol: 'condicional' }
+      : {
+          key: 'corte', rol: 'condicional', notaLabel: 'Impacto de una interrupción',
+          when: definition.continuidadCritica ? {} : { disparador: 'continuidad' },
+          pregunta: definition.outageQuestion,
+          opciones: definition.outageOptions
+        };
+
+  const pasos = [...comunes, propia, ...(condicional ? [condicional] : [])];
 
   merge(content, {
     profile: {
       id: definition.id,
       label: definition.label,
       route: definition.route,
-      version: definition.version || '1.0'
+      version: definition.version || '2.0'
     },
     intro: definition.intro,
     plantaLabel: site,
-    pasos: ['sector', 'perfil', 'generacion', 'calidad', 'tarifa', 'factura', 'corte', 'disparador']
-      .map((key) => commonSteps[key]),
+    pasos,
     perfilSector: sectorLabels,
     perfilExposicion: definition.exposures || [],
     perfilExposicionDefault: definition.defaultExposure,
@@ -134,7 +160,8 @@ export function createProfileContent(definition) {
       }
     },
     postResult: definition.postResult || {},
-    emailVocabulary: definition.emailVocabulary || {}
+    emailVocabulary: definition.emailVocabulary || {},
+    continuidadCritica: !!definition.continuidadCritica
   });
 
   merge(content, definition.overrides || {});

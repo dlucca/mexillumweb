@@ -11,14 +11,37 @@ import bombeo from '../js/diagnostico.bombeo.content.js';
 import centrosDatos from '../js/diagnostico.centros-datos.content.js';
 
 const profiles = [industria, hoteles, electromovilidad, cadenaFrio, microred, bombeo, centrosDatos];
-const expectedKeys = ['sector', 'perfil', 'generacion', 'calidad', 'tarifa', 'factura', 'corte', 'disparador'];
 
-test('todos los perfiles cumplen el mismo contrato de ocho pasos', () => {
+const COMUNES = ['sector', 'disparador', 'perfil', 'generacion', 'tarifa', 'factura'];
+
+test('todos los perfiles cumplen el contrato 6 comunes + 1 propia + 0/1 condicional', () => {
   for (const content of profiles) {
-    assert.ok(content.profile?.id, 'falta profile.id');
-    assert.deepEqual(content.pasos.map((step) => step.key), expectedKeys, content.profile.id);
-    assert.equal(typeof content.resumen?.aplicaFrase?.Alto, 'string', content.profile.id);
-    assert.equal(typeof content.progresoLabel, 'function', content.profile.id);
+    const id = content.profile?.id;
+    assert.ok(id, 'falta profile.id');
+    const comunes = content.pasos.filter((p) => p.rol === 'comun');
+    const propias = content.pasos.filter((p) => p.rol === 'propia');
+    const condicionales = content.pasos.filter((p) => p.rol === 'condicional');
+    assert.deepEqual(comunes.map((p) => p.key), COMUNES, `${id}: comunes`);
+    assert.equal(propias.length, 1, `${id}: una propia`);
+    assert.ok(condicionales.length <= 1, `${id}: máximo una condicional`);
+    assert.ok(content.pasos.length >= 7 && content.pasos.length <= 8, `${id}: 7 u 8 pasos`);
+    if (condicionales.length) {
+      assert.equal(content.pasos[content.pasos.length - 1].rol, 'condicional', `${id}: condicional al final`);
+      assert.equal(typeof condicionales[0].when, 'object', `${id}: condicional con when`);
+    }
+    const keys = content.pasos.map((p) => p.key);
+    assert.equal(new Set(keys).size, keys.length, `${id}: keys únicas`);
+    for (const p of content.pasos) {
+      const codigos = p.opciones.map((o) => o.codigo);
+      assert.equal(new Set(codigos).size, codigos.length, `${id}/${p.key}: códigos únicos`);
+      if (!p.multi && p.key !== 'sector') {
+        assert.ok(codigos.includes('nolose') || p.opciones.some((o) => o.esNoLoSe), `${id}/${p.key}: falta nolose`);
+      }
+    }
+    const disparador = content.pasos.find((p) => p.key === 'disparador');
+    assert.ok(disparador.opciones.some((o) => o.codigo === 'continuidad'), `${id}: disparador sin continuidad`);
+    assert.equal(typeof content.resumen?.aplicaFrase?.Alto, 'string', id);
+    assert.equal(typeof content.progresoLabel, 'function', id);
   }
 });
 

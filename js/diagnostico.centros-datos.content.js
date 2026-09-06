@@ -12,7 +12,7 @@ export default createProfileContent({
   ],
   intro: {
     titulo: 'Diagnóstico energético para centros de datos',
-    cuerpo: 'Ocho preguntas sobre carga, redundancia, continuidad, capacidad y tarifa. El resultado identifica qué arquitectura merece un estudio especializado; no sustituye la revisión del unifilar y los sistemas UPS.',
+    cuerpo: 'Siete u ocho preguntas sobre carga, redundancia, continuidad, capacidad y tarifa. El resultado identifica qué arquitectura merece un estudio especializado; no sustituye la revisión del unifilar y los sistemas UPS.',
     pie: 'Orientación preliminar y confidencial. Sin formulario para ver el resultado.', cta: 'Empezar'
   },
   loadProfiles: [
@@ -37,7 +37,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Riesgo de pérdida de datos o incumplimiento crítico' },
     { codigo: 'reinicio', label: 'La recuperación operativa sería compleja y prolongada' },
     { codigo: 'servicio', label: 'Se comprometen SLA, disponibilidad o ingresos' },
-    { codigo: 'nada', label: 'La arquitectura actual cubre el evento sin impacto relevante' }
+    { codigo: 'nada', label: 'La arquitectura actual cubre el evento sin impacto relevante', esNoLoSe: true }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'La capacidad de red limita expansión o entrada en operación' },

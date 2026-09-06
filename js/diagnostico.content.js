@@ -10,7 +10,7 @@ const content = {
   },
   intro: {
     titulo: 'Diagnóstico energético en 2 minutos',
-    cuerpo: 'Ocho preguntas de opción múltiple sobre tu operación. Al final ves qué oportunidades de ahorro aplican en tu caso, cuál atacar primero, y —cuando tu tarifa lo permite— un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
+    cuerpo: 'Siete u ocho preguntas de opción múltiple sobre tu operación. Al final ves qué oportunidades de ahorro aplican en tu caso, cuál atacar primero, y —cuando tu tarifa lo permite— un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
     // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
     // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
     pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres recibirlo por correo o avanzar con el anteproyecto.',
@@ -19,7 +19,7 @@ const content = {
 
   pasos: [
     {
-      key: 'sector', notaLabel: 'Sector / operación',
+      key: 'sector', rol: 'comun', notaLabel: 'Sector / operación',
       pregunta: '¿Cómo describirías tu operación?',
       opciones: [
         { label: 'Proceso continuo 24/7 (alimentos, minería, química, papel, agua)', codigo: 'continuo' },
@@ -31,7 +31,20 @@ const content = {
       ]
     },
     {
-      key: 'perfil', notaLabel: 'Perfil de carga / horario',
+      key: 'disparador', rol: 'comun', notaLabel: 'Disparador', multi: true,
+      pregunta: 'Además de la factura, ¿algo de esto te suena familiar?',
+      hint: 'Cada una señala una oportunidad de ahorro distinta — puedes marcar más de una.',
+      opciones: [
+        { label: 'Queremos crecer o ampliar carga, y CFE no da capacidad (o tarda)', codigo: 'capacidad' },
+        { label: 'Usamos diésel o planta de emergencia con frecuencia', codigo: 'diesel' },
+        { label: 'Generamos excedente que exportamos o se desperdicia', codigo: 'excedente' },
+        { label: 'Operamos aislados de CFE, o queremos hacerlo (sin conexión a la red)', codigo: 'aislado' },
+        { label: 'Los cortes o microcortes de energía nos cuestan dinero o servicio', codigo: 'continuidad' },
+        { label: 'Ninguna, nuestro tema es puramente reducir el costo de la energía', codigo: 'costo', exclusiva: true }
+      ]
+    },
+    {
+      key: 'perfil', rol: 'comun', notaLabel: 'Perfil de carga / horario',
       pregunta: 'Pensando en un día típico de tu operación, ¿cómo se comporta el consumo eléctrico?',
       hint: 'No necesitas números — elige la opción que mejor lo describa.',
       opciones: [
@@ -43,29 +56,18 @@ const content = {
       ]
     },
     {
-      key: 'generacion', notaLabel: 'Generación propia',
+      key: 'generacion', rol: 'comun', notaLabel: 'Generación propia',
       pregunta: '¿Generan parte de su propia energía?',
       opciones: [
         { label: 'Sí — tenemos solar en sitio (detrás del medidor)', codigo: 'solar_sitio' },
         { label: 'Tenemos contrato renovable o suministro privado', codigo: 'contrato' },
         { label: 'Generamos parte del año (cogeneración, zafra, estacional)', codigo: 'estacional' },
         { label: 'No, compramos todo de CFE o de un suministrador', codigo: 'no' },
-        { label: 'Lo estamos evaluando', codigo: 'evaluando' }
+        { label: 'Lo estamos evaluando', codigo: 'evaluando', esNoLoSe: true }
       ]
     },
     {
-      key: 'calidad', notaLabel: 'Calidad eléctrica',
-      pregunta: '¿Reconoces problemas de calidad o confiabilidad eléctrica en tu operación?',
-      opciones: [
-        { label: 'Sí — nos penalizan por bajo factor de potencia en el recibo', codigo: 'factor' },
-        { label: 'Sí — variaciones de voltaje, parpadeos o daño a equipos sensibles', codigo: 'variaciones' },
-        { label: 'Sí — microcortes o interrupciones frecuentes de CFE', codigo: 'cortes' },
-        { label: 'No, el suministro es estable', codigo: 'no' },
-        { label: 'No lo sé', codigo: 'nolose' }
-      ]
-    },
-    {
-      key: 'tarifa', notaLabel: 'Tarifa CFE',
+      key: 'tarifa', rol: 'comun', notaLabel: 'Tarifa CFE',
       pregunta: 'Busca el recibo de CFE de {planta}. Arriba a la derecha hay un código de tarifa — ¿cuál es?',
       hint: 'Aparece en la carátula frontal de tu recibo CFE en el recuadro superior derecho.',
       opciones: [
@@ -79,7 +81,7 @@ const content = {
       ]
     },
     {
-      key: 'factura', notaLabel: 'Factura mensual',
+      key: 'factura', rol: 'comun', notaLabel: 'Factura mensual',
       pregunta: 'De {planta}: ¿cuánto paga de electricidad al mes?',
       hint: 'Solo lo usamos para estimar el rango — nada se comparte.',
       opciones: [
@@ -91,25 +93,24 @@ const content = {
       ]
     },
     {
-      key: 'corte', notaLabel: 'Impacto de un corte',
+      key: 'calidad', rol: 'propia', notaLabel: 'Calidad eléctrica',
+      pregunta: '¿Reconoces problemas de calidad o confiabilidad eléctrica en tu operación?',
+      opciones: [
+        { label: 'Sí — nos penalizan por bajo factor de potencia en el recibo', codigo: 'factor' },
+        { label: 'Sí — variaciones de voltaje, parpadeos o daño a equipos sensibles', codigo: 'variaciones' },
+        { label: 'Sí — microcortes o interrupciones frecuentes de CFE', codigo: 'cortes' },
+        { label: 'No, el suministro es estable', codigo: 'no' },
+        { label: 'No lo sé', codigo: 'nolose' }
+      ]
+    },
+    {
+      key: 'corte', rol: 'condicional', when: { disparador: 'continuidad' }, notaLabel: 'Impacto de un corte',
       pregunta: 'Si a {planta} se le corta la energía 30 minutos en su peor momento del día, ¿qué pasa?',
       opciones: [
         { label: 'Se pierde producto o un lote completo', codigo: 'producto' },
         { label: 'Se detiene la operación y reiniciar toma horas', codigo: 'reinicio' },
         { label: 'Perdemos servicio o ingresos por hora', codigo: 'servicio' },
-        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada' }
-      ]
-    },
-    {
-      key: 'disparador', notaLabel: 'Disparador', multi: true,
-      pregunta: 'Además de la factura, ¿algo de esto te suena familiar?',
-      hint: 'Cada una señala una oportunidad de ahorro distinta — puedes marcar más de una.',
-      opciones: [
-        { label: 'Queremos crecer o ampliar carga, y CFE no da capacidad (o tarda)', codigo: 'capacidad' },
-        { label: 'Usamos diésel o planta de emergencia con frecuencia', codigo: 'diesel' },
-        { label: 'Generamos excedente que exportamos o se desperdicia', codigo: 'excedente' },
-        { label: 'Operamos aislados de CFE, o queremos hacerlo (sin conexión a la red)', codigo: 'aislado' },
-        { label: 'Ninguna, nuestro tema es puramente reducir el costo de la energía', codigo: 'costo', exclusiva: true }
+        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada', esNoLoSe: true }
       ]
     }
   ],
@@ -197,7 +198,7 @@ const content = {
         corte: { producto: 52, reinicio: 42, servicio: 40, nada: 0 },
         calidad: { cortes: 20, variaciones: 14 },
         sector: { frio: 12, continuo: 10 },
-        disparador: { diesel: 8 }
+        disparador: { diesel: 8, continuidad: 18 }
       },
       diferimiento: {
         disparador: { capacidad: 62 },

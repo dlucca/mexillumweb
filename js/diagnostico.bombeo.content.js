@@ -12,7 +12,7 @@ export default createProfileContent({
   ],
   intro: {
     titulo: 'Diagnóstico energético para bombeo en 2 minutos',
-    cuerpo: 'Ocho preguntas sobre bombas, horarios, almacenamiento de agua, tarifa y continuidad. Al final ves si conviene optimizar operación, integrar Solar o evaluar almacenamiento eléctrico.',
+    cuerpo: 'Siete u ocho preguntas sobre bombas, horarios, almacenamiento de agua, tarifa y continuidad. Al final ves si conviene optimizar operación, integrar Solar o evaluar almacenamiento eléctrico.',
     pie: 'Sin costo y sin formulario: primero ves el diagnóstico.', cta: 'Empezar'
   },
   loadProfiles: [
@@ -36,7 +36,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Se compromete proceso, cultivo o calidad del agua' },
     { codigo: 'reinicio', label: 'Recuperar niveles, presión o proceso toma horas' },
     { codigo: 'servicio', label: 'Se interrumpe el servicio a usuarios o producción' },
-    { codigo: 'nada', label: 'Los tanques permiten esperar sin impacto relevante' }
+    { codigo: 'nada', label: 'Los tanques permiten esperar sin impacto relevante', esNoLoSe: true }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'Necesitamos más caudal o bombas y falta capacidad eléctrica' },

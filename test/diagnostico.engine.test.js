@@ -42,7 +42,8 @@ test('buildProfile: capacidad y diesel como exposición cuando no hay estacional
 });
 
 test('toReadable: mapea códigos a labels visibles', () => {
-  const leg = toReadable(fx, content);
+  // corte es condicional (when: disparador=continuidad): sin esa señal no se muestra.
+  const leg = toReadable({ ...fx, disparador: ['continuidad'] }, content);
   assert.equal(leg.sector, 'Manufactura por turnos o por lotes');
   assert.equal(leg.tarifa, 'GDMTH (Gran Demanda Media Tensión Horaria)');
   assert.equal(leg.corte, 'Se detiene la operación y reiniciar toma horas');
@@ -388,7 +389,10 @@ test('assembleResult: limitaciones vacías cuando hay datos completos', () => {
 });
 
 test('assembleResult: leadPayload expone las keys que consume /api/lead', () => {
-  const p = assembleResult(estadoFx, content).leadPayload;
+  // corte es condicional (when: disparador=continuidad): se agrega la señal para que
+  // aparezca en respuestas_legibles y el for de abajo pueda validar todas las keys.
+  const conCorteVisible = { ...estadoFx, respuestas: { ...estadoFx.respuestas, disparador: ['continuidad'] } };
+  const p = assembleResult(conCorteVisible, content).leadPayload;
   const esperadas = ['lead_id', 'timestamp', 'nombre', 'empresa', 'correo', 'telefono', 'rol',
     'respuestas_legibles', 'respuestas_codigos', 'perfil', 'rango_texto', 'checklist_full'];
   for (const k of esperadas) assert.ok(k in p, `falta ${k}`);
