@@ -490,7 +490,7 @@ const content = {
         'Perfil de carga u horario de operación del sitio.',
         'Capacidad del transformador y del tablero principal (diagrama unifilar).',
         'Superficie disponible en m² (techo o terreno).',
-        'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.'
+        'Horizonte de decisión de la inversión.'
       ],
       lead: [
         'Tus últimos 12 recibos de luz de CFE.',

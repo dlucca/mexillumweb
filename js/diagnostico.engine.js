@@ -588,6 +588,14 @@ export function assembleResult(estado, content) {
   const financiamiento = pickFinancing(resp, content);
   const checklist = buildChecklist(resp, content, recomendacion_solucion);
   const anteproyecto = buildAnteproyecto(recomendacion_solucion, content);
+  // El correo interno muestra Checklist y Anteproyecto juntos; quita del anteproyecto
+  // lo que el checklist ya pide, para no repetir. Recibos y perfil de carga están
+  // siempre en el checklist; la superficie solo cuando el checklist incluye techo.
+  const ab = content.anteproyecto.base.interno;
+  const checklistPideTecho = checklist.full.some((l) => /techo o terreno disponible/i.test(l));
+  const yaEnChecklist = new Set([ab[0], ab[1]]);
+  if (checklistPideTecho) yaEnChecklist.add(ab[3]);
+  anteproyecto.interno = anteproyecto.interno.filter((l) => !yaEnChecklist.has(l));
   const legibles = toReadable(resp, content);
   const limitaciones = detectLimitations(resp, scores, content, recomendacion_solucion);
 

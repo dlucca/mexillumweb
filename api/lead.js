@@ -376,6 +376,10 @@ export default async function handler(req, res) {
       const recTipo = recomendacion ? recomendacion.tipo : '';
       const esBaterias = /bess|respaldo|bater/i.test(recTipo);
       const esSolar = /solar|fotovolt/i.test(recTipo) || tieneTecho;
+      // Solo pedimos datos de cortes si al cliente le importa el corte (no 'nada')
+      // o si la solución es de baterías/respaldo.
+      const corteCode = clean(codigos.corte, 40);
+      const corteImporta = !!corteCode && corteCode !== 'nada';
       const unir = (arr) => arr.length <= 1
         ? (arr[0] || '')
         : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
@@ -389,12 +393,12 @@ export default async function handler(req, res) {
       const faltan = [
         `Horario u operación detallada de tu ${siteWord}.`,
         'Capacidad del transformador y tablero principal (diagrama unifilar).',
-        'Objetivo prioritario (ahorro, respaldo o capacidad) y horizonte de decisión.',
-        'Frecuencia y duración de los cortes de energía.',
+        'Horizonte de decisión (¿para cuándo lo necesitas?).',
         'Número de servicio (RPU) de tu recibo CFE.',
         `Contacto del ${technicalContact}.`,
         'Rango de inversión y forma preferida (compra directa o servicio/PPA).'
       ];
+      if (corteImporta || esBaterias) faltan.push('Frecuencia y duración de los cortes de energía.');
       if (!tieneRecibos) faltan.push('Tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa).');
       if (!tieneTecho && esSolar) faltan.push('Superficie disponible en m² (techo o terreno).');
       if (esSolar) faltan.push('Tipo y estado de la cubierta del techo (peso que soporta).');
