@@ -321,17 +321,25 @@ export function detectLimitations(resp, scores, content, recomendacion) {
 // `recomendacion` opcional (mejora #4): recomendación solar refuerza el dato de techo/terreno.
 export function buildChecklist(resp, content, recomendacion) {
   const ref = content.checklistRefuerzos;
+  // Sin red no hay recibo de CFE que pedir (spec v4 §2.4): la primera línea del checklist
+  // —los recibos— se sustituye por el consumo del sitio, el desglose horario deja de
+  // nombrar una tarifa de CFE y el combustible entra si hay diésel en el caso.
+  const sinRed = resp.conectado === false;
+  const refHorario = (sinRed && ref.horarioSinRed) ? ref.horarioSinRed : ref.horario;
   const tecnicos = [...content.checklistBase];
-  if (hasSignal(resp.disparador, 'aislado')) tecnicos.push(ref.aislado);
-  if (hasSignal(resp.disparador, 'diesel')) tecnicos.push(ref.diesel);
+  if (sinRed) tecnicos[0] = ref.aislado;
+  const usaDiesel = hasSignal(resp.disparador, 'diesel')
+    || (sinRed && (['diesel', 'mixto'].includes(resp.tarifa)
+      || ['diesel_24h', 'diesel_parcial'].includes(resp.fuente)));
+  if (usaDiesel && !tecnicos.includes(ref.diesel)) tecnicos.push(ref.diesel);
   if (resp.corte !== 'nada') tecnicos.push(ref.paros);
-  if (resp.sector === 'continuo') tecnicos.push(ref.horario);
+  if (resp.sector === 'continuo') tecnicos.push(refHorario);
   if (resp.tarifa === 'privado') tecnicos.push(ref.contrato);
   if (resp.generacion === 'estacional') tecnicos.push(ref.techo);
   if (resp.generacion === 'solar_sitio') tecnicos.push(ref.solar);
   if (resp.generacion === 'contrato' && !tecnicos.includes(ref.contrato)) tecnicos.push(ref.contrato);
   if (resp.perfil === 'plano' || resp.perfil === 'punta' || resp.perfil === 'nolose') {
-    if (!tecnicos.includes(ref.horario)) tecnicos.push(ref.horario);
+    if (!tecnicos.includes(refHorario)) tecnicos.push(refHorario);
   }
   if (resp.generacion === 'evaluando' && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);
   if (['Solar primero', 'Solar fotovoltaico on-grid'].includes(recomendacion?.tipo) && !tecnicos.includes(ref.techo)) tecnicos.push(ref.techo);

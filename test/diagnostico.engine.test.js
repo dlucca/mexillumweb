@@ -10,6 +10,7 @@ import {
   primaryApplication, normalizeResponses, buildAnteproyecto, bookingContact,
   asList, hasSignal, matchesWhen, matchesRule
 } from '../js/diagnostico.engine.js';
+import { pasosEnriquecimiento } from '../js/diagnostico.flujo.js';
 
 // Fixture canónico del spec §5.
 const fx = {
@@ -1011,4 +1012,42 @@ test('assembleResult v4: aislado pone consumo como primera limitación y conecta
   assert.equal(res.conectado, false);
   assert.equal(res.limitaciones[0].dato, content.limitaciones.consumo.dato);
   assert.equal(res.tamano, 'Sin cuantificar');
+});
+
+// ---- v4 §2.4: sin red, el checklist no pide documentos de CFE ----
+const CFE_DOCS = /recibos? de CFE|RPU|GDMTH/i;
+
+test('buildChecklist v4: microred sin red con diésel pide consumo y combustible, no recibos de CFE', () => {
+  const res = assembleResult({ respuestas: { sector: 'mineria', disparador: ['costo'], perfil: 'plano', generacion: 'no', tarifa: 'diesel', factura: 'medio', fuente: 'diesel_24h' } }, microred);
+  const full = res.checklist.full;
+  assert.equal(res.conectado, false);
+  for (const linea of full) assert.doesNotMatch(linea, CFE_DOCS, `línea con documento de CFE: ${linea}`);
+  assert.equal(full[0], microred.checklistRefuerzos.aislado, 'el consumo del sitio va primero');
+  assert.ok(full.includes(microred.checklistRefuerzos.diesel), 'pide litros y costo de diésel');
+});
+
+test('buildChecklist v4: industria con aislado sustituye la línea de recibos por el consumo', () => {
+  const res = assembleResult({ respuestas: { sector: 'continuo', disparador: ['aislado'], perfil: 'nolose', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'nolose' } }, content);
+  const full = res.checklist.full;
+  assert.equal(res.conectado, false);
+  for (const linea of full) assert.doesNotMatch(linea, CFE_DOCS, `línea con documento de CFE: ${linea}`);
+  assert.ok(full.includes(content.checklistRefuerzos.aislado), 'pide el consumo del sitio');
+  assert.ok(!full.includes(content.checklistBase[0]), 'ya no pide los recibos de CFE');
+  assert.ok(full.includes(content.checklistRefuerzos.horarioSinRed), 'el desglose horario no nombra tarifa de CFE');
+  assert.ok(!full.includes(content.checklistRefuerzos.horario));
+});
+
+test('buildChecklist v4: con red, la línea de recibos y el horario de CFE siguen igual', () => {
+  const res = assembleResult({ respuestas: { sector: 'continuo', disparador: ['costo'], perfil: 'nolose', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto' } }, content);
+  assert.equal(res.checklist.full[0], content.checklistBase[0]);
+  assert.ok(res.checklist.full.includes(content.checklistRefuerzos.horario));
+  assert.ok(!res.checklist.full.includes(content.checklistRefuerzos.horarioSinRed));
+});
+
+test('pasosEnriquecimiento: microred siempre empieza por el mapa de áreas (forzar techo)', () => {
+  const estado = { respuestas: { sector: 'mineria', disparador: ['costo'], perfil: 'plano', generacion: 'no', tarifa: 'gdmth', factura: 'medio', fuente: 'red_debil' } };
+  const res = assembleResult(estado, microred);
+  const lista = pasosEnriquecimiento(res, microred, res.leadPayload.respuestas_codigos);
+  assert.equal(lista[0], 'techo');
+  assert.ok(lista.includes('facturas'));
 });

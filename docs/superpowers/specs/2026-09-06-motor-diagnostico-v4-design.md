@@ -206,8 +206,10 @@ emailVocabulary: {
 ```
 
 `api/lead.js` arma "Ya tenemos" y "Nos ayudaría" con `payload.email_vocabulary` y
-`payload.conectado`. Regla: si `conectado === false`, el correo al cliente y el
-interno no mencionan CFE, RPU ni recibos. `renderFacturas` en `app.js` toma título y
+`payload.conectado`. Regla: si `conectado === false`, ni el correo al cliente ni el
+interno ni el checklist piden documentos de CFE (recibos, RPU) ni etiquetan la tarifa
+como CFE. Mencionar 'la red de CFE' en el copy sigue permitido.
+`renderFacturas` en `app.js` toma título y
 subtítulo de `content.postResult.facturas` (por perfil) en lugar del texto fijo.
 
 ### 2.5 Payload del lead

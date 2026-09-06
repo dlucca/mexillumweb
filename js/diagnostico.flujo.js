@@ -48,14 +48,22 @@ export function pasosEnriquecimiento(res, content, resp) {
   const quierePunto = ['bess', 'bess_solar', 'off_grid'].includes(fam)
     || hasSignal(resp.disparador, 'capacidad') || !!post.servicePoint;
   if (quiereSolar && !post.skipRoof) out.push('techo');
-  else if (quierePunto) out.push('punto');
+  else if (quierePunto || quiereSolar) out.push('punto');
   if (resp.conectado === false) out.push('consumo');
   else out.push('facturas');
+  // `postResult.forzar` agrega pasos que el caso no pidió. 'techo' asciende el mapa a
+  // dibujo de áreas (reemplaza 'punto'); 'punto' solo entra si no hay mapa; los pasos de
+  // datos ('facturas', 'consumo') se agregan al final.
   for (const f of post.forzar || []) {
-    if (out.includes(f)) continue;
-    if (f === 'punto' && out.includes('techo')) continue;
-    if (f === 'techo' && out.includes('punto')) { out[out.indexOf('punto')] = 'techo'; continue; }
-    out.unshift(f);
+    if (f === 'techo') {
+      if (out[0] === 'punto') out[0] = 'techo';
+      else if (!out.includes('techo')) out.unshift('techo');
+    } else if (f === 'punto') {
+      if (out.includes('techo') || out.includes('punto')) continue;
+      out.unshift('punto');
+    } else if (!out.includes(f)) {
+      out.push(f);
+    }
   }
   return out;
 }

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/lead.js';
+import { assembleResult } from '../js/diagnostico.engine.js';
+import microred from '../js/diagnostico.microred.content.js';
 
 function fakeRes() {
   const res = { statusCode: null, body: null, headers: {} };
@@ -279,4 +281,28 @@ test('v4: primerPaso sin tipo de recomendación no rompe el correo', async () =>
   const { res, emails } = await enviar({ ...base, correo: 'pp@acme.mx', recomendacion_solucion: { tipo: '', razon: '', primerPaso: true, segundoPaso: { tipo: 'BESS', razon: 'r' } } });
   assert.equal(res.statusCode, 200);
   assert.doesNotMatch(emails[0].text, /Primer paso/);
+});
+
+// Payload REAL del motor (no un fixture a mano): microred sin red, con diésel. Ni el
+// correo al cliente ni el interno deben pedir documentos de CFE (spec v4 §2.4).
+// "la red de CFE" en el copy sí está permitido; lo que no, son recibos, RPU o tarifa CFE.
+test('v4: payload real sin red no pide recibos, RPU ni etiqueta la tarifa como CFE', async () => {
+  const estado = {
+    respuestas: {
+      sector: 'mineria', disparador: ['diesel'], perfil: 'plano', generacion: 'no',
+      tarifa: 'diesel', factura: 'medio', fuente: 'diesel_24h'
+    },
+    contacto: { nombre: 'Ana', empresa: 'Acme', correo: 'real-sinred@acme.mx', tipo_cierre: 'preliminar' },
+    datos_consumo: { kwh_dia: 800, kw_pico: 120, litros_diesel_mes: 3000, horas_autonomia: 8 }
+  };
+  const { leadPayload } = assembleResult(estado, microred);
+  assert.equal(leadPayload.conectado, false);
+  const { emails } = await enviar(leadPayload);
+  assert.ok(emails.find((e) => e.to === 'real-sinred@acme.mx'), 'hay correo al cliente');
+  for (const e of emails) {
+    assert.doesNotMatch(e.text, /recibos?/i, `pide recibos: ${e.to}`);
+    assert.doesNotMatch(e.text, /RPU/, `pide RPU: ${e.to}`);
+    assert.doesNotMatch(e.text, /Tarifa CFE/, `etiqueta tarifa CFE: ${e.to}`);
+    assert.doesNotMatch(e.html || '', /recibos?/i, `pide recibos en HTML: ${e.to}`);
+  }
 });

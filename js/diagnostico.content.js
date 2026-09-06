@@ -435,6 +435,7 @@ const content = {
     diesel: 'Horas al año que corre tu respaldo de diésel y su costo aproximado de combustible',
     paros: 'Historial de paros por causa eléctrica: cuántos al año y qué costó cada interrupción',
     horario: 'Desglose de consumo por horario (base, intermedia, punta) de tu recibo GDMTH o DIST',
+    horarioSinRed: 'Ventanas y horarios de operación y, si tienes medición, tu curva de carga por horario',
     contrato: 'Estructura de tu contrato de suministro privado (precio fijo o indexado a precios de mercado PML)',
     techo: 'Superficie de techo o terreno disponible para paneles solares (m² aproximados)',
     solar: 'Capacidad de tu sistema solar en sitio y cuánto excedente inyectas o se desperdicia',

@@ -70,7 +70,7 @@ export default createProfileContent({
   exposures: [
     { when: { disparador: 'aislado' }, text: 'que requiere autonomía sin red' },
     { when: { disparador: 'diesel' }, text: 'con dependencia económica de diésel' },
-    { when: { calidad: 'variaciones' }, text: 'con red débil e inestable' }
+    { when: { fuente: 'red_debil' }, text: 'con red débil e inestable' }
   ],
   defaultExposure: 'con oportunidad de hibridar generación y almacenamiento',
   sectorEmphasis: {
@@ -78,7 +78,7 @@ export default createProfileContent({
     bess_solar: { agro: 10, turismo_remoto: 10, comunidad: 8 }
   },
   postResult: {
-    label: 'Precisar mi microred', alwaysRoof: true,
+    label: 'Precisar mi microred', forzar: ['techo'],
     facturas: { titulo: 'Sube tus recibos o registros de energía', sub: 'Si tienes recibos de CFE o registros de consumo de combustible, súbelos. Es opcional.' }
   },
   emailVocabulary: {
