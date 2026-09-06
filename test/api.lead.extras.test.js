@@ -268,3 +268,15 @@ test('v4: las preguntas del correo salen del payload, con fallback a la lista fi
   const sinLista = await enviar({ ...base, respuestas_legibles: { sector: 'Mina' } });
   assert.match(sinLista.emails[0].text, /1\. Sector \/ operación: Mina/);
 });
+
+test('v4: sin red y sin lista de preguntas, el fallback no dice CFE', async () => {
+  const { emails } = await enviar({ ...base, correo: 'sinred2@acme.mx', conectado: false, respuestas_legibles: { tarifa: 'Diésel' } });
+  assert.doesNotMatch(emails[0].text, /CFE/);
+  assert.match(emails[0].text, /Tarifa o suministro: Diésel/);
+});
+
+test('v4: primerPaso sin tipo de recomendación no rompe el correo', async () => {
+  const { res, emails } = await enviar({ ...base, correo: 'pp@acme.mx', recomendacion_solucion: { tipo: '', razon: '', primerPaso: true, segundoPaso: { tipo: 'BESS', razon: 'r' } } });
+  assert.equal(res.statusCode, 200);
+  assert.doesNotMatch(emails[0].text, /Primer paso/);
+});

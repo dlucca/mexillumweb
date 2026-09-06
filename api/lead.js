@@ -14,6 +14,7 @@ const esc = (s) =>
   );
 
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
+const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
 // Restringe un path de storage a chars seguros (defensa adicional contra "../", igual que upload-url.js).
 const safePath = (p) => String(p ?? '').replace(/[^a-zA-Z0-9._/-]+/g, '');
@@ -176,7 +177,6 @@ export default async function handler(req, res) {
     : '';
   const intencion = clean(body.intencion, 20);
   const conectado = body.conectado === false ? false : (body.conectado === true ? true : null);
-  const freno = clean(body.freno, 60);
   const consumoRaw = (body.datos_consumo && typeof body.datos_consumo === 'object' && !Array.isArray(body.datos_consumo)) ? body.datos_consumo : null;
   const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 && v !== null && v !== '' ? Number(v) : null);
   const consumo = consumoRaw ? {
@@ -205,7 +205,7 @@ export default async function handler(req, res) {
     ? body.recomendacion_solucion.segundoPaso : null;
   const segundoPaso = segundoPasoRaw && clean(segundoPasoRaw.tipo, 40)
     ? { tipo: clean(segundoPasoRaw.tipo, 40), razon: clean(segundoPasoRaw.razon, 300) } : null;
-  const esPrimerPaso = body.recomendacion_solucion?.primerPaso === true && !!segundoPaso;
+  const esPrimerPaso = !!recomendacion && body.recomendacion_solucion?.primerPaso === true && !!segundoPaso;
   const aplicacionRaw = (body.aplicacion_principal && typeof body.aplicacion_principal === 'object'
     && !Array.isArray(body.aplicacion_principal))
     ? body.aplicacion_principal
@@ -230,8 +230,11 @@ export default async function handler(req, res) {
         : `${ubic.direccion || '—'}`)
     : '';
 
+  const usandoFallback = !preguntasPayload.length;
   const respuestas = (preguntasPayload.length ? preguntasPayload : PREGUNTAS).map(([key, label]) => {
-    const etiqueta = (origen.startsWith('hoteles') && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
+    const etiqueta = (origen.startsWith('hoteles') && PREGUNTAS_HOTELES[key])
+      ? PREGUNTAS_HOTELES[key]
+      : (usandoFallback && key === 'tarifa' && conectado === false ? 'Tarifa o suministro' : label);
     const visible = clean(legibles[key], 240);
     const codigo = clean(codigos[key], 40);
     return { label: etiqueta, visible: visible || codigo || '—' };
@@ -452,8 +455,8 @@ export default async function handler(req, res) {
         'Rango de inversión y forma preferida (compra directa o servicio/PPA).'
       ];
       if (corteImporta || esBaterias) faltan.push('Frecuencia y duración de los cortes de energía.');
-      if (sinRed && !consumoLineas.length) faltan.push(`${docAislado.charAt(0).toUpperCase()}${docAislado.slice(1)}.`);
-      if (!sinRed && !tieneRecibos) faltan.push(`${docConectado.charAt(0).toUpperCase()}${docConectado.slice(1)}.`);
+      if (sinRed && !consumoLineas.length) faltan.push(`${cap(docAislado)}.`);
+      if (!sinRed && !tieneRecibos) faltan.push(`${cap(docConectado)}.`);
       if (!tieneTecho && esSolar) faltan.push('Superficie disponible en m² (techo o terreno).');
       if (esSolar) faltan.push('Tipo y estado de la cubierta del techo (peso que soporta).');
       if (esBaterias) {
