@@ -819,7 +819,10 @@ export function initDiagnostico({ content, calLink, origen }) {
     const aplicaFrase = rz.aplicaFrase?.[res.encaje_tecnico] || 'podría aplicar a tu operación';
     const nextCopy = 'Elige si quieres recibir este diagnóstico por correo o aportar datos para afinar el anteproyecto.';
     const segundo = rec.primerPaso ? rec.segundoPaso : null;
-    const scoreSegundo = segundo ? (res.ranking[0]?.score ?? null) : null;
+    // Puntaje de la oportunidad que el resultado destaca, no del primer lugar del ranking.
+    const scoreSegundo = segundo
+      ? (res.ranking.find((o) => o.id === res.aplicacion_principal?.id)?.score ?? null)
+      : null;
     const configuracionHtml = rec.primerPaso
       ? `
           <aside class="dx__resumen" aria-label="Primer paso recomendado">

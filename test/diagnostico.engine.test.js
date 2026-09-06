@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
 import microred from '../js/diagnostico.microred.content.js';
+import electromovilidad from '../js/diagnostico.electromovilidad.content.js';
+import centrosDatos from '../js/diagnostico.centros-datos.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
@@ -1050,4 +1052,32 @@ test('pasosEnriquecimiento: microred siempre empieza por el mapa de áreas (forz
   const lista = pasosEnriquecimiento(res, microred, res.leadPayload.respuestas_codigos);
   assert.equal(lista[0], 'techo');
   assert.ok(lista.includes('facturas'));
+});
+
+// ---- v4 §1.5: `corte` en perfiles cuya condicional es otra pregunta ----
+test('normalizeResponses v4: sin paso corte, la continuidad del disparador lo deriva', () => {
+  const conCont = assembleResult({ respuestas: { sector: 'flotilla', disparador: ['continuidad'], perfil: 'punta', generacion: 'no', tarifa: 'gdmth', factura: 'alto', gestion_carga: 'sistema' } }, electromovilidad);
+  const soloCosto = assembleResult({ respuestas: { sector: 'flotilla', disparador: ['costo'], perfil: 'punta', generacion: 'no', tarifa: 'gdmth', factura: 'alto', gestion_carga: 'sistema' } }, electromovilidad);
+  assert.ok(!electromovilidad.pasos.some((p) => p.key === 'corte'), 'electromovilidad no tiene paso corte');
+  assert.equal(conCont.leadPayload.respuestas_codigos.corte, 'servicio');
+  assert.equal(soloCosto.leadPayload.respuestas_codigos.corte, 'nada');
+  assert.ok(conCont.scores.respaldo > soloCosto.scores.respaldo, 'la continuidad sube el respaldo');
+});
+
+test('normalizeResponses v4: con paso corte pero oculto, corte sigue en nada', () => {
+  const res = assembleResult({ respuestas: { sector: 'manufactura', disparador: ['costo'], perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto' } }, content);
+  assert.ok(content.pasos.some((p) => p.key === 'corte'));
+  assert.equal(res.leadPayload.respuestas_codigos.corte, 'nada');
+});
+
+// ---- v4 §1.3: exposiciones de perfil re-keyed a las respuestas que sí existen ----
+test('buildProfile v4: microred usa fuente y centros de datos usa corte para la exposición', () => {
+  assert.match(
+    buildProfile({ sector: 'telecom', disparador: ['costo'], fuente: 'red_debil' }, microred),
+    /red débil e inestable/
+  );
+  assert.match(
+    buildProfile({ sector: 'enterprise_dc', disparador: ['costo'], corte: 'servicio' }, centrosDatos),
+    /transferencias frecuentes a respaldo/
+  );
 });

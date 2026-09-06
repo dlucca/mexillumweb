@@ -543,8 +543,16 @@ export function normalizeResponses(resp, content) {
   const out = { ...resp };
   if (out.generacion === 'fisica') out.generacion = 'solar_sitio';
   out.disparador = asList(out.disparador);
-  // Condicional `corte` no mostrada: no marcar continuidad significa que un corte no cuesta.
-  if (out.corte == null) out.corte = 'nada';
+  // Condicional `corte` sin respuesta. Si el perfil ni siquiera tiene ese paso (su
+  // condicional es otra, p. ej. `crecimiento` en electromovilidad), la señal de
+  // continuidad del disparador es lo único que hay: se deriva de ahí. Si el paso existe
+  // pero no se mostró, no marcar continuidad significa que un corte no cuesta.
+  if (out.corte == null) {
+    const tienePasoCorte = Array.isArray(content?.pasos) && content.pasos.some((p) => p.key === 'corte');
+    out.corte = (Array.isArray(content?.pasos) && !tienePasoCorte && hasSignal(out.disparador, 'continuidad'))
+      ? 'servicio'
+      : 'nada';
+  }
   out.conectado = derivarConectado(out, content);
   return out;
 }

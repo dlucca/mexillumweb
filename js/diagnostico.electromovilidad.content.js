@@ -47,13 +47,6 @@ export default createProfileContent({
     ]
   },
   continuityLabel: 'Una interrupción de la carga nos cuesta rutas o servicio',
-  outageQuestion: 'Si la carga programada se interrumpe 30 minutos, ¿qué ocurre?',
-  outageOptions: [
-    { codigo: 'producto', label: 'Vehículos críticos no completan ruta o servicio' },
-    { codigo: 'reinicio', label: 'Se acumula carga y recuperar el programa toma horas' },
-    { codigo: 'servicio', label: 'Perdemos ventas, disponibilidad o nivel de servicio' },
-    { codigo: 'nada', label: 'Podemos reprogramar sin costo relevante' }
-  ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'La potencia disponible no alcanza o CFE tarda en ampliarla' },
     { codigo: 'diesel', label: 'Queremos evitar respaldo o generación con diésel' },

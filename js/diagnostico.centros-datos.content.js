@@ -53,7 +53,7 @@ export default createProfileContent({
   ],
   exposures: [
     { when: { disparador: 'capacidad' }, text: 'con restricción de capacidad para crecer' },
-    { when: { calidad: 'cortes' }, text: 'con transferencias frecuentes a respaldo' },
+    { when: { corte: 'servicio' }, text: 'con transferencias frecuentes a respaldo' },
     { when: { sector: 'colo' }, text: 'con carga crítica continua y compromisos de disponibilidad' }
   ],
   defaultExposure: 'con carga crítica continua y exigencia de redundancia',
