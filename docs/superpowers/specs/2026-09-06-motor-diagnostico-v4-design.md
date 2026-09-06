@@ -1,7 +1,7 @@
 # Motor de diagnóstico v4 — cuestionario adaptativo, frenos y salidas separadas
 
 Fecha: 2026-09-06
-Estado: aprobado en chat (3 secciones), pendiente de plan de implementación.
+Estado: implementado (ver plan 2026-09-06-motor-diagnostico-v4.md).
 
 ## Objetivo
 

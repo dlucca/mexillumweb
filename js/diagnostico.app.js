@@ -1,7 +1,7 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=14';
-import { mountRoofPicker } from './diagnostico.roof.js?v=14';
-import { mountFacturasUploader } from './diagnostico.facturas.js?v=14';
-import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=14';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=15';
+import { mountRoofPicker } from './diagnostico.roof.js?v=15';
+import { mountFacturasUploader } from './diagnostico.facturas.js?v=15';
+import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=15';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
 

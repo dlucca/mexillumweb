@@ -6,7 +6,7 @@ const content = {
     id: 'hoteles',
     label: 'Hoteles',
     route: '/diagnostico-hoteles',
-    version: '2.0'
+    version: '3.0'
   },
   intro: {
     titulo: 'Diagnóstico energético para tu hotel en 2 minutos',
