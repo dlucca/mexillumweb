@@ -1,6 +1,6 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=13';
-import { mountRoofPicker } from './diagnostico.roof.js?v=13';
-import { mountFacturasUploader } from './diagnostico.facturas.js';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=14';
+import { mountRoofPicker } from './diagnostico.roof.js?v=14';
+import { mountFacturasUploader } from './diagnostico.facturas.js?v=14';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
 
@@ -42,6 +42,8 @@ export function initDiagnostico({ content, calLink, origen }) {
     techo: null,
     acometida: null,
     facturas: null,
+    enrichmentDone: false,   // ya pasó por mapa + facturas
+    enrichmentSaved: null,   // resultado del guardado automático (true/false/null)
     ...(saved || {}),
   };
   let resultTracked = false;
@@ -431,22 +433,42 @@ export function initDiagnostico({ content, calLink, origen }) {
         </div>
       </div>`);
 
+    const btnSiguiente = view.querySelector('[data-act="siguiente"]');
+    const btnSaltar = view.querySelector('[data-act="saltar"]');
+    const btnAtras = view.querySelector('[data-act="atras"]');
+    // Mientras haya archivos subiendo no dejamos avanzar: si la persona sale antes,
+    // esos archivos no quedarían asociados al lead.
+    const syncNav = (pending) => {
+      const ocupado = pending > 0;
+      btnSiguiente.disabled = ocupado;
+      btnSiguiente.textContent = ocupado ? `Subiendo ${pending}…` : 'Continuar';
+      btnSaltar.disabled = ocupado;
+      if (btnAtras) btnAtras.disabled = ocupado;
+    };
     mountFacturasUploader(view.querySelector('.dx-fac-mount'), {
       leadId: estado.lead_id,
-      onChange: (f) => { estado.facturas = f; }
+      initial: estado.facturas?.items || [],
+      onChange: (f) => { estado.facturas = f; syncNav(f.pending || 0); }
     });
-    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => {
+    btnAtras?.addEventListener('click', () => {
       estado.paso = rapido
         ? (content.postResult?.servicePoint ? 'techo' : (content.postResult?.skipRoof ? 'facturas' : 'techo'))
         : (enrichmentStep() === 'techo' ? 'techo' : 'cierre');
       render();
     });
-    const finishEnrichment = () => {
-      estado.paso = estado.contacto.nombre ? 'agenda' : 'cierre';
+    const finishEnrichment = async () => {
+      if (estado.facturas?.pending > 0) return;
+      estado.enrichmentDone = true;
+      if (!estado.contacto.nombre) { estado.paso = 'cierre'; render(); return; }
+      syncNav(0);
+      btnSiguiente.disabled = true;
+      btnSiguiente.textContent = 'Guardando…';
+      await guardarEnriquecimiento();
+      estado.paso = 'agenda';
       render();
     };
-    view.querySelector('[data-act="saltar"]').addEventListener('click', finishEnrichment);
-    view.querySelector('[data-act="siguiente"]').addEventListener('click', finishEnrichment);
+    btnSaltar.addEventListener('click', finishEnrichment);
+    btnSiguiente.addEventListener('click', finishEnrichment);
 
     root.replaceChildren(view);
     focusMain();
@@ -567,7 +589,14 @@ export function initDiagnostico({ content, calLink, origen }) {
         return;
       }
       trackDx('enrichment_started', { profile_id: profileId });
-      estado.paso = enrichmentStep(res);
+      if (estado.enrichmentDone) {
+        // Modo rápido: mapa y facturas ya se hicieron antes del contacto. Guardamos
+        // lo aportado con el contacto y vamos directo al siguiente paso.
+        await guardarEnriquecimiento();
+        estado.paso = 'agenda';
+      } else {
+        estado.paso = enrichmentStep(res);
+      }
       render();
     });
 
@@ -583,7 +612,9 @@ export function initDiagnostico({ content, calLink, origen }) {
       <div class="dx__view">
         <p class="dx__diag-kicker">Información recibida</p>
         <h2 class="dx__question" data-dx-focus tabindex="-1">Elige el siguiente paso</h2>
-        <p class="dx__col-sub">Ya guardamos lo que compartiste. Puedes pedir la revisión por correo o reservar una llamada.</p>
+        <p class="dx__col-sub">${estado.enrichmentSaved === false
+          ? 'No pudimos guardar automáticamente lo que compartiste. Pide la revisión por correo o reserva una llamada para que nos llegue.'
+          : 'Ya guardamos lo que compartiste. Puedes pedir la revisión por correo o reservar una llamada.'}</p>
         <div class="dx-cierre">
           <label class="dx-cierre__field">Empresa (necesaria para agendar)
             <input type="text" data-f="empresa" autocomplete="organization" value="${esc(estado.contacto.empresa || '')}">
@@ -778,6 +809,8 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.techo = null;
       estado.acometida = null;
       estado.facturas = null;
+      estado.enrichmentDone = false;
+      estado.enrichmentSaved = null;
       estado.lead_id = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
       submittedStages.clear();
       resultTracked = false;
@@ -812,9 +845,11 @@ export function initDiagnostico({ content, calLink, origen }) {
   // lead sí llegó a Mexillum pero el correo al cliente fue rechazado (p. ej. dirección
   // inválida): la pantalla no debe prometer "revisa tu correo".
   let correoClienteFallo = false;
-  function submitLead(payload, stage) {
-    if (submittedStages.has(stage)) return Promise.resolve(true);
-    submittedStages.add(stage);
+  // `dedupKey` permite reenviar una misma etapa cuando su contenido cambió (p. ej.
+  // enrichment_completed con más facturas); por defecto cada etapa se manda una vez.
+  function submitLead(payload, stage, dedupKey = stage) {
+    if (submittedStages.has(dedupKey)) return Promise.resolve(true);
+    submittedStages.add(dedupKey);
     return fetch('/api/lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -828,10 +863,26 @@ export function initDiagnostico({ content, calLink, origen }) {
         return true;
       })
       .catch((err) => {
-        submittedStages.delete(stage);
+        submittedStages.delete(dedupKey);
         console.error('[diagnostico] no se pudo registrar el lead', err);
         return false;
       });
+  }
+
+  // Guarda mapa, acometida y facturas apenas termina el paso de facturas, sin esperar
+  // a que la persona pulse "Enviar". Se reenvía solo si el contenido cambió.
+  async function guardarEnriquecimiento() {
+    estado.resultado = assembleResult(estado, content);
+    const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
+    const firma = JSON.stringify({
+      f: estado.facturas?.paths || [],
+      t: estado.techo?.area_m2 || null,
+      a: estado.acometida ? [estado.acometida.lat, estado.acometida.lng, estado.acometida.tipo] : null
+    });
+    const ok = await submitLead(payload, 'enrichment_completed', `enrichment_completed:${firma}`);
+    estado.enrichmentSaved = ok;
+    trackDx('enrichment_completed', { profile_id: profileId, saved: ok, files: estado.facturas?.count || 0 });
+    return ok;
   }
 
   // Texto de éxito honesto: si el correo al cliente rebotó, lo decimos.
