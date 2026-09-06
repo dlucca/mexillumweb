@@ -23,7 +23,7 @@ const COMMON_GENERATION = [
   { label: 'Tenemos contrato renovable o suministro privado', codigo: 'contrato' },
   { label: 'Generamos parte del año o de forma estacional', codigo: 'estacional' },
   { label: 'No, compramos toda la energía', codigo: 'no' },
-  { label: 'Lo estamos evaluando', codigo: 'evaluando', esNoLoSe: true }
+  { label: 'Lo estamos evaluando', codigo: 'evaluando' }
 ];
 
 const COMMON_TARIFF = [

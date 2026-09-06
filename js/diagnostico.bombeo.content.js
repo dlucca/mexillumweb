@@ -36,7 +36,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Se compromete proceso, cultivo o calidad del agua' },
     { codigo: 'reinicio', label: 'Recuperar niveles, presión o proceso toma horas' },
     { codigo: 'servicio', label: 'Se interrumpe el servicio a usuarios o producción' },
-    { codigo: 'nada', label: 'Los tanques permiten esperar sin impacto relevante', esNoLoSe: true }
+    { codigo: 'nada', label: 'Los tanques permiten esperar sin impacto relevante' }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'Necesitamos más caudal o bombas y falta capacidad eléctrica' },

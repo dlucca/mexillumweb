@@ -36,7 +36,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Se compromete temperatura, inocuidad o producto' },
     { codigo: 'reinicio', label: 'Reiniciar compresores y recuperar temperatura toma horas' },
     { codigo: 'servicio', label: 'Se frena despacho, producción o venta' },
-    { codigo: 'nada', label: 'La inercia térmica permite continuar sin pérdida relevante', esNoLoSe: true }
+    { codigo: 'nada', label: 'La inercia térmica permite continuar sin pérdida relevante' }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'Queremos ampliar cámaras o producción y falta capacidad eléctrica' },

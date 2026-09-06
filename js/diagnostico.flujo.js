@@ -1,14 +1,14 @@
 // Qué pasos se muestran (antes del resultado) y qué pasos de enriquecimiento
 // aplican (después). Funciones puras; engine.js y app.js las consumen.
-import { matchesRule, hasSignal } from './diagnostico.engine.js';
+import { matchesRule, hasSignal, asRule } from './diagnostico.engine.js';
 
 // Un paso sin `when` siempre se muestra. `when: {}` también (regla vacía = siempre).
 // `paso.when` es una condición suelta (p. ej. { disparador: 'continuidad' }); se envuelve
-// como regla de matchesRule ({ when: paso.when }) porque matchesRule solo reconoce las
-// claves when/allOf/anyOf, no una condición suelta directamente.
+// como regla de matchesRule (asRule) porque matchesRule solo reconoce las claves
+// when/allOf/anyOf, no una condición suelta directamente.
 export function pasoVisible(paso, resp) {
   if (!paso.when) return true;
-  return matchesRule(resp || {}, { when: paso.when });
+  return matchesRule(resp || {}, asRule(paso.when));
 }
 
 export function pasosVisibles(content, resp) {

@@ -34,8 +34,8 @@ test('todos los perfiles cumplen el contrato 6 comunes + 1 propia + 0/1 condicio
     for (const p of content.pasos) {
       const codigos = p.opciones.map((o) => o.codigo);
       assert.equal(new Set(codigos).size, codigos.length, `${id}/${p.key}: códigos únicos`);
-      if (!p.multi && p.key !== 'sector') {
-        assert.ok(codigos.includes('nolose') || p.opciones.some((o) => o.esNoLoSe), `${id}/${p.key}: falta nolose`);
+      if (!p.multi && !['sector', 'generacion', 'corte'].includes(p.key)) {
+        assert.ok(codigos.includes('nolose'), `${id}/${p.key}: falta nolose`);
       }
     }
     const disparador = content.pasos.find((p) => p.key === 'disparador');

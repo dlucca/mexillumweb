@@ -37,7 +37,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Riesgo de pérdida de datos o incumplimiento crítico' },
     { codigo: 'reinicio', label: 'La recuperación operativa sería compleja y prolongada' },
     { codigo: 'servicio', label: 'Se comprometen SLA, disponibilidad o ingresos' },
-    { codigo: 'nada', label: 'La arquitectura actual cubre el evento sin impacto relevante', esNoLoSe: true }
+    { codigo: 'nada', label: 'La arquitectura actual cubre el evento sin impacto relevante' }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'La capacidad de red limita expansión o entrada en operación' },

@@ -45,7 +45,7 @@ export default createProfileContent({
     { codigo: 'producto', label: 'Se pierde producción, producto o material' },
     { codigo: 'reinicio', label: 'La operación se detiene y reiniciar toma horas' },
     { codigo: 'servicio', label: 'Se pierde comunicación, servicio o ingreso' },
-    { codigo: 'nada', label: 'Las cargas pueden esperar sin costo relevante', esNoLoSe: true }
+    { codigo: 'nada', label: 'Las cargas pueden esperar sin costo relevante' }
   ],
   triggerOptions: [
     { codigo: 'capacidad', label: 'Necesitamos crecer y la red o generadores no alcanzan' },

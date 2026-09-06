@@ -39,7 +39,7 @@ function condMatches(resp, cond) {
 }
 
 // Una condición suelta ({ tarifa: 'gdmth' }) se acepta donde se espera una regla.
-function asRule(r) {
+export function asRule(r) {
   return ('when' in r || 'allOf' in r || 'anyOf' in r) ? r : { when: r };
 }
 
@@ -77,7 +77,7 @@ export function toReadable(resp, content) {
   };
   for (const paso of content.pasos) {
     // `paso.when` es una condición suelta; se envuelve como regla de matchesRule.
-    if (paso.when && !matchesRule(resp, { when: paso.when })) continue; // condicional no mostrada
+    if (paso.when && !matchesRule(resp, asRule(paso.when))) continue; // condicional no mostrada
     const val = resp[paso.key];
     if (Array.isArray(val)) {
       // Multi-select: array vacío se trata como ['costo'] (salvaguarda defensiva, v2.2).

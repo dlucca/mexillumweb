@@ -63,7 +63,7 @@ const content = {
         { label: 'Sí — paneles solares en techos o áreas comunes (detrás del medidor)', codigo: 'solar_sitio' },
         { label: 'Tenemos contrato de suministro renovable / calificado', codigo: 'contrato' },
         { label: 'No, compramos todo a CFE o a un suministrador', codigo: 'no' },
-        { label: 'Lo estamos evaluando (RFP de solar en curso)', codigo: 'evaluando', esNoLoSe: true }
+        { label: 'Lo estamos evaluando (RFP de solar en curso)', codigo: 'evaluando' }
       ]
     },
     {
@@ -110,7 +110,7 @@ const content = {
         { label: 'Cocina y cadena de frío en riesgo: merma y tema de sanidad', codigo: 'producto' },
         { label: 'Se detiene la operación y recuperarla toma tiempo (bombeo, PMS, sistemas)', codigo: 'reinicio' },
         { label: 'Perdemos ingresos y experiencia del huésped por hora (clima, elevadores, eventos, reseñas)', codigo: 'servicio' },
-        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada', esNoLoSe: true }
+        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada' }
       ]
     }
   ],

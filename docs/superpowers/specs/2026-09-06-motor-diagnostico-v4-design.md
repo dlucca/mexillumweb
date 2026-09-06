@@ -54,8 +54,8 @@ Reglas del contrato (las verifica `test/diagnostico.profiles.test.js`):
 - Exactamente 1 paso con `rol: 'propia'`.
 - 0 o 1 paso con `rol: 'condicional'`, siempre el último, siempre con `when`.
 - Ningún `key` repetido. Ningún `codigo` repetido dentro de un paso.
-- Toda pregunta de opción única incluye una opción `nolose` (o equivalente marcado
-  `esNoLoSe: true`) salvo `sector`.
+- Toda pregunta de opción única incluye una opción `nolose`, salvo `sector`,
+  `generacion` y `corte` (enumeraciones completas donde 'no lo sé' no aplica).
 
 ### 1.2 Salen de las comunes
 

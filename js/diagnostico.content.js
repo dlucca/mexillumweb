@@ -63,7 +63,7 @@ const content = {
         { label: 'Tenemos contrato renovable o suministro privado', codigo: 'contrato' },
         { label: 'Generamos parte del año (cogeneración, zafra, estacional)', codigo: 'estacional' },
         { label: 'No, compramos todo de CFE o de un suministrador', codigo: 'no' },
-        { label: 'Lo estamos evaluando', codigo: 'evaluando', esNoLoSe: true }
+        { label: 'Lo estamos evaluando', codigo: 'evaluando' }
       ]
     },
     {
@@ -110,7 +110,7 @@ const content = {
         { label: 'Se pierde producto o un lote completo', codigo: 'producto' },
         { label: 'Se detiene la operación y reiniciar toma horas', codigo: 'reinicio' },
         { label: 'Perdemos servicio o ingresos por hora', codigo: 'servicio' },
-        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada', esNoLoSe: true }
+        { label: 'Incomoda, pero no cuesta dinero relevante', codigo: 'nada' }
       ]
     }
   ],
