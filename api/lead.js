@@ -365,6 +365,8 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'No se pudo enviar la solicitud.' });
     }
 
+    // null = no aplicaba enviar correo al cliente; true/false = resultado real del envío.
+    let correoCliente = null;
     if (tipoCierre === 'preliminar' && EMAIL_RE.test(correo) && clientEmailAllowed(correo)) {
       // Solo mostramos el rango si es un número real (no los mensajes "sin rango...").
       const rangoReal = rangoTexto && !/sin\s+(rango|n[uú]mero|especificar)/i.test(rangoTexto) ? rangoTexto : '';
@@ -464,15 +466,25 @@ export default async function handler(req, res) {
         `<p style="margin:16px 0 0">— Equipo Mexillum</p>` +
         `</div>`;
 
+      // Resend no lanza en 4xx/5xx: hay que mirar `ok`. Si falla, el lead interno ya
+      // salió, así que respondemos 200 pero con correo_cliente:false para que la
+      // interfaz no diga "revisa tu correo" cuando no va a llegar nada.
       try {
-        await fetch('https://api.resend.com/emails', {
+        const rc = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             from, to: correo, subject: 'Tu diagnóstico energético — Mexillum', text: textoCliente, html: htmlCliente
           })
         });
-      } catch (err) { console.error('correo cliente falló', err); }
+        if (rc.ok) {
+          correoCliente = true;
+        } else {
+          const detail = await rc.text().catch(() => '');
+          console.error('correo cliente rechazado', rc.status, detail);
+          correoCliente = false;
+        }
+      } catch (err) { console.error('correo cliente falló', err); correoCliente = false; }
 
       // NDA en segundo plano para que suba sus recibos con confianza (Opción A).
       try {
@@ -480,7 +492,7 @@ export default async function handler(req, res) {
       } catch (err) { console.error('NDA (preliminar) falló', err); }
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json(correoCliente === null ? { ok: true } : { ok: true, correo_cliente: correoCliente });
   } catch (err) {
     console.error('lead handler error', err);
     return res.status(502).json({ error: 'No se pudo enviar la solicitud.' });

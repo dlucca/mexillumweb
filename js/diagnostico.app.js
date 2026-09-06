@@ -539,7 +539,9 @@ export function initDiagnostico({ content, calLink, origen }) {
       button.textContent = previousText;
       button.disabled = ok;
       if (ok) {
-        view.querySelector('[data-slot="okA"]').hidden = false;
+        const okEl = view.querySelector('[data-slot="okA"]');
+        okEl.textContent = mensajeExito('¡Listo! Pronto te contactaremos.');
+        okEl.hidden = false;
         trackDx('proposal_requested', { profile_id: profileId });
       } else {
         errEl.textContent = 'No pudimos enviar tu solicitud. Intenta de nuevo en un momento.';
@@ -626,7 +628,9 @@ export function initDiagnostico({ content, calLink, origen }) {
       button.textContent = 'Enviar para revisión';
       button.disabled = ok;
       if (ok) {
-        view.querySelector('[data-slot="ok"]').hidden = false;
+        const okEl = view.querySelector('[data-slot="ok"]');
+        okEl.textContent = mensajeExito('¡Listo! Recibirás el seguimiento en tu correo.');
+        okEl.hidden = false;
         trackDx('proposal_requested', { profile_id: profileId, enriched: true });
       } else {
         errEl.textContent = 'No pudimos enviar la información. Intenta de nuevo.';
@@ -804,6 +808,10 @@ export function initDiagnostico({ content, calLink, origen }) {
   }
 
   const submittedStages = new Set();
+  // Última respuesta útil del servidor. `correoCliente === false` significa que el
+  // lead sí llegó a Mexillum pero el correo al cliente fue rechazado (p. ej. dirección
+  // inválida): la pantalla no debe prometer "revisa tu correo".
+  let correoClienteFallo = false;
   function submitLead(payload, stage) {
     if (submittedStages.has(stage)) return Promise.resolve(true);
     submittedStages.add(stage);
@@ -813,12 +821,24 @@ export function initDiagnostico({ content, calLink, origen }) {
       body: JSON.stringify({ ...payload, lead_stage: stage, attribution }),
       keepalive: true
     })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return true; })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json().catch(() => ({}));
+        if (data && data.correo_cliente === false) correoClienteFallo = true;
+        return true;
+      })
       .catch((err) => {
         submittedStages.delete(stage);
         console.error('[diagnostico] no se pudo registrar el lead', err);
         return false;
       });
+  }
+
+  // Texto de éxito honesto: si el correo al cliente rebotó, lo decimos.
+  function mensajeExito(base) {
+    return correoClienteFallo
+      ? `Recibimos tu solicitud, pero no pudimos enviar el correo a ${estado.contacto.correo || 'tu dirección'}. Revisa que esté bien escrita; un asesor te contactará de todos modos.`
+      : base;
   }
 
   render();

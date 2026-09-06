@@ -162,3 +162,38 @@ test('preliminar sin env de DocuSeal sigue devolviendo 200 y no revienta', async
   const ndaCall = requests.find((r) => r.url.includes('/api/submissions'));
   assert.equal(ndaCall, undefined);
 });
+
+// Punto 7: si Resend rechaza el correo al cliente, el handler no debe fingir éxito total.
+async function enviarConClienteRechazado(payload) {
+  const capturado = [];
+  const fetchReal = globalThis.fetch;
+  const keyReal = process.env.RESEND_API_KEY;
+  globalThis.fetch = async (url, opts) => {
+    const body = JSON.parse(opts.body);
+    capturado.push(body);
+    if (body.to === payload.correo) return { ok: false, status: 422, text: async () => 'invalid to' };
+    return { ok: true, text: async () => '' };
+  };
+  process.env.RESEND_API_KEY = 'test-key';
+  const res = fakeRes();
+  try { await handler({ method: 'POST', body: payload }, res); }
+  finally {
+    globalThis.fetch = fetchReal;
+    if (keyReal === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = keyReal;
+  }
+  return { res, emails: capturado };
+}
+
+test('si el correo al cliente falla, responde 200 pero avisa correo_cliente:false', async () => {
+  const { res, emails } = await enviarConClienteRechazado({ ...base, correo: 'rebote@acme.mx', tipo_cierre: 'preliminar' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.correo_cliente, false);
+  assert.equal(emails.length, 2, 'se intentó el correo interno y el del cliente');
+});
+
+test('si el correo al cliente sale bien, responde correo_cliente:true', async () => {
+  const { res } = await enviar({ ...base, correo: 'ok1@acme.mx', tipo_cierre: 'preliminar' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.correo_cliente, true);
+});
