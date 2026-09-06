@@ -259,8 +259,10 @@ test('v4: sin red, ningún correo menciona CFE, RPU ni recibos', async () => {
   }
   assert.match(emails[0].text, /Datos de consumo/);
   assert.match(emails[0].text, /800 kWh\/día/);
+  // "Ya tenemos" enumera los datos que el cliente aportó, con sus propios números.
   const cliente = emails.find((e) => e.to === correoSinRed);
-  assert.match(cliente.text, /consumo diario/);
+  assert.match(cliente.text, /Ya tenemos[^.]*tus datos de consumo \(800 kWh\/día/);
+  assert.doesNotMatch(cliente.text, /Ya tenemos[^.]*consumo diario/);
 });
 
 test('v4: las preguntas del correo salen del payload, con fallback a la lista fija', async () => {
@@ -305,4 +307,13 @@ test('v4: payload real sin red no pide recibos, RPU ni etiqueta la tarifa como C
     assert.doesNotMatch(e.text, /Tarifa CFE/, `etiqueta tarifa CFE: ${e.to}`);
     assert.doesNotMatch(e.html || '', /recibos?/i, `pide recibos en HTML: ${e.to}`);
   }
+});
+
+test('datos_consumo ignora valores que no son números (true, vacío, arreglo)', async () => {
+  const { emails } = await enviar({
+    ...base, correo: 'consumo-basura@acme.mx',
+    datos_consumo: { kwh_dia: true, kw_pico: '  ', litros_diesel_mes: [], horas_autonomia: '8' }
+  });
+  assert.match(emails[0].text, /Datos de consumo: 8 h de autonomía/);
+  assert.doesNotMatch(emails[0].text, /1 kWh\/día|0 kW pico|0 L diésel/);
 });

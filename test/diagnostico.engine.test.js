@@ -966,6 +966,10 @@ test('v4 conectado: microred con sin_suministro y con mixto', () => {
   const mixto = assembleResult({ respuestas: { sector: 'agro', disparador: ['costo'], perfil: 'diurno', generacion: 'no', tarifa: 'mixto', factura: 'medio', fuente: 'diesel_parcial' } }, microred);
   assert.equal(mixto.leadPayload.respuestas_codigos.conectado, true);
   assert.equal(mixto.calculo.sin_numero, true, 'mixto no cuantifica por factura');
+  // CFE + diésel no es "sin red": el copy y el rango del lead hablan de ambos insumos.
+  assert.equal(mixto.calculo.cadena, microred.bloqueB.mixto);
+  assert.match(mixto.leadPayload.rango_texto, /CFE \+ diésel/);
+  assert.doesNotMatch(mixto.leadPayload.rango_texto, /sin red/i);
 });
 
 test('v4 conectado: industria con aislado → conectado false, consumo primero, techo presente, sin L.factura', () => {

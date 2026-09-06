@@ -49,9 +49,13 @@ export function confianza(resp, recomendacion, extras, content) {
 
 const SENALES_EVALUANDO = ['capacidad', 'diesel', 'continuidad', 'aislado'];
 
+// Activo = agendó llamada, o pasó por el enriquecimiento Y dejó al menos un dato.
+// Terminar el enriquecimiento sin aportar nada no es señal comercial.
 export function intencionComercial(resp, estado) {
   const e = estado || {};
-  if (e.enrichmentDone || e.contacto?.tipo_cierre === 'llamada') return 'Activo';
+  const aporto = Number(e.techo?.area_m2) > 0 || !!e.acometida
+    || Number(e.facturas?.count) > 0 || !!e.datos_consumo;
+  if (e.contacto?.tipo_cierre === 'llamada' || (e.enrichmentDone && aporto)) return 'Activo';
   if (SENALES_EVALUANDO.some((s) => hasSignal(resp.disparador, s))) return 'Evaluando';
   return 'Explorando';
 }

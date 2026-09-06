@@ -278,9 +278,12 @@ Muestra "Datos de consumo" cuando existen, con los cuatro campos.
 
 ## 5. Migración y compatibilidad
 
-- `profile_version` sube a `2.0` en los 7 perfiles. El estado guardado en
-  `localStorage` usa `profileId:version`, así que un estado v1 no se restaura.
-- `api/lead.js` acepta payloads v1 (sin las salidas nuevas): muestra `—` donde falte.
+- `profile_version` sube a `3.0` en los perfiles con contenido propio (industria y
+  comercio, hoteles) y a `2.0` en los cinco que salen de la fábrica
+  (`createProfileContent`). El estado guardado en `localStorage` usa
+  `profileId:version`, así que un estado de una versión anterior no se restaura.
+- `api/lead.js` acepta payloads v1 (sin las salidas nuevas): omite la línea del campo
+  que falte, en lugar de imprimirla vacía.
 - Cache-bust `?v=` sube al publicar.
 - `docs/superpowers/specs/2026-08-10-motor-diagnostico-v3-design.md` queda como
   historia; este documento lo reemplaza en lo que contradiga.

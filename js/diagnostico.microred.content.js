@@ -90,6 +90,9 @@ export default createProfileContent({
   },
   overrides: {
     sinRedPosible: true,
+    // Un sitio remoto sí declara su fuente actual (pregunta propia): la microred aislada
+    // la exige, además del gasto y el consumo. El merge es profundo: solo cambia off_grid.
+    requisitos: { off_grid: ['fuente', 'factura', 'consumo'] },
     financiamientoDefault: 'Una microred puede estructurarse como inversión propia o servicio, sujeto a viabilidad técnica, logística y crediticia. Primero se valida consumo, combustible, recurso renovable y autonomía requerida.',
     palancasRespaldoVariantes: {
       producto: 'Un corte se lleva producción, producto o material — el almacenamiento sostiene la carga esencial cuando la red o el generador fallan.',

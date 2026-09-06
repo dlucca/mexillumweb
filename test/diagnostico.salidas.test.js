@@ -67,6 +67,16 @@ test('confianza: off_grid exige consumo', () => {
 test('intencionComercial', () => {
   assert.equal(intencionComercial({ disparador: ['costo'] }, {}), 'Explorando');
   assert.equal(intencionComercial({ disparador: ['capacidad'] }, {}), 'Evaluando');
-  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true }), 'Activo');
   assert.equal(intencionComercial({ disparador: ['costo'] }, { contacto: { tipo_cierre: 'llamada' } }), 'Activo');
+});
+
+test('intencionComercial: Activo exige un dato aportado, no solo terminar el enriquecimiento', () => {
+  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true }), 'Explorando');
+  assert.equal(intencionComercial({ disparador: ['capacidad'] }, { enrichmentDone: true }), 'Evaluando');
+  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true, techo: { area_m2: 250 } }), 'Activo');
+  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true, acometida: { lat: 1, lng: 2 } }), 'Activo');
+  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true, facturas: { count: 2 } }), 'Activo');
+  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true, datos_consumo: { kwh_dia: 800 } }), 'Activo');
+  // Techo dibujado en 0 m² o cero facturas no cuentan como dato.
+  assert.equal(intencionComercial({ disparador: ['costo'] }, { enrichmentDone: true, techo: { area_m2: 0 }, facturas: { count: 0 } }), 'Explorando');
 });

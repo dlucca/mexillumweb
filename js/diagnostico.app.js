@@ -718,7 +718,12 @@ export function initDiagnostico({ content, calLink, origen }) {
       const base = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
       return submitLead(base, stage);
     };
-    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = (estado.enriquecimiento || ['facturas']).slice(-1)[0]; render(); });
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => {
+      // Sin pasos de enriquecimiento para este caso, atrás vuelve al cierre.
+      const lista = estado.enriquecimiento || [];
+      estado.paso = lista.length ? lista[lista.length - 1] : 'cierre';
+      render();
+    });
     view.querySelector('[data-act="enviar"]').addEventListener('click', async (event) => {
       const button = event.currentTarget;
       button.disabled = true;

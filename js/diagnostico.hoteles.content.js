@@ -10,7 +10,7 @@ const content = {
   },
   intro: {
     titulo: 'Diagnóstico energético para tu hotel en 2 minutos',
-    cuerpo: 'Ocho preguntas sobre tu propiedad —climatización, ocupación, tarifa CFE—. Al final ves qué oportunidades de ahorro aplican a tu hotel, cuál atacar primero y, cuando tu tarifa lo permite, un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
+    cuerpo: 'Siete u ocho preguntas sobre tu propiedad —climatización, ocupación, tarifa CFE—. Al final ves qué oportunidades de ahorro aplican a tu hotel, cuál atacar primero y, cuando tu tarifa lo permite, un orden de magnitud de lo que hay en juego, además de qué datos preparar para volverlo un número exacto.',
     // El resultado se renderiza completo antes del gate (ver renderResult en view.js):
     // el pie lo dice explícitamente porque es la objeción principal del tráfico frío.
     pie: 'Sin costo y sin formulario: el diagnóstico aparece completo al terminar. Tus datos solo si quieres recibirlo por correo o avanzar con el anteproyecto.',
@@ -323,6 +323,7 @@ const content = {
     pdbt: 'La tarifa PDBT no cobra la demanda máxima con la misma estructura que GDMTH, DIST/DIT o GDMTO. Por eso no aplicamos aquí una estimación de peak shaving; primero verificamos si existe otra oportunidad o si corresponde migrar de categoría tarifaria.',
     privado: 'Como compras a un suministrador privado, tu ahorro depende de la estructura de tu contrato — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.',
     aislado: 'Tu sitio se dimensiona por consumo y combustible, no por factura de CFE. Con tus kWh al día y tus litros de diésel podemos poner número.',
+    mixto: 'Con CFE y diésel combinados el número sale de tus recibos y de tus litros de combustible; lo calculamos con ambos.',
     sinRangoPorAplicacion: {
       solar_puro: 'Tu caso prioritario es la generación solar fotovoltaica en sitio para autoconsumo. Para estimar el ahorro con exactitud necesitamos la superficie disponible (techo o terreno en m²), tu consumo anual en kWh y la radiación de tu localidad; la factura mensual sola no basta para dimensionar la potencia óptima.',
       arbitraje: 'Tu caso prioritario es el arbitraje horario. Para estimarlo necesitamos el consumo desglosado por periodos base, intermedio y punta; una factura mensual total no alcanza para convertirlo en un rango responsable.',
@@ -486,7 +487,7 @@ const content = {
     bess: ['perfil', 'tarifa', 'factura'],
     solar: ['perfil', 'generacion', 'techo'],
     bess_solar: ['perfil', 'tarifa', 'factura', 'techo'],
-    off_grid: ['fuente', 'factura', 'consumo']
+    off_grid: ['factura', 'consumo']
   },
 
   // ---- DATOS PARA EL ANTEPROYECTO (dos voces: interno = qué solicita el equipo;

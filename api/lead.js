@@ -178,7 +178,9 @@ export default async function handler(req, res) {
   const intencion = clean(body.intencion, 20);
   const conectado = body.conectado === false ? false : (body.conectado === true ? true : null);
   const consumoRaw = (body.datos_consumo && typeof body.datos_consumo === 'object' && !Array.isArray(body.datos_consumo)) ? body.datos_consumo : null;
-  const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 && v !== null && v !== '' ? Number(v) : null);
+  // Solo números o cadenas numéricas no vacías: null, '', ' ', true y [] no son datos.
+  const num = (v) => (typeof v === 'number' || (typeof v === 'string' && v.trim() !== ''))
+    && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null;
   const consumo = consumoRaw ? {
     kwh_dia: num(consumoRaw.kwh_dia), kw_pico: num(consumoRaw.kw_pico),
     litros_diesel_mes: num(consumoRaw.litros_diesel_mes), horas_autonomia: num(consumoRaw.horas_autonomia)
@@ -441,9 +443,9 @@ export default async function handler(req, res) {
       if (tieneTecho) yaPartes.push(`la medida de tu techo (${techoTxt})`);
       if (acometida) yaPartes.push('la ubicación de tu punto eléctrico principal');
       if (tieneRecibos && !sinRed) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'}`);
-      // Al cliente le describimos qué tipo de dato ya tenemos (docAislado), no los
-      // números crudos: esos van solo al correo interno (consumoLineas).
-      if (consumoLineas.length) yaPartes.push(sinRed ? `tus datos de consumo (${docAislado})` : `tus datos de consumo (${consumoLineas.join(', ')})`);
+      // "Ya tenemos" enumera lo que el cliente aportó, así que va con sus propios números.
+      // `docAislado` describe lo que falta, y solo aparece en la lista de "Nos ayudaría".
+      if (consumoLineas.length) yaPartes.push(`tus datos de consumo (${consumoLineas.join(', ')})`);
       const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
 
       const faltan = [

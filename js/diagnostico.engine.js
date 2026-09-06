@@ -128,7 +128,10 @@ export function formatRango(piso, techo) {
 // Cálculo puro del rango. Las tarifas sin estructura compatible se detienen antes
 // de aplicar porcentajes genéricos de cargo por demanda.
 export function computeRange(resp, content) {
-  if (resp.conectado === false || resp.tarifa === 'diesel' || resp.tarifa === 'mixto' || resp.tarifa === 'sin_suministro') return { sinNumero: 'aislado', piso: null, techo: null };
+  // CFE + diésel combinados: hay recibo y hay combustible, así que el caso no es "sin red"
+  // pero tampoco se cuantifica solo con la factura.
+  if (resp.tarifa === 'mixto') return { sinNumero: 'mixto', piso: null, techo: null };
+  if (resp.conectado === false || resp.tarifa === 'diesel' || resp.tarifa === 'sin_suministro') return { sinNumero: 'aislado', piso: null, techo: null };
   if (resp.tarifa === 'privado') return { sinNumero: 'privado', piso: null, techo: null };
   if (resp.tarifa === 'pdbt') return { sinNumero: 'pdbt', piso: null, techo: null };
   if (resp.tarifa === 'nolose') return { sinNumero: 'tarifa', piso: null, techo: null };
@@ -170,6 +173,9 @@ export function renderBlockB(resp, content, aplicacion) {
   }
   if (sinNumero === 'nolose') {
     return salidaSinNumero(sinNumero, b.noloseFactura);
+  }
+  if (sinNumero === 'mixto') {
+    return salidaSinNumero(sinNumero, b.mixto);
   }
   if (sinNumero === 'aislado') {
     return salidaSinNumero(sinNumero, b.aislado);
@@ -634,7 +640,8 @@ export function assembleResult(estado, content) {
         pdbt: 'Tarifa PDBT — peak shaving no cuantificado',
         tarifa: 'Tarifa sin especificar — sin rango numérico',
         nolose: 'Factura sin especificar — sin rango numérico',
-        aislado: 'Sitio sin red — se dimensiona por consumo, sin rango de factura'
+        aislado: 'Sitio sin red — se dimensiona por consumo, sin rango de factura',
+        mixto: 'CFE + diésel — se dimensiona con recibos y combustible'
       }[bloqueB.sinNumero] || 'Aplicación prioritaria sin datos suficientes para un rango')
     : bloqueB.rangoTexto;
 
