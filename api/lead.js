@@ -168,12 +168,44 @@ export default async function handler(req, res) {
     ? body.anteproyecto_interno.slice(0, 20).map((b) => clean(b, 240)).filter(Boolean)
     : [];
 
-  const potencial = clean(body.potencial_general, 20);
+  const encaje = clean(body.encaje_tecnico, 20);
+  const tamano = clean(body.tamano, 20);
+  const confianzaRaw = (body.confianza && typeof body.confianza === 'object' && !Array.isArray(body.confianza)) ? body.confianza : null;
+  const confianzaTxt = confianzaRaw && confianzaRaw.nivel
+    ? `${clean(confianzaRaw.nivel, 10)}${Array.isArray(confianzaRaw.faltantes) && confianzaRaw.faltantes.length ? ` (falta: ${confianzaRaw.faltantes.slice(0, 6).map((f) => clean(f, 30)).join(', ')})` : ''}`
+    : '';
+  const intencion = clean(body.intencion, 20);
+  const conectado = body.conectado === false ? false : (body.conectado === true ? true : null);
+  const freno = clean(body.freno, 60);
+  const consumoRaw = (body.datos_consumo && typeof body.datos_consumo === 'object' && !Array.isArray(body.datos_consumo)) ? body.datos_consumo : null;
+  const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 && v !== null && v !== '' ? Number(v) : null);
+  const consumo = consumoRaw ? {
+    kwh_dia: num(consumoRaw.kwh_dia), kw_pico: num(consumoRaw.kw_pico),
+    litros_diesel_mes: num(consumoRaw.litros_diesel_mes), horas_autonomia: num(consumoRaw.horas_autonomia)
+  } : null;
+  const consumoLineas = consumo ? [
+    consumo.kwh_dia != null ? `${consumo.kwh_dia} kWh/día` : null,
+    consumo.kw_pico != null ? `${consumo.kw_pico} kW pico` : null,
+    consumo.litros_diesel_mes != null ? `${consumo.litros_diesel_mes} L diésel/mes` : null,
+    consumo.horas_autonomia != null ? `${consumo.horas_autonomia} h de autonomía` : null
+  ].filter(Boolean) : [];
+  const preguntasPayload = Array.isArray(body.preguntas)
+    ? body.preguntas.filter((p) => p && typeof p === 'object').map((p) => [clean(p.key, 40), clean(p.label, 80)]).filter(([k, l]) => k && l)
+    : [];
+  const documentos = (vocabulary.documentos && typeof vocabulary.documentos === 'object') ? vocabulary.documentos : {};
+  const docConectado = clean(documentos.conectado, 200) || 'tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa)';
+  const docAislado = clean(documentos.aislado, 300) || 'tu consumo diario (kWh), potencia pico (kW), litros y costo de diésel al mes y horas de autonomía';
+  const idServicio = clean(vocabulary.idServicio, 120) || 'Número de servicio (RPU) de tu recibo CFE.';
   const recomendacionRaw = (body.recomendacion_solucion && typeof body.recomendacion_solucion === 'object'
     && !Array.isArray(body.recomendacion_solucion))
     ? { tipo: clean(body.recomendacion_solucion.tipo, 40), razon: clean(body.recomendacion_solucion.razon, 300) }
     : null;
   const recomendacion = (recomendacionRaw && recomendacionRaw.tipo) ? recomendacionRaw : null;
+  const segundoPasoRaw = body.recomendacion_solucion && typeof body.recomendacion_solucion.segundoPaso === 'object' && body.recomendacion_solucion.segundoPaso
+    ? body.recomendacion_solucion.segundoPaso : null;
+  const segundoPaso = segundoPasoRaw && clean(segundoPasoRaw.tipo, 40)
+    ? { tipo: clean(segundoPasoRaw.tipo, 40), razon: clean(segundoPasoRaw.razon, 300) } : null;
+  const esPrimerPaso = body.recomendacion_solucion?.primerPaso === true && !!segundoPaso;
   const aplicacionRaw = (body.aplicacion_principal && typeof body.aplicacion_principal === 'object'
     && !Array.isArray(body.aplicacion_principal))
     ? body.aplicacion_principal
@@ -198,7 +230,7 @@ export default async function handler(req, res) {
         : `${ubic.direccion || '—'}`)
     : '';
 
-  const respuestas = PREGUNTAS.map(([key, label]) => {
+  const respuestas = (preguntasPayload.length ? preguntasPayload : PREGUNTAS).map(([key, label]) => {
     const etiqueta = (origen.startsWith('hoteles') && PREGUNTAS_HOTELES[key]) ? PREGUNTAS_HOTELES[key] : label;
     const visible = clean(legibles[key], 240);
     const codigo = clean(codigos[key], 40);
@@ -261,8 +293,13 @@ export default async function handler(req, res) {
     '',
     perfil,
     `Rango estimado: ${rangoTexto}`,
-    potencial ? `Potencial general: ${potencial}` : null,
-    recomendacion ? `Recomendación: ${recomendacion.tipo}` : null,
+    encaje ? `Encaje técnico: ${encaje}` : null,
+    tamano ? `Tamaño: ${tamano}` : null,
+    confianzaTxt ? `Confianza: ${confianzaTxt}` : null,
+    intencion ? `Intención: ${intencion}` : null,
+    conectado === false ? 'Sitio sin red (conectado: no)' : null,
+    esPrimerPaso ? `Primer paso: ${recomendacion.tipo}` : (recomendacion ? `Recomendación: ${recomendacion.tipo}` : null),
+    esPrimerPaso ? `Segundo paso: ${segundoPaso.tipo}` : null,
     aplicacion ? `Aplicación principal: ${aplicacion}` : null,
     ranking.length ? 'Ranking: ' + ranking.map((o) => `${o.nombre} ${o.score}`).join(' · ') : null,
     '',
@@ -271,6 +308,7 @@ export default async function handler(req, res) {
     acometida ? `Punto eléctrico: ${acometidaTxt}` : null,
     facturaLinks.length ? `${facturaLinks.length} facturas subidas:` : null,
     ...facturaLinks.map((l) => `  - ${l}`),
+    consumoLineas.length ? 'Datos de consumo: ' + consumoLineas.join(' · ') : null,
     'Respuestas:',
     ...respuestas.map((r, i) => `${i + 1}. ${r.label}: ${r.visible}`),
     checklist.length ? '' : null,
@@ -293,10 +331,15 @@ export default async function handler(req, res) {
     `<p style="margin:0 0 16px;font-size:13px;color:#1F7A3D"><strong>${esc(perfil)}</strong><br>` +
     `Rango estimado: <strong>${esc(rangoTexto)}</strong></p>` +
 
-    (potencial || recomendacion || aplicacion || ranking.length
+    (encaje || tamano || confianzaTxt || intencion || conectado === false || recomendacion || aplicacion || ranking.length
       ? `<p style="margin:0 0 16px;font-size:13px;color:#16221A">` +
-        (potencial ? `Potencial general: <strong>${esc(potencial)}</strong><br>` : '') +
-        (recomendacion ? `Recomendación: <strong>${esc(recomendacion.tipo)}</strong><br>` : '') +
+        (encaje ? `Encaje técnico: <strong>${esc(encaje)}</strong><br>` : '') +
+        (tamano ? `Tamaño: <strong>${esc(tamano)}</strong><br>` : '') +
+        (confianzaTxt ? `Confianza: <strong>${esc(confianzaTxt)}</strong><br>` : '') +
+        (intencion ? `Intención: <strong>${esc(intencion)}</strong><br>` : '') +
+        (conectado === false ? `Sitio sin red (conectado: no)<br>` : '') +
+        (esPrimerPaso ? `Primer paso: <strong>${esc(recomendacion.tipo)}</strong><br>` : (recomendacion ? `Recomendación: <strong>${esc(recomendacion.tipo)}</strong><br>` : '')) +
+        (esPrimerPaso ? `Segundo paso: <strong>${esc(segundoPaso.tipo)}</strong><br>` : '') +
         (aplicacion ? `Aplicación principal: <strong>${esc(aplicacion)}</strong><br>` : '') +
         (ranking.length ? `Ranking: ${esc(ranking.map((o) => `${o.nombre} ${o.score}`).join(' · '))}` : '') +
         `</p>`
@@ -316,7 +359,7 @@ export default async function handler(req, res) {
     (referrer ? fila('Referente', referrer) : '') +
     `</table>` +
 
-    (ubic || techoArea != null || acometida || facturaLinks.length
+    (ubic || techoArea != null || acometida || facturaLinks.length || consumoLineas.length
       ? `<table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">` +
         (ubic ? fila('Ubicación', ubicTexto) : '') +
         (techoArea != null ? fila('Techo dibujado', techoTxt) : '') +
@@ -327,6 +370,7 @@ export default async function handler(req, res) {
             facturaLinks.map((l, i) => `<a href="${esc(l)}">Factura ${i + 1}</a>`).join('<br>') +
             `</td></tr>`
           : '') +
+        (consumoLineas.length ? fila('Datos de consumo', consumoLineas.join(' · ')) : '') +
         `</table>`
       : '') +
 
@@ -389,28 +433,34 @@ export default async function handler(req, res) {
         ? (arr[0] || '')
         : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
 
-      const yaPartes = ['tus respuestas del diagnóstico y tu tarifa CFE'];
+      const sinRed = conectado === false;
+      const yaPartes = [sinRed ? 'tus respuestas del diagnóstico' : 'tus respuestas del diagnóstico y tu tarifa'];
       if (tieneTecho) yaPartes.push(`la medida de tu techo (${techoTxt})`);
       if (acometida) yaPartes.push('la ubicación de tu punto eléctrico principal');
-      if (tieneRecibos) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'} de CFE`);
+      if (tieneRecibos && !sinRed) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'}`);
+      // Al cliente le describimos qué tipo de dato ya tenemos (docAislado), no los
+      // números crudos: esos van solo al correo interno (consumoLineas).
+      if (consumoLineas.length) yaPartes.push(sinRed ? `tus datos de consumo (${docAislado})` : `tus datos de consumo (${consumoLineas.join(', ')})`);
       const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
 
       const faltan = [
         `Horario u operación detallada de tu ${siteWord}.`,
         'Capacidad del transformador y tablero principal (diagrama unifilar).',
         'Horizonte de decisión (¿para cuándo lo necesitas?).',
-        'Número de servicio (RPU) de tu recibo CFE.',
+        ...(sinRed ? [] : [idServicio]),
         `Contacto del ${technicalContact}.`,
         'Rango de inversión y forma preferida (compra directa o servicio/PPA).'
       ];
       if (corteImporta || esBaterias) faltan.push('Frecuencia y duración de los cortes de energía.');
-      if (!tieneRecibos) faltan.push('Tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa).');
+      if (sinRed && !consumoLineas.length) faltan.push(`${docAislado.charAt(0).toUpperCase()}${docAislado.slice(1)}.`);
+      if (!sinRed && !tieneRecibos) faltan.push(`${docConectado.charAt(0).toUpperCase()}${docConectado.slice(1)}.`);
       if (!tieneTecho && esSolar) faltan.push('Superficie disponible en m² (techo o terreno).');
       if (esSolar) faltan.push('Tipo y estado de la cubierta del techo (peso que soporta).');
       if (esBaterias) {
         faltan.push('Cargas críticas a respaldar (kW y kWh) y autonomía requerida.');
         faltan.push('Espacio y ventilación para el gabinete de baterías.');
       }
+      if (esPrimerPaso) faltan.unshift(`Lo que define tu primer paso (${recomendacion.tipo.toLowerCase()}): ${clean(recomendacion.razon, 200)}`);
 
       const lineasCliente = [
         `Hola ${nombre || ''},`,
@@ -424,7 +474,8 @@ export default async function handler(req, res) {
         rangoReal ? rangoReal : null,
         '',
         'Lo que más te conviene',
-        recomendacion ? `${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : null,
+        esPrimerPaso ? `Primer paso: ${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : (recomendacion ? `${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : null),
+        esPrimerPaso ? `Segundo paso: ${segundoPaso.tipo}${segundoPaso.razon ? ' — ' + segundoPaso.razon : ''}` : null,
         palP ? `• Principal: ${palP.nombre} — ${palP.text}` : null,
         palS ? `• Secundaria: ${palS.nombre} — ${palS.text}` : null,
         financiamiento ? '' : null,
@@ -452,7 +503,10 @@ export default async function handler(req, res) {
         seccion('Tu perfil', `<p style="margin:0 0 8px">${esc(perfil || '—')}</p>`) +
         (rangoReal ? seccion('Ahorro estimado (referencia)', `<p style="margin:0 0 8px;font-weight:bold">${esc(rangoReal)}</p>`) : '') +
         seccion('Lo que más te conviene',
-          (recomendacion ? `<p style="margin:0 0 8px">${esc(recomendacion.tipo)}${recomendacion.razon ? ' — ' + esc(recomendacion.razon) : ''}</p>` : '') +
+          (esPrimerPaso
+            ? `<p style="margin:0 0 8px">Primer paso: ${esc(recomendacion.tipo)}${recomendacion.razon ? ' — ' + esc(recomendacion.razon) : ''}</p>` +
+              `<p style="margin:0 0 8px">Segundo paso: ${esc(segundoPaso.tipo)}${segundoPaso.razon ? ' — ' + esc(segundoPaso.razon) : ''}</p>`
+            : (recomendacion ? `<p style="margin:0 0 8px">${esc(recomendacion.tipo)}${recomendacion.razon ? ' — ' + esc(recomendacion.razon) : ''}</p>` : '')) +
           ((palP || palS) ? `<ul style="margin:0 0 8px;padding-left:18px">` +
             (palP ? `<li><strong>${esc(palP.nombre)}.</strong> ${esc(palP.text)}</li>` : '') +
             (palS ? `<li><strong>${esc(palS.nombre)}.</strong> ${esc(palS.text)}</li>` : '') +

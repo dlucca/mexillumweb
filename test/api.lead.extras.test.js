@@ -216,3 +216,55 @@ test('sin lead_id no firma ninguna factura', async () => {
   const { emails } = await enviar({ ...base, facturas: { paths: ['x/1-a.pdf'] } });
   assert.doesNotMatch(emails[0].text, /facturas subidas/);
 });
+
+test('v4: correo interno muestra las cuatro salidas y el freno con segundo paso', async () => {
+  const { emails } = await enviar({
+    ...base,
+    encaje_tecnico: 'Alto', tamano: 'Grande', confianza: { nivel: 'Media', faltantes: ['techo'] }, intencion: 'Evaluando',
+    freno: 'gestion_carga_primero',
+    recomendacion_solucion: { tipo: 'Gestión de carga primero', razon: 'r1', primerPaso: true, segundoPaso: { tipo: 'BESS para gestionar carga', razon: 'r2' } }
+  });
+  const t = emails[0].text;
+  assert.match(t, /Encaje técnico:\s*Alto/);
+  assert.match(t, /Tamaño:\s*Grande/);
+  assert.match(t, /Confianza:\s*Media \(falta: techo\)/);
+  assert.match(t, /Intención:\s*Evaluando/);
+  assert.match(t, /Primer paso:\s*Gestión de carga primero/);
+  assert.match(t, /Segundo paso:\s*BESS para gestionar carga/);
+  assert.doesNotMatch(t, /Potencial general/);
+});
+
+test('v4: sin red, ningún correo menciona CFE, RPU ni recibos', async () => {
+  // Correo único (no base.correo): las tres pruebas preliminares anteriores ya
+  // agotaron el throttle de correo-cliente para 'ana@acme.mx' en este archivo
+  // (Map de estado en módulo, compartido dentro del mismo proceso de test).
+  const correoSinRed = 'sinred@acme.mx';
+  const { emails } = await enviar({
+    ...base, correo: correoSinRed, tipo_cierre: 'preliminar', conectado: false,
+    email_vocabulary: {
+      site: 'sitio remoto', technicalContact: 'responsable',
+      documentos: { conectado: 'tus 12 recibos de CFE', aislado: 'tu consumo diario (kWh) y litros de diésel' },
+      idServicio: 'Número de servicio (RPU) de tu recibo CFE.'
+    },
+    datos_consumo: { kwh_dia: 800, kw_pico: 120, litros_diesel_mes: 3000, horas_autonomia: 8 },
+    preguntas: [{ key: 'sector', label: 'Tipo de sitio' }],
+    respuestas_legibles: { sector: 'Mina' }
+  });
+  for (const e of emails) {
+    assert.doesNotMatch(e.text, /CFE/);
+    assert.doesNotMatch(e.text, /RPU/);
+    assert.doesNotMatch(e.text, /recibos?/i);
+  }
+  assert.match(emails[0].text, /Datos de consumo/);
+  assert.match(emails[0].text, /800 kWh\/día/);
+  const cliente = emails.find((e) => e.to === correoSinRed);
+  assert.match(cliente.text, /consumo diario/);
+});
+
+test('v4: las preguntas del correo salen del payload, con fallback a la lista fija', async () => {
+  const conLista = await enviar({ ...base, preguntas: [{ key: 'sector', label: 'Tipo de sitio' }], respuestas_legibles: { sector: 'Mina' } });
+  assert.match(conLista.emails[0].text, /1\. Tipo de sitio: Mina/);
+  assert.doesNotMatch(conLista.emails[0].text, /2\. /);
+  const sinLista = await enviar({ ...base, respuestas_legibles: { sector: 'Mina' } });
+  assert.match(sinLista.emails[0].text, /1\. Sector \/ operación: Mina/);
+});
