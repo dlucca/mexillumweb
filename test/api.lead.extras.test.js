@@ -46,6 +46,7 @@ const base = {
 test('correo interno incluye ubicación, techo, acometida y facturas cuando vienen', async () => {
   const { emails } = await enviar({
     ...base,
+    lead_id: 'abc',
     ubicacion: { direccion: 'Calle 1', lat: 19.4, lng: -99.1 },
     techo: { area_m2: 250, poligono: [] },
     acometida: { lat: 19.4002, lng: -99.1003, tipo: 'transformador', precision: 'aproximada', capacidad_kva: 500 },
@@ -196,4 +197,22 @@ test('si el correo al cliente sale bien, responde correo_cliente:true', async ()
   const { res } = await enviar({ ...base, correo: 'ok1@acme.mx', tipo_cierre: 'preliminar' });
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.correo_cliente, true);
+});
+
+// Punto 5: el handler no debe firmar links de paths ajenos al lead_id del payload.
+test('solo firma facturas cuyo path empieza con lead_id/', async () => {
+  const { emails } = await enviar({
+    ...base,
+    lead_id: 'lead-propio-123',
+    facturas: { paths: ['lead-propio-123/1-a.pdf', 'otro-lead/1-b.pdf', '../../secreto.pdf'] }
+  });
+  const text = emails[0].text;
+  assert.match(text, /1 facturas? subidas?/);
+  assert.doesNotMatch(text, /otro-lead/);
+  assert.doesNotMatch(text, /secreto/);
+});
+
+test('sin lead_id no firma ninguna factura', async () => {
+  const { emails } = await enviar({ ...base, facturas: { paths: ['x/1-a.pdf'] } });
+  assert.doesNotMatch(emails[0].text, /facturas subidas/);
 });

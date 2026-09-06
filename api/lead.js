@@ -152,8 +152,11 @@ export default async function handler(req, res) {
     ? `${acometidaLabels[acometida.tipo] || acometida.tipo} · ${acometida.precision} · ${acometida.lat.toFixed(6)}, ${acometida.lng.toFixed(6)}`
       + (acometida.capacidad_kva ? ` · ${acometida.capacidad_kva} kVA` : '')
     : null;
-  const facturaPaths = (body.facturas && Array.isArray(body.facturas.paths))
-    ? body.facturas.paths.slice(0, 12).map((p) => clean(p, 300)).filter(Boolean)
+  // Solo aceptamos paths dentro de la carpeta del propio lead (`lead_id/...`): el
+  // cliente no debe poder pedir links firmados de archivos de otros leads.
+  const leadPrefix = leadId ? `${safePath(leadId)}/` : null;
+  const facturaPaths = (leadPrefix && body.facturas && Array.isArray(body.facturas.paths))
+    ? body.facturas.paths.slice(0, 12).map((p) => clean(p, 300)).filter((p) => p && safePath(p).startsWith(leadPrefix) && !p.includes('..'))
     : [];
 
   const checklist = Array.isArray(body.checklist_full)
