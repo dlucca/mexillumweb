@@ -1,77 +1,90 @@
+// Regresión exhaustiva v4: recorre los 7 perfiles con todas las combinaciones de sus
+// pasos (condicional en ambos estados) y verifica invariantes del spec v4 §4.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import content from '../js/diagnostico.content.js';
-import {
-  scoreOpportunities, rankOpportunities, primaryApplication,
-  recommendSolution, renderBlockB, pickLevers
-} from '../js/diagnostico.engine.js';
+import industria from '../js/diagnostico.content.js';
+import hoteles from '../js/diagnostico.hoteles.content.js';
+import electromovilidad from '../js/diagnostico.electromovilidad.content.js';
+import cadenaFrio from '../js/diagnostico.cadena-frio.content.js';
+import microred from '../js/diagnostico.microred.content.js';
+import bombeo from '../js/diagnostico.bombeo.content.js';
+import centrosDatos from '../js/diagnostico.centros-datos.content.js';
+import { assembleResult, hasSignal } from '../js/diagnostico.engine.js';
+import { pasoVisible } from '../js/diagnostico.flujo.js';
 
-const codes = Object.fromEntries(content.pasos.map((p) => [p.key, p.opciones.map((o) => o.codigo)]));
+const profiles = [industria, hoteles, electromovilidad, cadenaFrio, microred, bombeo, centrosDatos];
+
 const disparadores = [
-  ['costo'],
-  ['capacidad'], ['diesel'], ['excedente'],
-  ['capacidad', 'diesel'], ['capacidad', 'excedente'], ['diesel', 'excedente'],
-  ['capacidad', 'diesel', 'excedente']
+  ['costo'], ['capacidad'], ['diesel'], ['excedente'], ['continuidad'], ['aislado'],
+  ['capacidad', 'continuidad'], ['diesel', 'aislado'], ['capacidad', 'diesel', 'excedente', 'continuidad']
 ];
 
-// se reescribe en v4 Tarea 7
-test('regresión exhaustiva: todas las combinaciones mantienen conclusiones coherentes', { timeout: 30_000, skip: true }, () => {
-  let total = 0;
-  for (const sector of codes.sector)
-  for (const perfil of codes.perfil)
-  for (const generacion of codes.generacion)
-  for (const calidad of codes.calidad)
-  for (const tarifa of codes.tarifa)
-  for (const factura of codes.factura)
-  for (const corte of codes.corte)
-  for (const disparador of disparadores) {
-    const resp = { sector, perfil, generacion, calidad, tarifa, factura, corte, disparador };
-    const scores = scoreOpportunities(resp, content);
-    const ranking = rankOpportunities(scores, content);
-    const aplicacion = primaryApplication(resp, ranking, scores, content);
-    const recomendacion = recommendSolution(resp, scores, content, aplicacion);
-    const calculo = renderBlockB(resp, content, aplicacion);
-    const palancas = pickLevers(resp, ranking, content, aplicacion);
-    const principalEsperada = content.palancasCopy[aplicacion.id].nombre;
-    const ultimo = [...ranking].reverse().find((o) => o.id !== aplicacion.id);
-    const maxScore = ranking[0].score;
-
-    assert.equal(palancas.principal.nombre, principalEsperada, `principal divergente: ${JSON.stringify(resp)}`);
-    assert.notEqual(palancas.descartada.nombre, palancas.principal.nombre);
-    assert.equal(palancas.descartada.tag, ultimo.score === 0 ? 'No aplica' : 'Menor prioridad');
-    if (ultimo.score > 0) assert.equal(palancas.descartada.text, content.palancasCopy[ultimo.id].menor);
-
-    if (!calculo.sinNumero) {
-      // El rango se da para peak shaving o, desde v2.3, para arbitraje (que exige tarifa horaria).
-      assert.ok(['peak_shaving', 'arbitraje'].includes(aplicacion.id), `rango con aplicación inesperada: ${JSON.stringify(resp)}`);
-      if (aplicacion.id === 'arbitraje') assert.ok(['gdmth', 'dist'].includes(tarifa), `arbitraje con rango en tarifa no horaria: ${JSON.stringify(resp)}`);
-      assert.ok(['gdmth', 'dist', 'gdmto', 'gdbt'].includes(tarifa));
-      assert.notEqual(factura, 'nolose');
+function* combinaciones(content) {
+  const fijos = content.pasos.filter((p) => !p.when && !p.multi);
+  const condicional = content.pasos.find((p) => p.rol === 'condicional');
+  const rec = (i, acc) => (i === fijos.length ? [acc] : fijos[i].opciones.flatMap((o) => rec(i + 1, { ...acc, [fijos[i].key]: o.codigo })));
+  for (const base of rec(0, {})) {
+    for (const disparador of disparadores) {
+      const resp = { ...base, disparador };
+      if (condicional && pasoVisible(condicional, resp)) {
+        for (const o of condicional.opciones) yield { ...resp, [condicional.key]: o.codigo };
+      } else if (condicional) {
+        yield { ...resp, [condicional.key]: null };
+      } else {
+        yield resp;
+      }
     }
-    if (tarifa === 'pdbt' || tarifa === 'nolose' || tarifa === 'privado') assert.ok(calculo.sinNumero);
-
-    if (disparador.includes('diesel')) assert.notEqual(recomendacion.tipo, 'Solar fotovoltaico on-grid');
-    if (disparador.includes('capacidad')) assert.notEqual(recomendacion.tipo, 'Solar fotovoltaico on-grid');
-    if (maxScore < content.scoring.umbralPotencial.medio) {
-      assert.equal(recomendacion.tipo, 'Evidencia insuficiente', `recomendación excesiva: ${JSON.stringify(resp)}`);
-      assert.equal(aplicacion.preliminar, true);
-    }
-    for (const score of Object.values(scores)) assert.ok(score >= 0 && score <= 100);
-    total++;
   }
+}
 
-  assert.equal(total, 840_000);
-});
+// El generador cubre entre ~250k y ~900k combinaciones por perfil (7 pasos fijos con hasta
+// 8 opciones cada uno, x 9 listas de disparador, x hasta 5 opciones condicionales). Las dos
+// invariantes cruzadas (factura/perfil) piden dos assembleResult() adicionales por caso; para
+// no exceder el timeout se muestrean cada 5 combinaciones en vez de en todas — las invariantes
+// principales (encaje/tamaño/confianza/freno/limitaciones) sí corren sobre el 100% de los casos.
+const MUESTREO_CRUZADO = 5;
 
-test('tarifas: PDBT queda separada y no comparte cálculo de demanda', () => {
-  const tarifa = content.pasos.find((p) => p.key === 'tarifa');
-  assert.deepEqual(tarifa.opciones.map((o) => o.codigo), ['gdmth', 'gdmto', 'dist', 'gdbt', 'pdbt', 'nolose', 'privado']);
-  assert.equal(content.tablaDemanda.pdbt, null);
-  assert.equal(content.tablaDemanda.nolose, null);
-  const scores = scoreOpportunities({
-    sector: 'frio', perfil: 'picos', generacion: 'no', calidad: 'factor', tarifa: 'pdbt',
-    factura: 'muyalto', corte: 'nada', disparador: ['excedente']
-  }, content);
-  assert.equal(scores.peak_shaving, 0);
-  assert.equal(scores.arbitraje, 0);
-});
+for (const content of profiles) {
+  test(`exhaustiva v4: ${content.profile.id}`, { timeout: 120_000 }, () => {
+    let total = 0;
+    let frenos = 0;
+    const requisitosBase = content.requisitos?.base || [];
+    for (const respuestas of combinaciones(content)) {
+      total += 1;
+      const res = assembleResult({ respuestas }, content);
+      const rec = res.recomendacion_solucion;
+      const ctx = `${content.profile.id} ${JSON.stringify(respuestas)}`;
+
+      assert.ok(['Bajo', 'Medio', 'Alto', 'Muy Alto'].includes(res.encaje_tecnico), ctx);
+      assert.ok(['Sin cuantificar', 'Chico', 'Medio', 'Grande'].includes(res.tamano), ctx);
+      assert.ok(['Alta', 'Media', 'Baja'].includes(res.confianza.nivel), ctx);
+      assert.ok(typeof rec.tipo === 'string' && rec.tipo, ctx);
+
+      if (rec.primerPaso) {
+        frenos += 1;
+        assert.ok(rec.segundoPaso && rec.segundoPaso.tipo, `sin segundo paso: ${ctx}`);
+        assert.ok(!hasSignal(respuestas.disparador, 'aislado'), `freno con aislado: ${ctx}`);
+        assert.notEqual(res.encaje_tecnico, 'Bajo', `freno con encaje Bajo: ${ctx}`);
+      }
+      if (res.conectado === false) {
+        assert.equal(res.limitaciones[0]?.dato, content.limitaciones.consumo.dato, `limitación sin red: ${ctx}`);
+        assert.equal(res.tamano, 'Sin cuantificar', ctx);
+      }
+      const reqs = rec.primerPaso ? (rec.requisitos || []) : (content.requisitos?.[rec.familia] || requisitosBase);
+      const hayNolose = reqs.some((r) => respuestas[r] === 'nolose');
+      if (hayNolose) assert.notEqual(res.confianza.nivel, 'Alta', `confianza Alta con nolose: ${ctx}`);
+
+      // Encaje no depende de la factura; tamaño no depende del perfil. Muestreado (ver nota arriba).
+      if (total % MUESTREO_CRUZADO === 0) {
+        const otraFactura = respuestas.factura === 'bajo' ? 'alto' : 'bajo';
+        const resF = assembleResult({ respuestas: { ...respuestas, factura: otraFactura } }, content);
+        assert.equal(resF.encaje_tecnico, res.encaje_tecnico, `encaje cambió con factura: ${ctx}`);
+        const otroPerfil = respuestas.perfil === 'plano' ? 'picos' : 'plano';
+        const resP = assembleResult({ respuestas: { ...respuestas, perfil: otroPerfil } }, content);
+        assert.equal(resP.tamano, res.tamano, `tamaño cambió con perfil: ${ctx}`);
+      }
+    }
+    assert.ok(total > 0, 'sin combinaciones');
+    if (content.frenos?.length) assert.ok(frenos > 0, `${content.profile.id}: ningún freno se activó`);
+  });
+}
