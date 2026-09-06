@@ -8,3 +8,8 @@
 # Editor
 .vscode/
 .idea/
+
+# Worktrees y artefactos de agentes
+.claude/worktrees/
+.superpowers/
+.codex_tmp/
