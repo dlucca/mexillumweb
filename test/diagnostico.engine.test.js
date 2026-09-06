@@ -6,7 +6,7 @@ import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
   pickFinancing, ofreceServicio, buildChecklist, assembleResult, buildEventNote,
-  scoreOpportunities, rankOpportunities, potencialGeneral, recommendSolution, detectLimitations,
+  scoreOpportunities, rankOpportunities, recommendSolution, detectLimitations,
   primaryApplication, normalizeResponses, buildAnteproyecto, bookingContact,
   asList, hasSignal, matchesWhen, matchesRule
 } from '../js/diagnostico.engine.js';
@@ -467,26 +467,12 @@ test('rankOpportunities: devuelve 8 ordenadas desc con nombre', () => {
   assert.ok(typeof r[0].nombre === 'string');
 });
 
-test('potencialGeneral: tope Medio cuando faltan factura y tarifa', () => {
-  const resp = { ...fx, factura: 'nolose', tarifa: 'nolose', corte: 'producto', calidad: 'cortes' };
-  const scores = scoreOpportunities(resp, content);
-  assert.equal(potencialGeneral(scores, resp, content), 'Medio');
-});
-
-test('potencialGeneral: Muy Alto con score líder >=75', () => {
-  // Muy Alto (motor v3) exige 2+ palancas fuertes además de factura grande y tarifa
-  // cuantificable: picos+GDMTH dispara peak_shaving y corte producto+cortes dispara respaldo.
-  const resp = { sector: 'frio', perfil: 'picos', generacion: 'no', calidad: 'cortes', tarifa: 'gdmth', factura: 'muyalto', corte: 'producto', disparador: 'costo' };
-  const scores = scoreOpportunities(resp, content);
-  assert.equal(potencialGeneral(scores, resp, content), 'Muy Alto');
-});
-
-test('assembleResult: expone scores, ranking y potencial_general', () => {
+test('assembleResult: expone scores, ranking y encaje_tecnico', () => {
   const res = assembleResult(estadoFx, content);
   assert.equal(typeof res.scores.peak_shaving, 'number');
   assert.equal(res.ranking.length, 8);
-  assert.ok(['Muy Alto', 'Alto', 'Medio', 'Bajo'].includes(res.potencial_general));
-  assert.equal(res.leadPayload.potencial_general, res.potencial_general);
+  assert.ok(['Muy Alto', 'Alto', 'Medio', 'Bajo'].includes(res.encaje_tecnico));
+  assert.equal(res.leadPayload.encaje_tecnico, res.encaje_tecnico);
 });
 
 // ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
@@ -858,9 +844,9 @@ test('assembleResult: disparador string legado queda normalizado a array en el p
 
 // ---- Mejora #1: el payload sigue exponiendo ranking/recomendación/limitaciones ----
 
-test('leadPayload: conserva scores, ranking, potencial, recomendación y limitaciones', () => {
+test('leadPayload: conserva scores, ranking, encaje técnico, recomendación y limitaciones', () => {
   const p = assembleResult(estadoFx, content).leadPayload;
-  for (const k of ['scores', 'ranking', 'potencial_general', 'recomendacion_solucion', 'limitaciones']) {
+  for (const k of ['scores', 'ranking', 'encaje_tecnico', 'recomendacion_solucion', 'limitaciones']) {
     assert.ok(k in p, `falta ${k} en el payload`);
   }
   assert.ok(Array.isArray(p.ranking) && p.ranking.length === 8);
@@ -992,4 +978,37 @@ test('v4 conectado: microred con tarifa nolose → conectado null y sigue conect
   const res = assembleResult({ respuestas: { sector: 'telecom', disparador: ['costo'], perfil: 'plano', generacion: 'no', tarifa: 'nolose', factura: 'nolose', fuente: 'red_debil' } }, microred);
   assert.equal(res.leadPayload.respuestas_codigos.conectado, null);
   assert.equal(res.limitaciones[0].dato, microred.limitaciones.factura.dato);
+});
+
+test('assembleResult v4: expone las cuatro salidas y ya no potencial_general', () => {
+  const estado = {
+    respuestas: { sector: 'manufactura', disparador: ['capacidad'], perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto' },
+    contacto: {}, techo: null, datos_consumo: null
+  };
+  const res = assembleResult(estado, content);
+  assert.ok(['Bajo', 'Medio', 'Alto', 'Muy Alto'].includes(res.encaje_tecnico));
+  assert.equal(res.tamano, 'Grande');
+  assert.ok(['Alta', 'Media', 'Baja'].includes(res.confianza.nivel));
+  assert.equal(res.intencion, 'Evaluando');
+  assert.equal(res.conectado, true);
+  assert.equal(res.potencial_general, undefined);
+  assert.equal(res.leadPayload.potencial_general, undefined);
+  assert.equal(res.leadPayload.encaje_tecnico, res.encaje_tecnico);
+  assert.deepEqual(res.leadPayload.preguntas.map((p) => p.key), ['sector', 'disparador', 'perfil', 'generacion', 'tarifa', 'factura', 'calidad']);
+});
+
+test('assembleResult v4: encaje no cambia al variar solo la factura; tamaño no cambia al variar solo el perfil', () => {
+  const base = { sector: 'manufactura', disparador: ['costo'], perfil: 'picos', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'alto' };
+  const a = assembleResult({ respuestas: base }, content);
+  const b = assembleResult({ respuestas: { ...base, factura: 'bajo' } }, content);
+  assert.equal(a.encaje_tecnico, b.encaje_tecnico);
+  const c = assembleResult({ respuestas: { ...base, perfil: 'plano' } }, content);
+  assert.equal(a.tamano, c.tamano);
+});
+
+test('assembleResult v4: aislado pone consumo como primera limitación y conectado=false', () => {
+  const res = assembleResult({ respuestas: { sector: 'manufactura', disparador: ['aislado'], perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'nolose' } }, content);
+  assert.equal(res.conectado, false);
+  assert.equal(res.limitaciones[0].dato, content.limitaciones.consumo.dato);
+  assert.equal(res.tamano, 'Sin cuantificar');
 });

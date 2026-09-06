@@ -1,8 +1,8 @@
 // Motor de reglas del funnel v2. Funciones puras, sin DOM. Importable en navegador
 // y en Node (tests). Lee prioridades, condiciones y copy desde content.js.
-import { derivarConectado } from './diagnostico.salidas.js';
+import { derivarConectado, encajeTecnico, tamanoOportunidad, confianza as calcConfianza, intencionComercial } from './diagnostico.salidas.js';
 import { applyBrakes } from './diagnostico.frenos.js';
-import { familiaEfectiva } from './diagnostico.flujo.js';
+import { familiaEfectiva, pasosVisibles } from './diagnostico.flujo.js';
 
 // `disparador` es multi-select (array de códigos) desde v2.2. Estos helpers aceptan
 // tanto el array como el string legado, para no romper llamadas ni fixtures previos.
@@ -416,33 +416,6 @@ export function rankOpportunities(scores, content) {
     .sort((a, b) => (b.score - a.score) || (prioridad.get(a.id) - prioridad.get(b.id)));
 }
 
-export function potencialGeneral(scores, resp, content) {
-  const u = content.scoring.umbralPotencial;
-  const valores = Object.values(scores);
-  const s1 = Math.max(...valores);
-  const niveles = ['Bajo', 'Medio', 'Alto', 'Muy Alto'];
-  // Sin ninguna oportunidad que llegue al umbral medio, el caso es Bajo.
-  if (s1 < u.medio) return niveles[0];
-  const fuertes = valores.filter((v) => v >= content.scoring.umbralFuerte).length;
-  const cuantificable = (content.scoring.tarifasCuantificables || []).includes(resp.tarifa);
-
-  // El potencial ancla en la ESCALA de la factura (cuánto hay en juego), no solo en el fit
-  // del scoring: casi todo perfil industrial tiene alguna palanca fuerte, así que el puntaje
-  // máximo por sí solo no discrimina. La escala se recorta por fit débil y por datos faltantes.
-  let idx = content.scoring.escalaPotencial[resp.factura] ?? 1;
-  if (resp.factura === 'bajo' && s1 < content.scoring.umbralFuerte) idx = 0; // factura chica + fit flojo
-  if (s1 < content.scoring.umbralFuerte) idx = Math.min(idx, 1);             // sin palanca fuerte -> tope Medio
-  else if (s1 < u.muyAlto || fuertes < 2) idx = Math.min(idx, 2);            // fuerte pero no sobresaliente -> tope Alto
-  if (!cuantificable) idx = Math.min(idx, 2);                                // tarifa sin estructura clara
-  if (resp.factura === 'nolose') idx = Math.min(idx, 2);
-  if (resp.factura === 'nolose' && (resp.tarifa === 'nolose' || resp.tarifa === 'privado')) idx = Math.min(idx, 1);
-  // Muy Alto se reserva a casos grandes, cuantificables y con fit sobresaliente (2+ palancas).
-  if (idx === 3 && !(['alto', 'muyalto'].includes(resp.factura) && cuantificable && s1 >= u.muyAlto && fuertes >= 2)) {
-    idx = 2;
-  }
-  return niveles[idx];
-}
-
 // ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
 export function recommendSolution(resp, scores, content, aplicacion, freno = null) {
   const rec = content.recomendaciones;
@@ -601,13 +574,24 @@ export function assembleResult(estado, content) {
   const contacto = estado.contacto || {};
   const scores = scoreOpportunities(resp, content);
   const ranking = rankOpportunities(scores, content);
-  const potencial_general = potencialGeneral(scores, resp, content);
   const aplicacion_principal = primaryApplication(resp, ranking, scores, content);
   // scores sin el efecto de la factura (factura fija a 'medio'): el encaje técnico y el
   // freno miran el fit de la respuesta, no el tamaño del recibo.
   const scoresNeutros = scoreOpportunities({ ...resp, factura: 'medio' }, content);
   const freno = applyBrakes(resp, scoresNeutros, content);
   const recomendacion_solucion = recommendSolution(resp, scores, content, aplicacion_principal, freno);
+  // Encaje técnico: solo comportamiento eléctrico. Los pesos de scoring incluyen `factura`,
+  // así que el encaje usa `scoresNeutros` (factura fija en 'medio'; spec v4 §2.2: el encaje
+  // no cambia si solo cambia la factura). `applyBrakes` usa los mismos scores neutros.
+  const encaje_tecnico = encajeTecnico(scoresNeutros, content);
+  const tamano = tamanoOportunidad(resp, content);
+  const intencion = intencionComercial(resp, estado);
+  const datos_consumo = estado.datos_consumo || null;
+  const extras = {
+    techo: Number(estado.techo?.area_m2) > 0,
+    consumo: !!(datos_consumo && (Number(datos_consumo.kwh_dia) > 0 || Number(datos_consumo.litros_diesel_mes) > 0))
+  };
+  const confianza = calcConfianza(resp, recomendacion_solucion, extras, content);
   const recParaReglas = recomendacion_solucion.primerPaso ? recomendacion_solucion.segundoPaso : recomendacion_solucion;
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content, aplicacion_principal);
@@ -664,7 +648,13 @@ export function assembleResult(estado, content) {
     anteproyecto_interno: anteproyecto.interno,
     scores,
     ranking,
-    potencial_general,
+    encaje_tecnico,
+    tamano,
+    confianza,
+    intencion,
+    conectado: resp.conectado,
+    datos_consumo,
+    preguntas: pasosVisibles(content, resp).map((p) => ({ key: p.key, label: p.notaLabel || p.key })),
     recomendacion_solucion,
     freno: freno ? freno.id : null,
     palancas: {
@@ -703,7 +693,11 @@ export function assembleResult(estado, content) {
     anteproyecto,                            // { familia, interno[], lead[] } datos a solicitar
     scores,                                  // scoring 0-100 por oportunidad
     ranking,                                 // oportunidades ordenadas desc
-    potencial_general,                       // 'Muy Alto'|'Alto'|'Medio'|'Bajo'
+    encaje_tecnico,                          // 'Muy Alto'|'Alto'|'Medio'|'Bajo' — solo fit eléctrico (scoresNeutros)
+    tamano,                                  // 'Grande'|'Medio'|'Chico'|'Sin cuantificar' — escala de la factura
+    confianza,                               // { nivel, faltantes } — qué tan firme es la recomendación
+    intencion,                               // 'Activo'|'Evaluando'|'Explorando' — urgencia comercial
+    conectado: resp.conectado,               // true|false|null — hay red/CFE o es sitio aislado
     recomendacion_solucion,                  // { tipo, razon } BESS vs Solar
     aplicacion_principal,                    // { id, nombre } aplicación comercial líder
     limitaciones,                            // datos faltantes que impiden conclusiones firmes

@@ -566,12 +566,21 @@ const content = {
   },
 
   postResult: {
-    label: 'Precisar mi proyecto'
+    label: 'Precisar mi proyecto',
+    facturas: {
+      titulo: 'Sube tus últimas 12 facturas de energía',
+      sub: 'Con tus facturas de CFE o de tu suministrador calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.'
+    }
   },
 
   emailVocabulary: {
     site: 'operación',
-    technicalContact: 'responsable de energía o mantenimiento'
+    technicalContact: 'responsable de energía o mantenimiento',
+    documentos: {
+      conectado: 'tus 12 recibos de CFE (kWh, demanda máxima en kW y tarifa)',
+      aislado: 'tu consumo diario (kWh), potencia pico (kW), litros y costo de diésel al mes, fuente actual y horas de autonomía'
+    },
+    idServicio: 'Número de servicio (RPU) de tu recibo CFE.'
   },
 
   resultado: { reiniciar: 'Reiniciar diagnóstico' },

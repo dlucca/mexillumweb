@@ -77,8 +77,17 @@ export default createProfileContent({
     diesel: {}, off_grid: {}, respaldo: { mineria: 12, telecom: 14, comunidad: 12 },
     bess_solar: { agro: 10, turismo_remoto: 10, comunidad: 8 }
   },
-  postResult: { label: 'Precisar mi microred', alwaysRoof: true },
-  emailVocabulary: { site: 'sitio remoto', technicalContact: 'responsable de generación o mantenimiento' },
+  postResult: {
+    label: 'Precisar mi microred', alwaysRoof: true,
+    facturas: { titulo: 'Sube tus recibos o registros de energía', sub: 'Si tienes recibos de CFE o registros de consumo de combustible, súbelos. Es opcional.' }
+  },
+  emailVocabulary: {
+    site: 'sitio remoto', technicalContact: 'responsable de generación o mantenimiento',
+    documentos: {
+      conectado: 'tus recibos de CFE de los últimos 12 meses y tus horas y costo de diésel',
+      aislado: 'tu consumo diario (kWh), potencia pico (kW), litros y costo de diésel al mes, fuente actual y horas de autonomía'
+    }
+  },
   overrides: {
     sinRedPosible: true,
     financiamientoDefault: 'Una microred puede estructurarse como inversión propia o servicio, sujeto a viabilidad técnica, logística y crediticia. Primero se valida consumo, combustible, recurso renovable y autonomía requerida.',

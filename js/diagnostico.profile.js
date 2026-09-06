@@ -159,8 +159,8 @@ export function createProfileContent(definition) {
         'Bajo': `requiere más datos antes de recomendarlo para ${site}`
       }
     },
-    postResult: definition.postResult || {},
-    emailVocabulary: definition.emailVocabulary || {},
+    postResult: { ...baseContent.postResult, ...(definition.postResult || {}) },
+    emailVocabulary: { ...baseContent.emailVocabulary, ...(definition.emailVocabulary || {}) },
     continuidadCritica: !!definition.continuidadCritica
   });
 
