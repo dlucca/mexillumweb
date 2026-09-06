@@ -299,7 +299,7 @@ export function detectLimitations(resp, scores, content, recomendacion) {
   // Sitio sin red: lo primero es consumo y combustible; la factura de CFE no aplica.
   if (sinRed) {
     out.push(L.consumo || L.aislado);
-    if (L.combustible && (hasSignal(resp.disparador, 'diesel') || ['diesel', 'mixto', 'diesel_24h', 'diesel_parcial'].includes(resp.tarifa) || ['diesel_24h', 'diesel_parcial'].includes(resp.fuente))) out.push(L.combustible);
+    if (L.combustible && (hasSignal(resp.disparador, 'diesel') || ['diesel', 'mixto'].includes(resp.tarifa) || ['diesel_24h', 'diesel_parcial'].includes(resp.fuente))) out.push(L.combustible);
   } else {
     if (resp.factura === 'nolose') out.push(L.factura);
     if (resp.tarifa === 'nolose') out.push(L.tarifa);

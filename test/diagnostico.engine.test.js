@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import content from '../js/diagnostico.content.js';
+import microred from '../js/diagnostico.microred.content.js';
 import {
   plantaLabel, buildProfile, toReadable,
   roundHalfEven, formatMoney, formatRango, computeRange, renderBlockB, pickLevers, pickMissingData,
@@ -952,4 +953,43 @@ test('bookingContact: entrada vacía no rompe', () => {
   const c = bookingContact(undefined);
   assert.equal(c.nombre, '');
   assert.equal(c.correo, '');
+});
+
+// ---- v4: `conectado` / aislado — cobertura de integración (ronda de fix) ----
+// El fixture puro de diagnostico.salidas.test.js no ejercita computeRange, detectLimitations,
+// recommendSolution ni assembleResult con estas ramas; estas pruebas usan el motor completo.
+
+test('v4 conectado: microred con tarifa diesel → sin red, offGrid, sin rango de factura, consumo primero', () => {
+  const res = assembleResult({ respuestas: { sector: 'mineria', disparador: ['diesel'], perfil: 'plano', generacion: 'no', tarifa: 'diesel', factura: 'medio', fuente: 'diesel_24h' } }, microred);
+  assert.equal(res.leadPayload.respuestas_codigos.conectado, false);
+  assert.equal(res.calculo.sin_numero, true);
+  assert.match(res.leadPayload.rango_texto, /sin red/i);
+  assert.equal(res.limitaciones[0].dato, microred.limitaciones.consumo.dato);
+  assert.equal(res.limitaciones[1].dato, microred.limitaciones.combustible.dato);
+  assert.match(res.recomendacion_solucion.tipo, /microred/i);
+  assert.ok(typeof res.calculo.cadena === 'string' && res.calculo.cadena.length > 0);
+});
+
+test('v4 conectado: microred con sin_suministro y con mixto', () => {
+  const sin = assembleResult({ respuestas: { sector: 'comunidad', disparador: ['costo'], perfil: 'diurno', generacion: 'no', tarifa: 'sin_suministro', factura: 'bajo', fuente: 'sin_energia' } }, microred);
+  assert.equal(sin.leadPayload.respuestas_codigos.conectado, false);
+  assert.equal(sin.calculo.sin_numero, true);
+  const mixto = assembleResult({ respuestas: { sector: 'agro', disparador: ['costo'], perfil: 'diurno', generacion: 'no', tarifa: 'mixto', factura: 'medio', fuente: 'diesel_parcial' } }, microred);
+  assert.equal(mixto.leadPayload.respuestas_codigos.conectado, true);
+  assert.equal(mixto.calculo.sin_numero, true, 'mixto no cuantifica por factura');
+});
+
+test('v4 conectado: industria con aislado → conectado false, consumo primero, techo presente, sin L.factura', () => {
+  const res = assembleResult({ respuestas: { sector: 'manufactura', disparador: ['aislado'], perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'gdmth', factura: 'nolose' } }, content);
+  assert.equal(res.leadPayload.respuestas_codigos.conectado, false);
+  assert.equal(res.limitaciones[0].dato, content.limitaciones.consumo.dato);
+  assert.ok(res.limitaciones.some((l) => l.dato === content.limitaciones.techo.dato));
+  assert.ok(!res.limitaciones.some((l) => l.dato === content.limitaciones.factura.dato));
+  assert.equal(res.recomendacion_solucion.tipo, content.recomendaciones.offGrid.tipo);
+});
+
+test('v4 conectado: microred con tarifa nolose → conectado null y sigue conectado a efectos de limitaciones', () => {
+  const res = assembleResult({ respuestas: { sector: 'telecom', disparador: ['costo'], perfil: 'plano', generacion: 'no', tarifa: 'nolose', factura: 'nolose', fuente: 'red_debil' } }, microred);
+  assert.equal(res.leadPayload.respuestas_codigos.conectado, null);
+  assert.equal(res.limitaciones[0].dato, microred.limitaciones.factura.dato);
 });
