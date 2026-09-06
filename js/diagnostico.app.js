@@ -47,6 +47,7 @@ export function initDiagnostico({ content, calLink, origen }) {
     enriquecimiento: null,    // lista de pasos de enriquecimiento para este caso
     enrichmentDone: false,   // ya pasó por mapa + facturas
     enrichmentSaved: null,   // resultado del guardado automático (true/false/null)
+    guardando: false,        // true mientras guardarEnriquecimiento() está en curso
     ...(saved || {}),
   };
   let resultTracked = false;
@@ -61,6 +62,7 @@ export function initDiagnostico({ content, calLink, origen }) {
     return pasosEnriquecimiento(res, content, res.leadPayload.respuestas_codigos);
   }
   function irAEnriquecimiento(desde) {
+    if (estado.guardando) return;
     if (desde === 'facturas' && estado.facturas?.pending > 0) return;
     if (!estado.enriquecimiento) estado.enriquecimiento = listaEnriquecimiento();
     const lista = estado.enriquecimiento;
@@ -70,6 +72,7 @@ export function initDiagnostico({ content, calLink, origen }) {
     finishEnrichment();
   }
   function retrocederEnriquecimiento(desde) {
+    if (estado.guardando) return;
     const lista = estado.enriquecimiento || listaEnriquecimiento();
     const i = lista.indexOf(desde);
     if (i > 0) { estado.paso = lista[i - 1]; render(); return; }
@@ -890,6 +893,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.enriquecimiento = null;
       estado.enrichmentDone = false;
       estado.enrichmentSaved = null;
+      estado.guardando = false;
       estado.lead_id = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
       submittedStages.clear();
       resultTracked = false;
@@ -973,7 +977,15 @@ export function initDiagnostico({ content, calLink, origen }) {
     if (estado.facturas?.pending > 0) return;
     estado.enrichmentDone = true;
     if (!estado.contacto.nombre) { estado.paso = 'cierre'; render(); return; }
-    await guardarEnriquecimiento();
+    estado.guardando = true;
+    root.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    const btnSiguiente = root.querySelector('[data-act="siguiente"]');
+    if (btnSiguiente) btnSiguiente.textContent = 'Guardando…';
+    try {
+      await guardarEnriquecimiento();
+    } finally {
+      estado.guardando = false;
+    }
     estado.paso = 'agenda';
     render();
   }
