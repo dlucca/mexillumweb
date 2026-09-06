@@ -28,6 +28,9 @@ function* combinaciones(content) {
       const resp = { ...base, disparador };
       if (condicional && pasoVisible(condicional, resp)) {
         for (const o of condicional.opciones) yield { ...resp, [condicional.key]: o.codigo };
+        // El condicional es visible (posiblemente siempre, con `when: {}`); se agrega además
+        // el caso `null` para simular un payload parcial/legacy y ejercitar ambos estados.
+        yield { ...resp, [condicional.key]: null };
       } else if (condicional) {
         yield { ...resp, [condicional.key]: null };
       } else {
