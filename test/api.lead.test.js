@@ -140,7 +140,7 @@ test('api/lead: payload sin aplicación principal sigue enviando el correo', asy
   const { res: http, correo } = await enviar(sinCampo);
   assert.equal(http.statusCode, 200);
   assert.ok(!correo.text.includes('Aplicación principal:'));
-  assert.ok(correo.text.includes('Potencial general:'));
+  assert.ok(correo.text.includes('Rango estimado:'));
 });
 
 test('api/lead: rechaza correo inválido y no envía nada', async () => {

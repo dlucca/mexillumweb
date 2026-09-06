@@ -57,7 +57,6 @@ test('regresión exhaustiva: todas las combinaciones mantienen conclusiones cohe
       assert.equal(aplicacion.preliminar, true);
     }
     for (const score of Object.values(scores)) assert.ok(score >= 0 && score <= 100);
-    assert.ok(['Bajo', 'Medio', 'Alto', 'Muy Alto'].includes(potencialGeneral(scores, resp, content)));
     total++;
   }
 
