@@ -1,6 +1,7 @@
 import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=14';
 import { mountRoofPicker } from './diagnostico.roof.js?v=14';
 import { mountFacturasUploader } from './diagnostico.facturas.js?v=14';
+import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=14';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
 
@@ -32,7 +33,7 @@ export function initDiagnostico({ content, calLink, origen }) {
   const saved = rapido ? null : loadDxState(stateId);
   const estado = {
     paso: rapido
-      ? (content.postResult?.servicePoint ? 'techo' : (content.postResult?.skipRoof ? 'facturas' : 'techo'))
+      ? (content.postResult?.skipRoof ? 'punto' : 'techo')
       : (saved?.paso ?? 'intro'),
     respuestas: {},
     contacto: {},
@@ -42,6 +43,8 @@ export function initDiagnostico({ content, calLink, origen }) {
     techo: null,
     acometida: null,
     facturas: null,
+    datos_consumo: null,
+    enriquecimiento: null,    // lista de pasos de enriquecimiento para este caso
     enrichmentDone: false,   // ya pasó por mapa + facturas
     enrichmentSaved: null,   // resultado del guardado automático (true/false/null)
     ...(saved || {}),
@@ -49,12 +52,29 @@ export function initDiagnostico({ content, calLink, origen }) {
   let resultTracked = false;
   trackDx('viewed', { profile_id: profileId, rapido });
 
-  function enrichmentStep() {
-    // El mapa siempre se muestra: sirve para marcar el espacio disponible (techo,
-    // áreas verdes, estacionamientos, terreno) y/o la acometida o punto de conexión.
-    // Los perfiles con `skipRoof` (p. ej. centros de datos) ocultan el dibujo de áreas
-    // pero conservan el mapa para ubicar el punto eléctrico.
-    return 'techo';
+  // Lista de pasos de enriquecimiento para este caso. En modo rápido no hay respuestas:
+  // mapa (o solo punto si el perfil no dibuja áreas) y facturas.
+  function listaEnriquecimiento() {
+    if (rapido) return [content.postResult?.skipRoof ? 'punto' : 'techo', 'facturas'];
+    const res = estado.resultado || assembleResult(estado, content);
+    estado.resultado = res;
+    return pasosEnriquecimiento(res, content, res.leadPayload.respuestas_codigos);
+  }
+  function irAEnriquecimiento(desde) {
+    if (desde === 'facturas' && estado.facturas?.pending > 0) return;
+    if (!estado.enriquecimiento) estado.enriquecimiento = listaEnriquecimiento();
+    const lista = estado.enriquecimiento;
+    const i = desde == null ? -1 : lista.indexOf(desde);
+    const siguiente = lista[i + 1];
+    if (siguiente) { estado.paso = siguiente; render(); return; }
+    finishEnrichment();
+  }
+  function retrocederEnriquecimiento(desde) {
+    const lista = estado.enriquecimiento || listaEnriquecimiento();
+    const i = lista.indexOf(desde);
+    if (i > 0) { estado.paso = lista[i - 1]; render(); return; }
+    estado.paso = rapido ? desde : 'cierre';
+    render();
   }
 
   function el(html) {
@@ -123,11 +143,15 @@ export function initDiagnostico({ content, calLink, origen }) {
     const hintHtml = paso.hint ? `<p class="dx__col-sub">${esc(paso.hint)}</p>` : '';
     const atras = '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
 
+    const visibles = pasosVisibles(content, estado.respuestas);
+    const posicion = visibles.findIndex((p) => p.key === paso.key) + 1;
+    const totalVisibles = visibles.length;
+
     const view = el(`
       <div class="dx__view">
         <div class="dx__progress">
-          <span class="dx__progress-label">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</span>
-          <span class="dx__progress-track" aria-hidden="true"><span class="dx__progress-fill" style="width:${Math.round((idx + 1) / content.pasos.length * 100)}%"></span></span>
+          <span class="dx__progress-label">${esc(content.progresoLabel(posicion, totalVisibles))}</span>
+          <span class="dx__progress-track" aria-hidden="true"><span class="dx__progress-fill" style="width:${Math.round(posicion / totalVisibles * 100)}%"></span></span>
         </div>
         <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(pregunta)}</h2>
         ${hintHtml}
@@ -174,15 +198,21 @@ export function initDiagnostico({ content, calLink, origen }) {
     });
 
     view.querySelector('[data-act="atras"]').addEventListener('click', () => {
-      if (estado.paso === 0) estado.paso = 'intro';
-      else estado.paso -= 1;
+      const prev = anteriorIndice(content, estado.respuestas, estado.paso);
+      estado.paso = prev == null ? 'intro' : prev;
       render();
     });
     siguiente.addEventListener('click', () => {
       if (!estado.respuestas[paso.key]) return;
       trackDx('step_completed', { profile_id: profileId, step: paso.key, step_number: idx + 1 });
-      if (estado.paso < content.pasos.length - 1) estado.paso += 1;
-      else estado.paso = 'result';
+      // Si una respuesta común cambió, una condicional ya contestada puede dejar de aplicar.
+      for (const p of content.pasos) {
+        if (p.when && estado.respuestas[p.key] != null && !pasosVisibles(content, estado.respuestas).includes(p)) {
+          estado.respuestas[p.key] = null;
+        }
+      }
+      const next = siguienteIndice(content, estado.respuestas, estado.paso);
+      estado.paso = next == null ? 'result' : next;
       render();
     });
 
@@ -216,11 +246,15 @@ export function initDiagnostico({ content, calLink, origen }) {
     const hintHtml = paso.hint ? `<p class="dx__col-sub">${esc(paso.hint)}</p>` : '';
     const atras = '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
 
+    const visibles = pasosVisibles(content, estado.respuestas);
+    const posicion = visibles.findIndex((p) => p.key === paso.key) + 1;
+    const totalVisibles = visibles.length;
+
     const view = el(`
       <div class="dx__view">
         <div class="dx__progress">
-          <span class="dx__progress-label">${esc(content.progresoLabel(idx + 1, content.pasos.length))}</span>
-          <span class="dx__progress-track" aria-hidden="true"><span class="dx__progress-fill" style="width:${Math.round((idx + 1) / content.pasos.length * 100)}%"></span></span>
+          <span class="dx__progress-label">${esc(content.progresoLabel(posicion, totalVisibles))}</span>
+          <span class="dx__progress-track" aria-hidden="true"><span class="dx__progress-fill" style="width:${Math.round(posicion / totalVisibles * 100)}%"></span></span>
         </div>
         <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(pregunta)}</h2>
         ${hintHtml}
@@ -279,14 +313,21 @@ export function initDiagnostico({ content, calLink, origen }) {
     });
 
     view.querySelector('[data-act="atras"]').addEventListener('click', () => {
-      estado.paso -= 1;
+      const prev = anteriorIndice(content, estado.respuestas, estado.paso);
+      estado.paso = prev == null ? 'intro' : prev;
       render();
     });
     siguiente.addEventListener('click', () => {
       if (!estado.respuestas[paso.key].length) return;
       trackDx('step_completed', { profile_id: profileId, step: paso.key, step_number: idx + 1 });
-      if (estado.paso < content.pasos.length - 1) estado.paso += 1;
-      else estado.paso = 'result';
+      // Si una respuesta común cambió, una condicional ya contestada puede dejar de aplicar.
+      for (const p of content.pasos) {
+        if (p.when && estado.respuestas[p.key] != null && !pasosVisibles(content, estado.respuestas).includes(p)) {
+          estado.respuestas[p.key] = null;
+        }
+      }
+      const next = siguienteIndice(content, estado.respuestas, estado.paso);
+      estado.paso = next == null ? 'result' : next;
       render();
     });
 
@@ -368,7 +409,7 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   // ---- Paso: dibujar techo (opcional) -----------------------------------------
   function renderTecho() {
-    const allowRoof = !content.postResult?.skipRoof;
+    const allowRoof = estado.paso === 'techo' && !content.postResult?.skipRoof;
     // En modo rápido la persona llega en frío: copy que orienta y engancha.
     // En el flujo normal ya vio su resultado, así que el copy es más breve.
     const titulo = allowRoof
@@ -405,27 +446,67 @@ export function initDiagnostico({ content, calLink, origen }) {
       },
       allowRoof
     });
-    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => { estado.paso = 'cierre'; render(); });
-    view.querySelector('[data-act="saltar"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
-    view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+    view.querySelector('[data-act="atras"]')?.addEventListener('click', () => retrocederEnriquecimiento(estado.paso));
+    view.querySelector('[data-act="saltar"]').addEventListener('click', () => irAEnriquecimiento(estado.paso));
+    view.querySelector('[data-act="siguiente"]').addEventListener('click', () => irAEnriquecimiento(estado.paso));
 
+    root.replaceChildren(view);
+    focusMain();
+  }
+
+  // ---- Paso: datos de consumo (sitios sin red) --------------------------------
+  function renderConsumo() {
+    const d = estado.datos_consumo || {};
+    const campo = (key, label, hint) => `
+        <label class="dx-cierre__field">${esc(label)}
+          <input type="number" min="0" step="any" inputmode="decimal" data-f="${key}" value="${d[key] ?? ''}" placeholder="${esc(hint)}">
+        </label>`;
+    const view = el(`
+      <div class="dx__view">
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Cuéntanos cuánta energía usa tu sitio</h2>
+        <p class="dx__col-sub">Todo es opcional y aproximado. Con uno o dos datos ya podemos dimensionar.</p>
+        <div class="dx-cierre dx-consumo">
+          ${campo('kwh_dia', 'Consumo al día (kWh)', 'p. ej. 800')}
+          ${campo('kw_pico', 'Potencia pico (kW)', 'p. ej. 120')}
+          ${campo('litros_diesel_mes', 'Diésel al mes (litros)', 'p. ej. 3000')}
+          ${campo('horas_autonomia', 'Horas que necesitas operar sin sol ni generador', 'p. ej. 8')}
+        </div>
+        <div class="dx__nav dx__nav--end">
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
+          <span class="dx__skiprow">
+            <button type="button" class="dx__skip" data-act="saltar">Saltar por ahora</button>
+            <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente">Continuar</button>
+          </span>
+        </div>
+      </div>`);
+    const leer = () => {
+      const out = {};
+      for (const key of ['kwh_dia', 'kw_pico', 'litros_diesel_mes', 'horas_autonomia']) {
+        const v = view.querySelector(`[data-f="${key}"]`).value.trim();
+        const n = Number(v);
+        out[key] = v !== '' && Number.isFinite(n) && n >= 0 ? n : null;
+      }
+      const alguno = Object.values(out).some((v) => v != null);
+      estado.datos_consumo = alguno ? out : null;
+    };
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { leer(); retrocederEnriquecimiento('consumo'); });
+    view.querySelector('[data-act="saltar"]').addEventListener('click', () => irAEnriquecimiento('consumo'));
+    view.querySelector('[data-act="siguiente"]').addEventListener('click', () => { leer(); trackDx('consumo_entered', { profile_id: profileId }); irAEnriquecimiento('consumo'); });
     root.replaceChildren(view);
     focusMain();
   }
 
   // ---- Paso: subir facturas (opcional) ----------------------------------------
   function renderFacturas() {
-    const botonAtras = rapido && content.postResult?.skipRoof
-      ? ''
-      : '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
+    const copyFac = content.postResult?.facturas || { titulo: 'Sube tus últimas 12 facturas de energía', sub: 'Con tus facturas calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.' };
     const view = el(`
       <div class="dx__view">
-        <h2 class="dx__question" data-dx-focus tabindex="-1">Sube tus últimas 12 facturas de energía</h2>
-        <p class="dx__col-sub">Con tus facturas de CFE o de tu suministrador calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.</p>
+        <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(copyFac.titulo)}</h2>
+        <p class="dx__col-sub">${esc(copyFac.sub)}</p>
         <p class="dx__col-sub">Tus recibos son confidenciales. Solo los usamos para tu diagnóstico y no los compartimos.</p>
         <div class="dx-fac-mount"></div>
         <div class="dx__nav dx__nav--end">
-          ${botonAtras}
+          <button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>
           <span class="dx__skiprow">
             <button type="button" class="dx__skip" data-act="saltar">Saltar por ahora</button>
             <button type="button" class="mx-btn mx-btn--primary" data-act="siguiente">Continuar</button>
@@ -450,25 +531,9 @@ export function initDiagnostico({ content, calLink, origen }) {
       initial: estado.facturas?.items || [],
       onChange: (f) => { estado.facturas = f; syncNav(f.pending || 0); }
     });
-    btnAtras?.addEventListener('click', () => {
-      estado.paso = rapido
-        ? (content.postResult?.servicePoint ? 'techo' : (content.postResult?.skipRoof ? 'facturas' : 'techo'))
-        : (enrichmentStep() === 'techo' ? 'techo' : 'cierre');
-      render();
-    });
-    const finishEnrichment = async () => {
-      if (estado.facturas?.pending > 0) return;
-      estado.enrichmentDone = true;
-      if (!estado.contacto.nombre) { estado.paso = 'cierre'; render(); return; }
-      syncNav(0);
-      btnSiguiente.disabled = true;
-      btnSiguiente.textContent = 'Guardando…';
-      await guardarEnriquecimiento();
-      estado.paso = 'agenda';
-      render();
-    };
-    btnSaltar.addEventListener('click', finishEnrichment);
-    btnSiguiente.addEventListener('click', finishEnrichment);
+    btnAtras?.addEventListener('click', () => retrocederEnriquecimiento('facturas'));
+    btnSaltar.addEventListener('click', () => irAEnriquecimiento('facturas'));
+    btnSiguiente.addEventListener('click', () => irAEnriquecimiento('facturas'));
 
     root.replaceChildren(view);
     focusMain();
@@ -594,10 +659,11 @@ export function initDiagnostico({ content, calLink, origen }) {
         // lo aportado con el contacto y vamos directo al siguiente paso.
         await guardarEnriquecimiento();
         estado.paso = 'agenda';
+        render();
       } else {
-        estado.paso = enrichmentStep(res);
+        estado.enriquecimiento = listaEnriquecimiento();
+        irAEnriquecimiento(null);
       }
-      render();
     });
 
     root.replaceChildren(view);
@@ -649,7 +715,7 @@ export function initDiagnostico({ content, calLink, origen }) {
       const base = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
       return submitLead(base, stage);
     };
-    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = 'facturas'; render(); });
+    view.querySelector('[data-act="atras"]').addEventListener('click', () => { estado.paso = (estado.enriquecimiento || ['facturas']).slice(-1)[0]; render(); });
     view.querySelector('[data-act="enviar"]').addEventListener('click', async (event) => {
       const button = event.currentTarget;
       button.disabled = true;
@@ -704,7 +770,8 @@ export function initDiagnostico({ content, calLink, origen }) {
       resultTracked = true;
       trackDx('result_viewed', {
         profile_id: profileId,
-        potential: res.potencial_general,
+        encaje: res.encaje_tecnico,
+        freno: res.recomendacion_solucion?.freno || null,
         recommendation: res.recomendacion_solucion?.familia
       });
     }
@@ -745,26 +812,36 @@ export function initDiagnostico({ content, calLink, origen }) {
       ? `<p class="dx__resumen-k">${esc(rz.limitacionesLabel)}:</p>
          <ul class="dx__resumen-lim">${limCriticas.map((l) => `<li>${esc(l.dato)}</li>`).join('')}</ul>`
       : '';
-    const tipoRec = res.recomendacion_solucion.tipo;
-    const aplicaFrase = rz.aplicaFrase?.[res.potencial_general] || 'podría aplicar a tu operación';
-    const unknowns = ['perfil', 'tarifa', 'factura'].filter((key) => estado.respuestas[key] === 'nolose').length;
-    const confianza = unknowns >= 2 || limCriticas.length >= 2 ? 'Preliminar' : (unknowns || limCriticas.length ? 'Media' : 'Alta');
-    const tamano = c.sin_numero ? 'Sin cuantificar' : c.rango_texto;
+    const rec = res.recomendacion_solucion;
+    const aplicaFrase = rz.aplicaFrase?.[res.encaje_tecnico] || 'podría aplicar a tu operación';
     const nextCopy = 'Elige si quieres recibir este diagnóstico por correo o aportar datos para afinar el anteproyecto.';
-    const configuracionHtml = `
+    const segundo = rec.primerPaso ? rec.segundoPaso : null;
+    const scoreSegundo = segundo ? (res.ranking[0]?.score ?? null) : null;
+    const configuracionHtml = rec.primerPaso
+      ? `
+          <aside class="dx__resumen" aria-label="Primer paso recomendado">
+            <p class="dx__resumen-k">Primer paso</p>
+            <p class="dx__resumen-frase">Antes de baterías o paneles, <strong>${esc(rec.tipo)}</strong>.</p>
+            <p class="dx__resumen-razon">${esc(rec.razon)}</p>
+            <p class="dx__resumen-k">Segundo paso</p>
+            <p class="dx__resumen-frase"><strong>${esc(segundo.tipo)}</strong> ${esc(aplicaFrase)}${scoreSegundo != null ? ` (puntaje ${esc(String(scoreSegundo))} de 100)` : ''}.</p>
+            ${/BESS/.test(segundo.tipo) ? `<p class="dx__resumen-glosa">${esc(rz.bessGlosa)}</p>` : ''}
+            <p class="dx__resumen-razon">${esc(segundo.razon)}</p>
+          </aside>`
+      : `
           <aside class="dx__resumen" aria-label="Configuración a evaluar">
             <p class="dx__resumen-k">Configuración a evaluar</p>
-            <p class="dx__resumen-frase">Por lo que nos contaste, <strong>${esc(tipoRec)}</strong> ${esc(aplicaFrase)}.</p>
-            ${/BESS/.test(res.recomendacion_solucion.tipo) ? `<p class="dx__resumen-glosa">${esc(rz.bessGlosa)}</p>` : ''}
-            <p class="dx__resumen-razon">${esc(res.recomendacion_solucion.razon)}</p>
+            <p class="dx__resumen-frase">Por lo que nos contaste, <strong>${esc(rec.tipo)}</strong> ${esc(aplicaFrase)}.</p>
+            ${/BESS/.test(rec.tipo) ? `<p class="dx__resumen-glosa">${esc(rz.bessGlosa)}</p>` : ''}
+            <p class="dx__resumen-razon">${esc(rec.razon)}</p>
           </aside>`;
     const confianzaHtml = `
           <aside class="dx__resumen" aria-label="Firmeza de la conclusión">
             <p class="dx__resumen-k">Qué tan firme es esta conclusión</p>
             <div class="dx__resumen-heads">
-              <p class="dx__resumen-line"><span class="dx__resumen-k">Encaje técnico</span><strong>${esc(res.potencial_general)}</strong></p>
-              <p class="dx__resumen-line"><span class="dx__resumen-k">Tamaño</span><strong>${esc(tamano)}</strong></p>
-              <p class="dx__resumen-line"><span class="dx__resumen-k">Confianza</span><strong>${esc(confianza)}</strong></p>
+              <p class="dx__resumen-line"><span class="dx__resumen-k">Encaje técnico</span><strong>${esc(res.encaje_tecnico)}</strong></p>
+              <p class="dx__resumen-line"><span class="dx__resumen-k">Tamaño</span><strong>${esc(res.tamano)}</strong></p>
+              <p class="dx__resumen-line"><span class="dx__resumen-k">Confianza</span><strong>${esc(res.confianza.nivel)}</strong></p>
             </div>
             ${limHtml}
           </aside>`;
@@ -809,6 +886,8 @@ export function initDiagnostico({ content, calLink, origen }) {
       estado.techo = null;
       estado.acometida = null;
       estado.facturas = null;
+      estado.datos_consumo = null;
+      estado.enriquecimiento = null;
       estado.enrichmentDone = false;
       estado.enrichmentSaved = null;
       estado.lead_id = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
@@ -834,6 +913,8 @@ export function initDiagnostico({ content, calLink, origen }) {
     if (estado.paso === 'intro') return renderIntro();
     if (estado.paso === 'result') return renderResult();
     if (estado.paso === 'techo') return renderTecho();
+    if (estado.paso === 'punto') return renderTecho();
+    if (estado.paso === 'consumo') return renderConsumo();
     if (estado.paso === 'facturas') return renderFacturas();
     if (estado.paso === 'cierre') return renderCierre();
     if (estado.paso === 'agenda') return renderAgenda();
@@ -877,12 +958,24 @@ export function initDiagnostico({ content, calLink, origen }) {
     const firma = JSON.stringify({
       f: estado.facturas?.paths || [],
       t: estado.techo?.area_m2 || null,
-      a: estado.acometida ? [estado.acometida.lat, estado.acometida.lng, estado.acometida.tipo] : null
+      a: estado.acometida ? [estado.acometida.lat, estado.acometida.lng, estado.acometida.tipo] : null,
+      c: estado.datos_consumo
     });
     const ok = await submitLead(payload, 'enrichment_completed', `enrichment_completed:${firma}`);
     estado.enrichmentSaved = ok;
     trackDx('enrichment_completed', { profile_id: profileId, saved: ok, files: estado.facturas?.count || 0 });
     return ok;
+  }
+
+  // Cierra el enriquecimiento: guarda lo aportado (si hay contacto) y avanza a agenda,
+  // o queda en 'cierre' esperando el formulario de contacto.
+  async function finishEnrichment() {
+    if (estado.facturas?.pending > 0) return;
+    estado.enrichmentDone = true;
+    if (!estado.contacto.nombre) { estado.paso = 'cierre'; render(); return; }
+    await guardarEnriquecimiento();
+    estado.paso = 'agenda';
+    render();
   }
 
   // Texto de éxito honesto: si el correo al cliente rebotó, lo decimos.

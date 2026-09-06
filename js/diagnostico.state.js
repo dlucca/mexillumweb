@@ -16,7 +16,7 @@ export function loadDxState(profileId) {
 
 export function saveDxState(profileId, state) {
   try {
-    const privateSteps = ['cierre', 'techo', 'facturas', 'agenda'];
+    const privateSteps = ['cierre', 'techo', 'punto', 'facturas', 'consumo', 'agenda'];
     const safeStep = privateSteps.includes(state.paso) ? 'result' : state.paso;
     // No se guardan datos personales, ubicación, techo ni archivos.
     localStorage.setItem(key(profileId), JSON.stringify({

@@ -157,6 +157,7 @@ body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .dx-cierre__err{color:#b00020;font-size:var(--size-body-sm)}
 .dx-cierre__privacy{font-size:12px;line-height:1.5;color:var(--text-muted);margin:var(--space-2) 0 0}
 .dx-cierre__privacy a{color:inherit;text-underline-offset:3px}
+.dx-consumo{display:grid;gap:var(--space-3);grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .dx-cierre__paths{display:grid;gap:var(--space-5);grid-template-columns:1fr}
 .dx-cierre__path{border:1px solid var(--border-hairline);border-radius:10px;padding:var(--space-5)}
 .dx-cierre__ok{color:var(--text-strong);font-weight:var(--weight-semibold);margin-top:var(--space-3)}
