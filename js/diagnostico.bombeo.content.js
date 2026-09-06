@@ -23,14 +23,17 @@ export default createProfileContent({
     { codigo: 'nolose', label: 'No tenemos horarios o medición claros' }
   ],
   profileHint: 'Considera pozos, conducción, rebombeo, tratamiento y distribución.',
-  qualityQuestion: '¿Qué problema eléctrico u operativo reconoces?',
-  qualityOptions: [
-    { codigo: 'factor', label: 'Bajo factor de potencia por motores' },
-    { codigo: 'variaciones', label: 'Variaciones o arranques que afectan equipos' },
-    { codigo: 'cortes', label: 'Interrupciones que detienen el suministro' },
-    { codigo: 'no', label: 'La energía es estable; buscamos eficiencia o costo' },
-    { codigo: 'nolose', label: 'No contamos con diagnóstico electromecánico' }
-  ],
+  propia: {
+    key: 'hidraulica', notaLabel: 'Almacenamiento hidráulico',
+    pregunta: '¿Tienes tanque o almacenamiento de agua, y bombeas con horario?',
+    opciones: [
+      { codigo: 'tanque_sin_horario', label: 'Hay tanque, pero bombeamos cuando hace falta, sin programar' },
+      { codigo: 'tanque_programado', label: 'Hay tanque y ya bombeamos en horario barato' },
+      { codigo: 'sin_tanque', label: 'No hay almacenamiento; bombeamos directo a la demanda' },
+      { codigo: 'nolose', label: 'No lo sé' }
+    ]
+  },
+  continuityLabel: 'Un paro del bombeo nos cuesta servicio, cultivo o proceso',
   outageQuestion: 'Si el bombeo se detiene 30 minutos en el peor momento, ¿qué pasa?',
   outageOptions: [
     { codigo: 'producto', label: 'Se compromete proceso, cultivo o calidad del agua' },
@@ -64,6 +67,20 @@ export default createProfileContent({
       producto: 'Un corte compromete el proceso, el cultivo o la calidad del agua — la batería sostiene el bombeo en el momento crítico.',
       reinicio: 'Cada paro obliga a recuperar niveles y presión durante horas; la batería evita esa pérdida.',
       servicio: 'Cada hora sin bombeo interrumpe el servicio a usuarios o la producción — la batería lo sostiene.'
-    }
+    },
+    frenos: [
+      {
+        id: 'optimizacion_hidraulica_primero',
+        when: { hidraulica: 'tanque_sin_horario', perfil: ['picos', 'punta'] },
+        tipo: 'Optimización hidráulica primero',
+        razon: 'Tienes tanque y bombeas sin horario. Programar el bombeo para llenar en horas baratas y usar variadores para escalonar arranques suele mover el consumo fuera del pico sin baterías. Primero se valida eso; el BESS entra después, si el pico que queda sigue siendo caro.',
+        despues: 'bess',
+        requisitos: ['hidraulica', 'perfil'],
+        anteproyecto: {
+          interno: ['Volumen del tanque, niveles mínimo y máximo, y caudal de las bombas.', 'Horario de demanda de agua y si hay variadores instalados.'],
+          lead: ['Cuánta agua guarda tu tanque y cuánto tarda en llenarse.', 'A qué horas se necesita más agua.']
+        }
+      }
+    ]
   }
 });

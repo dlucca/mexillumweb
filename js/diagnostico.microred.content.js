@@ -26,14 +26,19 @@ export default createProfileContent({
   generationOptions: sharedOptions.generation.map((o) => o.codigo === 'estacional'
     ? { ...o, label: 'Generamos de forma estacional o con una fuente local variable' }
     : o),
-  qualityQuestion: '¿Cómo describirías la conexión eléctrica del sitio?',
-  qualityOptions: [
-    { codigo: 'factor', label: 'Hay problemas de potencia reactiva o arranque de motores' },
-    { codigo: 'variaciones', label: 'La red es débil y presenta variaciones frecuentes' },
-    { codigo: 'cortes', label: 'La red se interrumpe con frecuencia' },
-    { codigo: 'no', label: 'La red es estable, pero usamos combustible por costo o capacidad' },
-    { codigo: 'nolose', label: 'No existe red o no está caracterizada' }
-  ],
+  propia: {
+    key: 'fuente', notaLabel: 'Fuente actual y autonomía',
+    pregunta: '¿Cuál es hoy tu fuente principal de energía y cuántas horas necesitas operar sin ella?',
+    opciones: [
+      { codigo: 'diesel_24h', label: 'Diésel o gas todo el día; necesitamos operar 24 horas' },
+      { codigo: 'diesel_parcial', label: 'Diésel o gas algunas horas al día' },
+      { codigo: 'red_debil', label: 'Red de CFE con cortes frecuentes' },
+      { codigo: 'sin_energia', label: 'Hoy no hay suministro; es un sitio nuevo' },
+      { codigo: 'nolose', label: 'No lo tengo claro' }
+    ]
+  },
+  continuityLabel: 'Quedarnos sin energía nos cuesta producción o servicio',
+  continuidadCritica: true,
   tariffQuestion: '¿Cómo se paga hoy la energía de tu sitio?',
   tariffHint: 'Si hay recibo de CFE, el código aparece en la carátula.',
   tariffOptions: [

@@ -23,14 +23,18 @@ export default createProfileContent({
     { codigo: 'nolose', label: 'No tenemos separado el consumo de refrigeración' }
   ],
   profileHint: 'Considera compresores, evaporadores, condensadores y ciclos de deshielo.',
-  qualityQuestion: '¿Reconoces alguno de estos problemas eléctricos?',
-  qualityOptions: [
-    { codigo: 'factor', label: 'Penalización por bajo factor de potencia' },
-    { codigo: 'variaciones', label: 'Variaciones que disparan protecciones o dañan controles' },
-    { codigo: 'cortes', label: 'Microcortes o interrupciones que ponen en riesgo temperatura' },
-    { codigo: 'no', label: 'El suministro es estable' },
-    { codigo: 'nolose', label: 'No lo sabemos o no está medido' }
-  ],
+  propia: {
+    key: 'compresores', notaLabel: 'Compresores y control',
+    pregunta: '¿Cómo están tus compresores y su control?',
+    opciones: [
+      { codigo: 'viejos_sin_control', label: 'Más de 15 años o sin control de capacidad (arrancan y paran a tope)' },
+      { codigo: 'modernos_con_control', label: 'Recientes, con variadores o control de capacidad' },
+      { codigo: 'mixto', label: 'Una mezcla de equipos viejos y nuevos' },
+      { codigo: 'nolose', label: 'No lo sé' }
+    ]
+  },
+  continuityLabel: 'Un corte pone en riesgo temperatura o producto',
+  continuidadCritica: true,
   outageQuestion: 'Si la instalación pierde energía 30 minutos en el peor momento, ¿qué pasa?',
   outageOptions: [
     { codigo: 'producto', label: 'Se compromete temperatura, inocuidad o producto' },
@@ -64,6 +68,20 @@ export default createProfileContent({
       producto: 'Un corte pone en riesgo temperatura, inocuidad y producto; el respaldo se valora contra esa pérdida evitable.',
       reinicio: 'La continuidad evita paros de compresores y horas de recuperación térmica.',
       servicio: 'La energía sostiene producción, despacho y venta durante una interrupción.'
-    }
+    },
+    frenos: [
+      {
+        id: 'eficiencia_primero',
+        when: { compresores: 'viejos_sin_control', perfil: ['picos', 'diurno', 'plano'] },
+        tipo: 'Eficiencia en refrigeración primero',
+        razon: 'Tus compresores son viejos o no tienen control de capacidad. Modernizar el control (variadores, secuenciación, deshielo programado) suele bajar el consumo y el pico más barato que almacenar energía. Primero se valida eso; el BESS entra después, sobre el pico que quede.',
+        despues: 'bess',
+        requisitos: ['compresores', 'perfil'],
+        anteproyecto: {
+          interno: ['Inventario de compresores: capacidad, edad y tipo de control.', 'Registro de temperatura y ciclos de deshielo.'],
+          lead: ['Cuántos compresores tienes y qué edad tienen.', 'Si sabes cuándo hacen deshielo las cámaras.']
+        }
+      }
+    ]
   }
 });

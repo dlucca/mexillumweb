@@ -1,6 +1,8 @@
 // Motor de reglas del funnel v2. Funciones puras, sin DOM. Importable en navegador
 // y en Node (tests). Lee prioridades, condiciones y copy desde content.js.
 import { derivarConectado } from './diagnostico.salidas.js';
+import { applyBrakes } from './diagnostico.frenos.js';
+import { familiaEfectiva } from './diagnostico.flujo.js';
 
 // `disparador` es multi-select (array de códigos) desde v2.2. Estos helpers aceptan
 // tanto el array como el string legado, para no romper llamadas ni fixtures previos.
@@ -442,7 +444,7 @@ export function potencialGeneral(scores, resp, content) {
 }
 
 // ---- RECOMENDACIÓN de solución (BESS vs Solar) ----
-export function recommendSolution(resp, scores, content, aplicacion) {
+export function recommendSolution(resp, scores, content, aplicacion, freno = null) {
   const rec = content.recomendaciones;
   const bs = scores.bess_solar;
   const scoreMax = Math.max(...Object.values(scores));
@@ -478,7 +480,14 @@ export function recommendSolution(resp, scores, content, aplicacion) {
   // Sin perfil horario y sin recibo/tarifa: mismo tipo (BESS) con razón conservadora.
   else if (resp.perfil === 'nolose' && (tarifaCiega || resp.factura === 'nolose')) key = 'bessPreliminar';
   else key = 'bess';
-  return { tipo: rec[key].tipo, razon: rec[key].razon, familia: FAMILIA_ANTEPROYECTO[key] || 'base' };
+  const base = { tipo: rec[key].tipo, razon: rec[key].razon, familia: FAMILIA_ANTEPROYECTO[key] || 'base' };
+  if (freno) {
+    return {
+      tipo: freno.tipo, razon: freno.razon, familia: 'primer_paso',
+      primerPaso: true, freno: freno.id, requisitos: freno.requisitos, segundoPaso: base
+    };
+  }
+  return { ...base, primerPaso: false, freno: null };
 }
 
 // Familia de datos para el anteproyecto según la recomendación (mapea la key interna
@@ -511,12 +520,12 @@ const ANTEPROYECTO_EXTRAS = {
 
 // ---- DATOS PARA EL ANTEPROYECTO (dos voces) ----
 // Compone la lista a partir de la familia de la recomendación: base + extras.
-export function buildAnteproyecto(recomendacion, content) {
+export function buildAnteproyecto(recomendacion, content, freno = null) {
   const a = content.anteproyecto;
-  const familia = recomendacion?.familia || 'base';
+  const familia = familiaEfectiva(recomendacion);
   const extras = ANTEPROYECTO_EXTRAS[familia] || [];
-  const interno = [...a.base.interno, ...extras.flatMap((k) => a[k].interno)];
-  const lead = [...a.base.lead, ...extras.flatMap((k) => a[k].lead)];
+  const interno = [...a.base.interno, ...extras.flatMap((k) => a[k].interno), ...(freno?.anteproyecto?.interno || [])];
+  const lead = [...a.base.lead, ...extras.flatMap((k) => a[k].lead), ...(freno?.anteproyecto?.lead || [])];
   return { familia, interno, lead };
 }
 
@@ -594,14 +603,19 @@ export function assembleResult(estado, content) {
   const ranking = rankOpportunities(scores, content);
   const potencial_general = potencialGeneral(scores, resp, content);
   const aplicacion_principal = primaryApplication(resp, ranking, scores, content);
-  const recomendacion_solucion = recommendSolution(resp, scores, content, aplicacion_principal);
+  // scores sin el efecto de la factura (factura fija a 'medio'): el encaje técnico y el
+  // freno miran el fit de la respuesta, no el tamaño del recibo.
+  const scoresNeutros = scoreOpportunities({ ...resp, factura: 'medio' }, content);
+  const freno = applyBrakes(resp, scoresNeutros, content);
+  const recomendacion_solucion = recommendSolution(resp, scores, content, aplicacion_principal, freno);
+  const recParaReglas = recomendacion_solucion.primerPaso ? recomendacion_solucion.segundoPaso : recomendacion_solucion;
   const perfil = buildProfile(resp, content);
   const bloqueB = renderBlockB(resp, content, aplicacion_principal);
   const palancas = pickLevers(resp, ranking, content, aplicacion_principal);
-  const datoFaltante = pickMissingData(resp, content, ranking, recomendacion_solucion);
+  const datoFaltante = pickMissingData(resp, content, ranking, recParaReglas);
   const financiamiento = pickFinancing(resp, content);
-  const checklist = buildChecklist(resp, content, recomendacion_solucion);
-  const anteproyecto = buildAnteproyecto(recomendacion_solucion, content);
+  const checklist = buildChecklist(resp, content, recParaReglas);
+  const anteproyecto = buildAnteproyecto(recomendacion_solucion, content, freno);
   // El correo interno muestra Checklist y Anteproyecto juntos; quita del anteproyecto
   // lo que el checklist ya pide, para no repetir. Recibos y perfil de carga están
   // siempre en el checklist; la superficie solo cuando el checklist incluye techo.
@@ -611,7 +625,7 @@ export function assembleResult(estado, content) {
   if (checklistPideTecho) yaEnChecklist.add(ab[3]);
   anteproyecto.interno = anteproyecto.interno.filter((l) => !yaEnChecklist.has(l));
   const legibles = toReadable(resp, content);
-  const limitaciones = detectLimitations(resp, scores, content, recomendacion_solucion);
+  const limitaciones = detectLimitations(resp, scores, content, recParaReglas);
 
   // rango_texto del lead: mensaje legible incluso sin número (mail a ventas).
   const rango_texto = bloqueB.sinNumero
@@ -652,6 +666,7 @@ export function assembleResult(estado, content) {
     ranking,
     potencial_general,
     recomendacion_solucion,
+    freno: freno ? freno.id : null,
     palancas: {
       principal: palancas.principal ? { nombre: palancas.principal.nombre, text: palancas.principal.text } : null,
       secundaria: palancas.secundaria

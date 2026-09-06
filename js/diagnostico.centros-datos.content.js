@@ -24,14 +24,19 @@ export default createProfileContent({
   ],
   profileHint: 'Usa la carga total del sitio, incluyendo enfriamiento e infraestructura.',
   generationOptions: sharedOptions.generation.filter((o) => o.codigo !== 'estacional'),
-  qualityQuestion: '¿Cuál es la principal señal de calidad o continuidad?',
-  qualityOptions: [
-    { codigo: 'factor', label: 'Penalización o gestión de potencia reactiva' },
-    { codigo: 'variaciones', label: 'Variaciones que exigen intervención de UPS o protecciones' },
-    { codigo: 'cortes', label: 'Interrupciones o transferencias frecuentes a generadores' },
-    { codigo: 'no', label: 'La red es estable; el reto es capacidad, costo o sostenibilidad' },
-    { codigo: 'nolose', label: 'Aún no contamos con estudio de calidad' }
-  ],
+  propia: {
+    key: 'respaldo_actual', notaLabel: 'Respaldo actual',
+    pregunta: '¿Qué respaldo eléctrico tienes hoy?',
+    opciones: [
+      { codigo: 'ups_gen', label: 'UPS y generador, probados con regularidad' },
+      { codigo: 'ups', label: 'Solo UPS' },
+      { codigo: 'gen', label: 'Solo generador' },
+      { codigo: 'nada', label: 'Sin respaldo formal' },
+      { codigo: 'nolose', label: 'No lo sé' }
+    ]
+  },
+  continuityLabel: 'Una interrupción compromete SLA o datos',
+  continuidadCritica: true,
   outageQuestion: 'Si falla la alimentación de red durante 30 minutos, ¿qué implica?',
   outageOptions: [
     { codigo: 'producto', label: 'Riesgo de pérdida de datos o incumplimiento crítico' },
@@ -67,6 +72,20 @@ export default createProfileContent({
       reinicio: 'Recuperar la operación tras un evento es complejo y prolongado; el respaldo evita ese paro.',
       servicio: 'Cada minuto sin energía compromete SLA, disponibilidad e ingresos — el respaldo lo sostiene.'
     },
+    frenos: [
+      {
+        id: 'respaldo_basico_primero',
+        when: { respaldo_actual: 'nada' },
+        tipo: 'Respaldo básico primero',
+        razon: 'Hoy no tienes UPS ni generador. Antes de hablar de baterías para ahorrar, el sitio necesita un respaldo mínimo que sostenga la carga crítica. Un BESS puede cubrir ese papel y además recortar demanda, pero se dimensiona primero como respaldo.',
+        despues: 'bess',
+        requisitos: ['respaldo_actual', 'perfil'],
+        anteproyecto: {
+          interno: ['Carga crítica IT y de enfriamiento (kW) y tiempo de transferencia tolerable.', 'Topología eléctrica actual (unifilar).'],
+          lead: ['Cuántos kW no pueden apagarse nunca.', 'Si tienes un diagrama eléctrico del sitio.']
+        }
+      }
+    ],
     recomendaciones: {
       bessRespaldo: { tipo: 'Estudio BESS de misión crítica', razon: 'La continuidad domina el caso, pero la integración depende de UPS, generadores, ATS, protecciones y redundancia. La recomendación permanece preliminar hasta revisar el unifilar y la arquitectura de respaldo.' },
       bessCapacidad: { tipo: 'BESS para capacidad crítica', razon: 'La expansión está limitada por potencia disponible. Un BESS puede evaluarse para diferir capacidad sin comprometer redundancia, sujeto a revisar carga IT, UPS, protecciones y fecha objetivo.' },
