@@ -128,10 +128,12 @@ export function formatRango(piso, techo) {
 // Cálculo puro del rango. Las tarifas sin estructura compatible se detienen antes
 // de aplicar porcentajes genéricos de cargo por demanda.
 export function computeRange(resp, content) {
+  // Sin red (aislado o disparador "aislado") gana sobre "mixto": si no hay conexión a CFE,
+  // el caso es sin red aunque la tarifa declarada sea mixta.
+  if (resp.conectado === false || resp.tarifa === 'diesel' || resp.tarifa === 'sin_suministro') return { sinNumero: 'aislado', piso: null, techo: null };
   // CFE + diésel combinados: hay recibo y hay combustible, así que el caso no es "sin red"
   // pero tampoco se cuantifica solo con la factura.
   if (resp.tarifa === 'mixto') return { sinNumero: 'mixto', piso: null, techo: null };
-  if (resp.conectado === false || resp.tarifa === 'diesel' || resp.tarifa === 'sin_suministro') return { sinNumero: 'aislado', piso: null, techo: null };
   if (resp.tarifa === 'privado') return { sinNumero: 'privado', piso: null, techo: null };
   if (resp.tarifa === 'pdbt') return { sinNumero: 'pdbt', piso: null, techo: null };
   if (resp.tarifa === 'nolose') return { sinNumero: 'tarifa', piso: null, techo: null };

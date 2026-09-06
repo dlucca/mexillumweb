@@ -106,7 +106,8 @@ export default createProfileContent({
       'Horas de operación del diésel o generador y su costo aproximado de combustible'
     ],
     checklistRefuerzos: {
-      horario: 'Ventanas y turnos de operación del sitio y, si hay medición, tu curva de carga por horario'
+      horario: 'Ventanas y turnos de operación del sitio y, si hay medición, tu curva de carga por horario',
+      diesel: 'Horas de operación del diésel o generador y su costo aproximado de combustible'
     },
     datoFaltante: [
       { when: { factura: 'nolose' }, text: 'Para volver esto un número exacto, el dato clave es el consumo de tu sitio (kWh al día o al mes) y, si usas diésel, sus horas y costo de combustible. Con eso dimensionamos la microred.' },

@@ -1085,3 +1085,24 @@ test('buildProfile v4: microred usa fuente y centros de datos usa corte para la 
     /transferencias frecuentes a respaldo/
   );
 });
+
+// ---- Residual fix #1: microred sin red + diésel no duplica la línea de diésel ----
+test('buildChecklist: microred sin red con diésel no duplica la línea de diésel', () => {
+  const res = assembleResult({ respuestas: { sector: 'mineria', disparador: ['diesel'], perfil: 'plano', generacion: 'no', tarifa: 'diesel', factura: 'medio', fuente: 'diesel_24h' } }, microred);
+  const full = res.checklist.full;
+  const lineasDiesel = full.filter((l) => /di[eé]sel/i.test(l));
+  assert.equal(lineasDiesel.length, 1, `debería haber una sola línea de diésel, hubo: ${JSON.stringify(lineasDiesel)}`);
+  assert.equal(new Set(full).size, full.length, 'el checklist no debería tener líneas duplicadas');
+});
+
+// ---- Residual fix #2: mixto + aislado se trata como sin red, no como mixto ----
+test('computeRange: tarifa mixto con disparador aislado (conectado=false) se trata como sin red', () => {
+  const res = assembleResult({ respuestas: { sector: 'manufactura', disparador: ['aislado'], perfil: 'diurno', generacion: 'no', calidad: 'no', tarifa: 'mixto', factura: 'medio' } }, content);
+  assert.match(res.leadPayload.rango_texto, /sin red/i);
+  assert.equal(res.calculo.sin_numero, true);
+});
+
+test('computeRange: tarifa mixto sin disparador aislado sigue siendo CFE + diésel', () => {
+  const res = assembleResult({ respuestas: { sector: 'agro', disparador: ['costo'], perfil: 'diurno', generacion: 'no', tarifa: 'mixto', factura: 'medio', fuente: 'diesel_parcial' } }, microred);
+  assert.match(res.leadPayload.rango_texto, /CFE \+ diésel/);
+});
