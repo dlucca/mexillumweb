@@ -81,9 +81,9 @@ El copy final de labels se escribe en cada `*.content.js`; esta tabla fija códi
 
 ### 1.4 Ajustes de comunes en microred
 
-- `tarifa` → opciones: `cfe_gdmth`, `cfe_gdmto`, `cfe_gdbt`, `cfe_pdbt` (mapean a los
-  códigos actuales `gdmth`, `gdmto`, `gdbt`, `pdbt` vía `normalizeResponses`), `diesel`
-  (solo combustible), `mixto` (CFE + diésel), `sin_suministro`, `nolose`.
+- `tarifa` → opciones: `gdmth`, `gdmto`, `gdbt` (CFE, códigos actuales), `diesel`,
+  `mixto`, `sin_suministro`, `privado`, `nolose`. No hay mapeo `cfe_*`.
+  `content.sinRedPosible: true` marca que `nolose` puede significar 'sin red'.
 - El motor deriva `resp.conectado = true|false|null`: `true` si la tarifa es CFE o
   `mixto` o `privado`; `false` si `diesel` o `sin_suministro`; `null` si `nolose`.
   Los demás perfiles: `conectado = true` salvo `disparador` con `aislado`, que lo pone

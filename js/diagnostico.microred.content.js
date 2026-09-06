@@ -35,9 +35,17 @@ export default createProfileContent({
     { codigo: 'nolose', label: 'No existe red o no está caracterizada' }
   ],
   tariffQuestion: '¿Cómo se paga hoy la energía de tu sitio?',
-  tariffOptions: sharedOptions.tariff.map((o) => o.codigo === 'nolose'
-    ? { ...o, label: 'No hay conexión a CFE o no tenemos recibo' }
-    : o),
+  tariffHint: 'Si hay recibo de CFE, el código aparece en la carátula.',
+  tariffOptions: [
+    { label: 'CFE en media tensión horaria (GDMTH)', codigo: 'gdmth' },
+    { label: 'CFE en media tensión ordinaria (GDMTO)', codigo: 'gdmto' },
+    { label: 'CFE en baja tensión (GDBT o PDBT)', codigo: 'gdbt' },
+    { label: 'Solo generamos con diésel o gas (sin CFE)', codigo: 'diesel' },
+    { label: 'CFE y diésel combinados', codigo: 'mixto' },
+    { label: 'Hoy no hay suministro eléctrico', codigo: 'sin_suministro' },
+    { label: 'Suministrador privado o calificado', codigo: 'privado' },
+    { label: 'No lo sé o no tengo recibo', codigo: 'nolose' }
+  ],
   billQuestion: '¿Cuánto se gasta al mes en electricidad y combustible para generar?',
   billHint: 'Usa el total aproximado de energía; después separaremos diésel y red.',
   outageQuestion: 'Si el sitio pierde energía 30 minutos, ¿qué pasa?',
@@ -67,6 +75,7 @@ export default createProfileContent({
   postResult: { label: 'Precisar mi microred', alwaysRoof: true },
   emailVocabulary: { site: 'sitio remoto', technicalContact: 'responsable de generación o mantenimiento' },
   overrides: {
+    sinRedPosible: true,
     financiamientoDefault: 'Una microred puede estructurarse como inversión propia o servicio, sujeto a viabilidad técnica, logística y crediticia. Primero se valida consumo, combustible, recurso renovable y autonomía requerida.',
     palancasRespaldoVariantes: {
       producto: 'Un corte se lleva producción, producto o material — el almacenamiento sostiene la carga esencial cuando la red o el generador fallan.',

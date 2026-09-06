@@ -1,5 +1,6 @@
 // Motor de reglas del funnel v2. Funciones puras, sin DOM. Importable en navegador
 // y en Node (tests). Lee prioridades, condiciones y copy desde content.js.
+import { derivarConectado } from './diagnostico.salidas.js';
 
 // `disparador` es multi-select (array de códigos) desde v2.2. Estos helpers aceptan
 // tanto el array como el string legado, para no romper llamadas ni fixtures previos.
@@ -125,6 +126,7 @@ export function formatRango(piso, techo) {
 // Cálculo puro del rango. Las tarifas sin estructura compatible se detienen antes
 // de aplicar porcentajes genéricos de cargo por demanda.
 export function computeRange(resp, content) {
+  if (resp.conectado === false || resp.tarifa === 'diesel' || resp.tarifa === 'mixto' || resp.tarifa === 'sin_suministro') return { sinNumero: 'aislado', piso: null, techo: null };
   if (resp.tarifa === 'privado') return { sinNumero: 'privado', piso: null, techo: null };
   if (resp.tarifa === 'pdbt') return { sinNumero: 'pdbt', piso: null, techo: null };
   if (resp.tarifa === 'nolose') return { sinNumero: 'tarifa', piso: null, techo: null };
@@ -166,6 +168,9 @@ export function renderBlockB(resp, content, aplicacion) {
   }
   if (sinNumero === 'nolose') {
     return salidaSinNumero(sinNumero, b.noloseFactura);
+  }
+  if (sinNumero === 'aislado') {
+    return salidaSinNumero(sinNumero, b.aislado);
   }
 
   const aplicacionId = aplicacion?.id || 'peak_shaving';
@@ -290,18 +295,22 @@ export function pickFinancing(resp, content) {
 export function detectLimitations(resp, scores, content, recomendacion) {
   const L = content.limitaciones;
   const out = [];
-  if (resp.factura === 'nolose') out.push(L.factura);
-  if (resp.tarifa === 'nolose') out.push(L.tarifa);
-  else if (resp.tarifa === 'privado') out.push(L.contrato);
+  const sinRed = resp.conectado === false;
+  // Sitio sin red: lo primero es consumo y combustible; la factura de CFE no aplica.
+  if (sinRed) {
+    out.push(L.consumo || L.aislado);
+    if (L.combustible && (hasSignal(resp.disparador, 'diesel') || ['diesel', 'mixto', 'diesel_24h', 'diesel_parcial'].includes(resp.tarifa) || ['diesel_24h', 'diesel_parcial'].includes(resp.fuente))) out.push(L.combustible);
+  } else {
+    if (resp.factura === 'nolose') out.push(L.factura);
+    if (resp.tarifa === 'nolose') out.push(L.tarifa);
+    else if (resp.tarifa === 'privado') out.push(L.contrato);
+  }
   if (resp.perfil === 'nolose') out.push(L.perfil);
   const sinGeneracion = resp.generacion === 'no' || resp.generacion === 'evaluando' || resp.generacion === 'contrato';
   const solarPrimero = ['Solar primero', 'Solar fotovoltaico on-grid'].includes(recomendacion?.tipo);
   if (sinGeneracion && (scores.bess_solar >= content.scoring.umbralFuerte || solarPrimero)) out.push(L.techo);
-  if (hasSignal(resp.disparador, 'diesel')) out.push(L.diesel);
-  if (hasSignal(resp.disparador, 'aislado')) {
-    out.push(L.aislado);
-    if (!out.includes(L.techo)) out.push(L.techo); // una microred necesita superficie para generar
-  }
+  if (!sinRed && hasSignal(resp.disparador, 'diesel')) out.push(L.diesel);
+  if (sinRed && !out.includes(L.techo)) out.push(L.techo); // una microred necesita superficie para generar
   if (resp.calidad === 'nolose') out.push(L.calidad);
   return out;
 }
@@ -445,7 +454,7 @@ export function recommendSolution(resp, scores, content, aplicacion) {
   let key;
   if (scoreMax < content.scoring.umbralPotencial.medio) key = 'insuficiente';
   // Operar aislado reencuadra el proyecto como microred; manda sobre diésel/capacidad/etc.
-  else if (hasSignal(resp.disparador, 'aislado')) key = 'offGrid';
+  else if (hasSignal(resp.disparador, 'aislado') || resp.conectado === false) key = 'offGrid';
   else if (hasSignal(resp.disparador, 'diesel')) {
     key = resp.generacion === 'solar_sitio' ? 'bessDieselSolar' : 'bessDiesel';
   }
@@ -540,12 +549,13 @@ export function primaryApplication(resp, ranking, scores, content) {
 // Se mapean aquí para que el resto del motor (y toReadable) vea solo códigos vigentes:
 // generacion 'fisica' (pre-split solar/contrato) → 'solar_sitio'; disparador string
 // legado → array (equivalencia probada por el caso C del parche v2.2).
-export function normalizeResponses(resp) {
+export function normalizeResponses(resp, content) {
   const out = { ...resp };
   if (out.generacion === 'fisica') out.generacion = 'solar_sitio';
   out.disparador = asList(out.disparador);
   // Condicional `corte` no mostrada: no marcar continuidad significa que un corte no cuesta.
   if (out.corte == null) out.corte = 'nada';
+  out.conectado = derivarConectado(out, content);
   return out;
 }
 
@@ -578,7 +588,7 @@ export function bookingContact(data) {
 
 // ---- Orquestador ----
 export function assembleResult(estado, content) {
-  const resp = normalizeResponses(estado.respuestas);
+  const resp = normalizeResponses(estado.respuestas, content);
   const contacto = estado.contacto || {};
   const scores = scoreOpportunities(resp, content);
   const ranking = rankOpportunities(scores, content);
@@ -609,7 +619,8 @@ export function assembleResult(estado, content) {
         privado: 'Suministrador privado — sin rango numérico',
         pdbt: 'Tarifa PDBT — peak shaving no cuantificado',
         tarifa: 'Tarifa sin especificar — sin rango numérico',
-        nolose: 'Factura sin especificar — sin rango numérico'
+        nolose: 'Factura sin especificar — sin rango numérico',
+        aislado: 'Sitio sin red — se dimensiona por consumo, sin rango de factura'
       }[bloqueB.sinNumero] || 'Aplicación prioritaria sin datos suficientes para un rango')
     : bloqueB.rangoTexto;
 

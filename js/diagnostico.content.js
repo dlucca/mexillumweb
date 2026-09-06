@@ -323,6 +323,7 @@ const content = {
     noloseTarifa: 'Sin conocer tu tarifa no podemos calcular un rango económico responsable. La tarifa define si existe cargo por demanda y cómo se cobran los periodos horarios; por ahora solo podemos priorizar qué revisar.',
     pdbt: 'La tarifa PDBT no cobra la demanda máxima con la misma estructura que GDMTH, DIST/DIT o GDMTO. Por eso no aplicamos aquí una estimación de peak shaving; primero verificamos si existe otra oportunidad o si corresponde migrar de categoría tarifaria.',
     privado: 'Como compras a un suministrador privado, tu ahorro depende de la estructura de tu contrato — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.',
+    aislado: 'Tu sitio se dimensiona por consumo y combustible, no por factura de CFE. Con tus kWh al día y tus litros de diésel podemos poner número.',
     sinRangoPorAplicacion: {
       solar_puro: 'Tu caso prioritario es la generación solar fotovoltaica en sitio para autoconsumo. Para estimar el ahorro con exactitud necesitamos la superficie disponible (techo o terreno en m²), tu consumo anual en kWh y la radiación de tu localidad; la factura mensual sola no basta para dimensionar la potencia óptima.',
       arbitraje: 'Tu caso prioritario es el arbitraje horario. Para estimarlo necesitamos el consumo desglosado por periodos base, intermedio y punta; una factura mensual total no alcanza para convertirlo en un rango responsable.',
@@ -475,7 +476,18 @@ const content = {
     techo: { dato: 'Superficie de techo o terreno disponible', porque: 'Define si la generación solar es viable en el sitio.', no_se_puede: 'Dimensionar un proyecto BESS o Solar.' },
     diesel: { dato: 'Horas al año que corre tu diésel y su costo', porque: 'Es lo que dimensiona el mayor margen del análisis.', no_se_puede: 'Cuantificar la sustitución de diésel.' },
     calidad: { dato: 'Comportamiento de tu calidad eléctrica', porque: 'Define si hay penalización por factor de potencia o riesgo a equipos.', no_se_puede: 'Valorar la oportunidad de calidad/factor de potencia.' },
-    aislado: { dato: 'Consumo total (kWh/día), perfil horario y horas de autonomía requeridas', porque: 'Una microred aislada se dimensiona sobre el consumo y la autonomía, no sobre la factura.', no_se_puede: 'Dimensionar la microred ni su respaldo.' }
+    aislado: { dato: 'Consumo total (kWh/día), perfil horario y horas de autonomía requeridas', porque: 'Una microred aislada se dimensiona sobre el consumo y la autonomía, no sobre la factura.', no_se_puede: 'Dimensionar la microred ni su respaldo.' },
+    consumo: { dato: 'Consumo del sitio (kWh al día o al mes) y potencia pico', porque: 'Un sitio sin red se dimensiona sobre el consumo, no sobre la factura.', no_se_puede: 'Dimensionar la generación ni el almacenamiento.' },
+    combustible: { dato: 'Litros y costo de diésel al mes, y horas de operación del generador', porque: 'Es lo que define el ahorro de sustituir combustible.', no_se_puede: 'Cuantificar la sustitución de diésel.' }
+  },
+
+  // Qué respuestas o datos necesita cada recomendación para que la confianza sea Alta (spec v4 §2.2).
+  requisitos: {
+    base: ['perfil', 'tarifa', 'factura'],
+    bess: ['perfil', 'tarifa', 'factura'],
+    solar: ['perfil', 'generacion', 'techo'],
+    bess_solar: ['perfil', 'tarifa', 'factura', 'techo'],
+    off_grid: ['fuente', 'factura', 'consumo']
   },
 
   // ---- DATOS PARA EL ANTEPROYECTO (dos voces: interno = qué solicita el equipo;
