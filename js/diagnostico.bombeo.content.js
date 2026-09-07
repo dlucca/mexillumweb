@@ -60,7 +60,9 @@ export default createProfileContent({
     solar_puro: { riego: 12, pozo: 8 },
     diferimiento: { rebombeo: 8, tratamiento: 8 }
   },
-  postResult: { label: 'Precisar mi sistema de bombeo' },
+  // El mapa de áreas sale siempre: un lead con espacio para generación debe poder
+  // marcarlo aunque el motor empuje peak shaving o diferimiento.
+  postResult: { label: 'Precisar mi sistema de bombeo', forzar: ['techo'] },
   emailVocabulary: { site: 'sistema de bombeo', technicalContact: 'responsable hidráulico o electromecánico' },
   overrides: {
     palancasRespaldoVariantes: {

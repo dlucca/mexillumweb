@@ -67,3 +67,12 @@ test('el hub enlaza las siete rutas y cada ruta carga su vista', async () => {
     assert.match(html, /diagnostico\..+view\.js|diagnostico\.view\.js/);
   }
 });
+
+// Bombeo: el mapa de áreas sale siempre, aunque el motor empuje peak shaving o
+// diferimiento. Un lead con espacio para generación no debe quedarse sin marcarlo.
+test('bombeo: el mapa de áreas se fuerza en el enriquecimiento', async () => {
+  const { pasosEnriquecimiento } = await import('../js/diagnostico.flujo.js');
+  const res = { recomendacion_solucion: { tipo: 'BESS', familia: 'bess' } };
+  const pasos = pasosEnriquecimiento(res, bombeo, { conectado: true });
+  assert.equal(pasos[0], 'techo');
+});
