@@ -78,6 +78,8 @@ export default async function handler(req, res) {
   const telefono = clean(body.telefono, 40);
   const rol = clean(body.rol, 60);
   const origen = clean(body.origen, 40);
+  // Link rápido: la persona no respondió el cuestionario (solo espacio, recibos y contacto).
+  const esRapido = /(^|-)rapido$/.test(origen);
   const profileId = clean(body.profile_id, 60);
   const profileLabel = clean(body.profile_label, 80);
   const profileVersion = clean(body.profile_version, 20);
@@ -251,11 +253,12 @@ export default async function handler(req, res) {
   }
 
   const quien = empresa ? `${nombre} — ${empresa}` : nombre;
-  const subject = origen.startsWith('hoteles')
+  const subjectBase = origen.startsWith('hoteles')
     ? `Diagnóstico Hoteles — ${quien}`
     : (profileId && profileId !== 'industria_comercio' && profileLabel
         ? `Diagnóstico ${profileLabel} — ${quien}`
         : `Diagnóstico — ${quien}`);
+  const subject = esRapido ? `Link rápido — ${quien}` : subjectBase;
 
   // Links firmados temporales (30 días) para que ventas abra las facturas privadas.
   async function firmarFacturas(paths) {
@@ -291,6 +294,7 @@ export default async function handler(req, res) {
     `Teléfono: ${telefono || '—'}`,
     `Rol:      ${rol || '—'}`,
     origen ? `Origen:   ${origen}` : null,
+    esRapido ? 'Cuestionario: no respondido (link rápido; sin cuestionario)' : null,
     profileLabel ? `Diagnóstico: ${profileLabel}${profileVersion ? ` · v${profileVersion}` : ''}` : null,
     leadStage ? `Etapa:    ${leadStage}` : null,
     sourceDetail ? `Campaña:  ${sourceDetail}` : null,
@@ -358,6 +362,7 @@ export default async function handler(req, res) {
     (telefono ? fila('Teléfono', telefono) : '') +
     (rol ? fila('Rol', rol) : '') +
     (origen ? fila('Origen', origen) : '') +
+    (esRapido ? fila('Cuestionario', 'No respondido (link rápido; sin cuestionario)') : '') +
     (profileLabel ? fila('Diagnóstico', `${profileLabel}${profileVersion ? ` · v${profileVersion}` : ''}`) : '') +
     (leadStage ? fila('Etapa', leadStage) : '') +
     (sourceDetail ? fila('Campaña', sourceDetail) : '') +
@@ -439,14 +444,14 @@ export default async function handler(req, res) {
         : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
 
       const sinRed = conectado === false;
-      const yaPartes = [sinRed ? 'tus respuestas del diagnóstico' : 'tus respuestas del diagnóstico y tu tarifa'];
+      const yaPartes = esRapido ? [] : [sinRed ? 'tus respuestas del diagnóstico' : 'tus respuestas del diagnóstico y tu tarifa'];
       if (tieneTecho) yaPartes.push(`la medida de tu techo (${techoTxt})`);
       if (acometida) yaPartes.push('la ubicación de tu punto eléctrico principal');
       if (tieneRecibos && !sinRed) yaPartes.push(`tus ${facturaPaths.length} recibo${facturaPaths.length === 1 ? '' : 's'}`);
       // "Ya tenemos" enumera lo que el cliente aportó, así que va con sus propios números.
       // `docAislado` describe lo que falta, y solo aparece en la lista de "Nos ayudaría".
       if (consumoLineas.length) yaPartes.push(`tus datos de consumo (${consumoLineas.join(', ')})`);
-      const yaTenemos = 'Ya tenemos ' + unir(yaPartes) + '.';
+      const yaTenemos = yaPartes.length ? 'Ya tenemos ' + unir(yaPartes) + '.' : 'Recibimos tu solicitud.';
 
       const faltan = [
         `Horario u operación detallada de tu ${siteWord}.`,
@@ -470,23 +475,27 @@ export default async function handler(req, res) {
       const lineasCliente = [
         `Hola ${nombre || ''},`,
         '',
-        `Gracias por completar tu diagnóstico. Esto es lo que vemos para tu ${siteWord}:`,
+        esRapido
+          ? `Recibimos la información de tu ${siteWord}. Con esto empezamos a preparar tu anteproyecto.`
+          : `Gracias por completar tu diagnóstico. Esto es lo que vemos para tu ${siteWord}:`,
         '',
-        'Tu perfil',
-        perfil || '—',
-        rangoReal ? '' : null,
-        rangoReal ? 'Ahorro estimado (referencia)' : null,
-        rangoReal ? rangoReal : null,
-        '',
-        'Lo que más te conviene',
-        esPrimerPaso ? `Primer paso: ${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : (recomendacion ? `${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : null),
-        esPrimerPaso ? `Segundo paso: ${segundoPaso.tipo}${segundoPaso.razon ? ' — ' + segundoPaso.razon : ''}` : null,
-        palP ? `• Principal: ${palP.nombre} — ${palP.text}` : null,
-        palS ? `• Secundaria: ${palS.nombre} — ${palS.text}` : null,
-        financiamiento ? '' : null,
-        financiamiento ? 'Cómo se puede estructurar' : null,
-        financiamiento || null,
-        '',
+        ...(esRapido ? [] : [
+          'Tu perfil',
+          perfil || '—',
+          rangoReal ? '' : null,
+          rangoReal ? 'Ahorro estimado (referencia)' : null,
+          rangoReal ? rangoReal : null,
+          '',
+          'Lo que más te conviene',
+          esPrimerPaso ? `Primer paso: ${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : (recomendacion ? `${recomendacion.tipo}${recomendacion.razon ? ' — ' + recomendacion.razon : ''}` : null),
+          esPrimerPaso ? `Segundo paso: ${segundoPaso.tipo}${segundoPaso.razon ? ' — ' + segundoPaso.razon : ''}` : null,
+          palP ? `• Principal: ${palP.nombre} — ${palP.text}` : null,
+          palS ? `• Secundaria: ${palS.nombre} — ${palS.text}` : null,
+          financiamiento ? '' : null,
+          financiamiento ? 'Cómo se puede estructurar' : null,
+          financiamiento || null,
+          ''
+        ]),
         'Datos para el anteproyecto',
         'No necesitas tener todo listo — con lo que reúnas, avanzamos.',
         yaTenemos,
@@ -504,10 +513,12 @@ export default async function handler(req, res) {
       const htmlCliente =
         `<div style="font-family:Arial,Helvetica,sans-serif;color:#16221A;max-width:560px;font-size:14px;line-height:1.5">` +
         `<p style="margin:0 0 12px">Hola ${esc(nombre || '')},</p>` +
-        `<p style="margin:0 0 12px">Gracias por completar tu diagnóstico. Esto es lo que vemos para tu ${esc(siteWord)}:</p>` +
-        seccion('Tu perfil', `<p style="margin:0 0 8px">${esc(perfil || '—')}</p>`) +
-        (rangoReal ? seccion('Ahorro estimado (referencia)', `<p style="margin:0 0 8px;font-weight:bold">${esc(rangoReal)}</p>`) : '') +
-        seccion('Lo que más te conviene',
+        (esRapido
+          ? `<p style="margin:0 0 12px">Recibimos la información de tu ${esc(siteWord)}. Con esto empezamos a preparar tu anteproyecto.</p>`
+          : `<p style="margin:0 0 12px">Gracias por completar tu diagnóstico. Esto es lo que vemos para tu ${esc(siteWord)}:</p>`) +
+        (esRapido ? '' : seccion('Tu perfil', `<p style="margin:0 0 8px">${esc(perfil || '—')}</p>`)) +
+        (!esRapido && rangoReal ? seccion('Ahorro estimado (referencia)', `<p style="margin:0 0 8px;font-weight:bold">${esc(rangoReal)}</p>`) : '') +
+        (esRapido ? '' : seccion('Lo que más te conviene',
           (esPrimerPaso
             ? `<p style="margin:0 0 8px">Primer paso: ${esc(recomendacion.tipo)}${recomendacion.razon ? ' — ' + esc(recomendacion.razon) : ''}</p>` +
               `<p style="margin:0 0 8px">Segundo paso: ${esc(segundoPaso.tipo)}${segundoPaso.razon ? ' — ' + esc(segundoPaso.razon) : ''}</p>`
@@ -516,8 +527,8 @@ export default async function handler(req, res) {
             (palP ? `<li><strong>${esc(palP.nombre)}.</strong> ${esc(palP.text)}</li>` : '') +
             (palS ? `<li><strong>${esc(palS.nombre)}.</strong> ${esc(palS.text)}</li>` : '') +
             `</ul>` : '')
-        ) +
-        (financiamiento ? seccion('Cómo se puede estructurar', `<p style="margin:0 0 8px;color:#6F796E">${esc(financiamiento)}</p>`) : '') +
+        )) +
+        (!esRapido && financiamiento ? seccion('Cómo se puede estructurar', `<p style="margin:0 0 8px;color:#6F796E">${esc(financiamiento)}</p>`) : '') +
         seccion('Datos para el anteproyecto',
           `<p style="margin:0 0 6px">No necesitas tener todo listo — con lo que reúnas, avanzamos.</p>` +
           `<p style="margin:0 0 6px">${esc(yaTenemos)}</p>` +
@@ -536,7 +547,7 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from, to: correo, subject: 'Tu diagnóstico energético — Mexillum', text: textoCliente, html: htmlCliente
+            from, to: correo, subject: esRapido ? 'Recibimos tu información — Mexillum' : 'Tu diagnóstico energético — Mexillum', text: textoCliente, html: htmlCliente
           })
         });
         if (rc.ok) {

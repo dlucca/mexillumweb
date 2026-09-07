@@ -1,7 +1,7 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=16';
-import { mountRoofPicker } from './diagnostico.roof.js?v=16';
-import { mountFacturasUploader } from './diagnostico.facturas.js?v=16';
-import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=16';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=17';
+import { mountRoofPicker } from './diagnostico.roof.js?v=17';
+import { mountFacturasUploader } from './diagnostico.facturas.js?v=17';
+import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=17';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
 
@@ -17,7 +17,8 @@ export function initDiagnostico({ content, calLink, origen }) {
   const stateId = `${profileId}:${content.profile?.version || '1.0'}`;
 
   // Modo rápido: el link `?rapido` es para pasarle a un prospecto directo. Salta
-  // el cuestionario y arranca en el mapa: marcar espacio → facturas → formulario.
+  // el cuestionario: contacto (nombre y correo) → marcar espacio → facturas → agenda.
+  // El contacto va primero para que nada de lo que suba quede sin dueño si se va a la mitad.
   const query = new URLSearchParams(globalThis.location?.search || '');
   const rapido = query.has('rapido');
   const attribution = {
@@ -32,9 +33,7 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   const saved = rapido ? null : loadDxState(stateId);
   const estado = {
-    paso: rapido
-      ? (content.postResult?.skipRoof ? 'punto' : 'techo')
-      : (saved?.paso ?? 'intro'),
+    paso: rapido ? 'cierre' : (saved?.paso ?? 'intro'),
     respuestas: {},
     contacto: {},
     resultado: null,          // cache del assembleResult
@@ -68,15 +67,22 @@ export function initDiagnostico({ content, calLink, origen }) {
     const lista = estado.enriquecimiento;
     const i = desde == null ? -1 : lista.indexOf(desde);
     const siguiente = lista[i + 1];
+    // Modo rápido: el mapa se guarda apenas termina, sin esperar a las facturas.
+    if (rapido && (desde === 'techo' || desde === 'punto') && estado.contacto.nombre) guardarEnriquecimiento({ parcial: true });
     if (siguiente) { estado.paso = siguiente; render(); return; }
     finishEnrichment();
+  }
+  // Contador de pasos del link rápido: contacto → mapa → facturas.
+  function kickerRapido(n) {
+    return rapido ? `<p class="dx__diag-kicker">Paso ${n} de 3</p>` : '';
   }
   function retrocederEnriquecimiento(desde) {
     if (estado.guardando) return;
     const lista = estado.enriquecimiento || listaEnriquecimiento();
     const i = lista.indexOf(desde);
     if (i > 0) { estado.paso = lista[i - 1]; render(); return; }
-    estado.paso = rapido ? desde : 'cierre';
+    // En modo rápido, antes del primer paso de enriquecimiento está el contacto.
+    estado.paso = 'cierre';
     render();
   }
 
@@ -421,12 +427,11 @@ export function initDiagnostico({ content, calLink, origen }) {
     const sub = allowRoof
       ? 'Marca todas las áreas donde podrían ir paneles: techos, áreas verdes, estacionamientos, patios o terreno libre. Dibuja cada una por separado. Si la conoces, marca también la acometida, medidor, transformador o tablero principal.'
       : 'Marca en el mapa la acometida, medidor, transformador, subestación o tablero principal. Puede ser una ubicación aproximada.';
-    const botonAtras = rapido
-      ? ''
-      : '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
+    const botonAtras = '<button type="button" class="mx-btn mx-btn--ghost" data-act="atras">Atrás</button>';
 
     const view = el(`
       <div class="dx__view">
+        ${kickerRapido(2)}
         <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(titulo)}</h2>
         <p class="dx__col-sub">${esc(sub)}</p>
         <div class="dx-roof-mount"></div>
@@ -501,9 +506,12 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   // ---- Paso: subir facturas (opcional) ----------------------------------------
   function renderFacturas() {
-    const copyFac = content.postResult?.facturas || { titulo: 'Sube tus últimas 12 facturas de energía', sub: 'Con tus facturas calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.' };
+    const copyFac = rapido
+      ? { titulo: 'Sube tus recibos de energía', sub: 'Con uno basta. Con los últimos 12 es ideal: así calculamos tu ahorro real.' }
+      : (content.postResult?.facturas || { titulo: 'Sube tus últimas 12 facturas de energía', sub: 'Con tus facturas calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.' });
     const view = el(`
       <div class="dx__view">
+        ${kickerRapido(3)}
         <h2 class="dx__question" data-dx-focus tabindex="-1">${esc(copyFac.titulo)}</h2>
         <p class="dx__col-sub">${esc(copyFac.sub)}</p>
         <p class="dx__col-sub">Tus recibos son confidenciales. Solo los usamos para tu diagnóstico y no los compartimos.</p>
@@ -537,6 +545,76 @@ export function initDiagnostico({ content, calLink, origen }) {
     btnAtras?.addEventListener('click', () => retrocederEnriquecimiento('facturas'));
     btnSaltar.addEventListener('click', () => irAEnriquecimiento('facturas'));
     btnSiguiente.addEventListener('click', () => irAEnriquecimiento('facturas'));
+
+    root.replaceChildren(view);
+    focusMain();
+  }
+
+  // ---- Paso 1 del link rápido: contacto antes del mapa --------------------------
+  // Un solo formulario y un solo botón. Sin "Atrás": no hay cuestionario ni resultado
+  // detrás (PRD §6.2: el link rápido no debe mostrar un diagnóstico con respuestas vacías).
+  function renderContactoRapido() {
+    const view = el(`
+      <div class="dx__view">
+        ${kickerRapido(1)}
+        <h2 class="dx__question" data-dx-focus tabindex="-1">Antes de empezar, ¿quién eres?</h2>
+        <p class="dx__col-sub">Tu asesor de Mexillum te pidió dos cosas: marcar en un mapa dónde podría ir el sistema y compartir tus recibos de energía. Toma unos 3 minutos y puedes saltar lo que no tengas a la mano.</p>
+        <div class="dx-cierre">
+          <label class="dx-cierre__field">Nombre
+            <input type="text" data-f="nombre" autocomplete="name" required value="${esc(estado.contacto.nombre || '')}">
+          </label>
+          <label class="dx-cierre__field">Empresa (opcional)
+            <input type="text" data-f="empresa" autocomplete="organization" value="${esc(estado.contacto.empresa || '')}">
+          </label>
+          <label class="dx-cierre__field">Correo
+            <input type="email" data-f="correo" autocomplete="email" required value="${esc(estado.contacto.correo || '')}">
+          </label>
+          <label class="dx-cierre__field">Teléfono (opcional)
+            <input type="tel" data-f="telefono" autocomplete="tel" value="${esc(estado.contacto.telefono || '')}">
+          </label>
+          <p class="dx-cierre__err" role="alert" hidden></p>
+          <p class="dx-cierre__privacy">Al continuar, autorizas a Mexillum a usar estos datos para dar seguimiento a tu anteproyecto. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</p>
+        </div>
+        <div class="dx__nav dx__nav--end">
+          <span></span>
+          <button type="button" class="mx-btn mx-btn--primary" data-act="empezar">Empezar</button>
+        </div>
+      </div>`);
+
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const getField = (f) => view.querySelector(`[data-f="${f}"]`).value.trim();
+    const errEl = view.querySelector('.dx-cierre__err');
+    const form = view.querySelector('.dx-cierre');
+    const btn = view.querySelector('[data-act="empezar"]');
+
+    async function empezar() {
+      const nombre = getField('nombre');
+      const correo = getField('correo');
+      if (!nombre || !EMAIL_RE.test(correo)) {
+        errEl.textContent = 'Escribe tu nombre y un correo válido.';
+        errEl.hidden = false;
+        return;
+      }
+      errEl.hidden = true;
+      estado.contacto = { ...estado.contacto, nombre, empresa: getField('empresa'), correo, telefono: getField('telefono'), tipo_cierre: 'anteproyecto' };
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      estado.resultado = assembleResult(estado, content);
+      const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
+      const ok = await submitLead(payload, 'enrichment_started');
+      btn.textContent = 'Empezar';
+      btn.disabled = false;
+      if (!ok) {
+        errEl.textContent = 'No pudimos guardar tus datos. Intenta de nuevo en un momento.';
+        errEl.hidden = false;
+        return;
+      }
+      trackDx('enrichment_started', { profile_id: profileId, rapido: true });
+      estado.enriquecimiento = listaEnriquecimiento();
+      irAEnriquecimiento(null);
+    }
+    btn.addEventListener('click', empezar);
+    form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); empezar(); } });
 
     root.replaceChildren(view);
     focusMain();
@@ -922,6 +1000,13 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   function render() {
     saveDxState(stateId, estado);
+    if (rapido) {
+      // El link rápido no tiene cuestionario ni resultado: cualquier paso que no sea
+      // de enriquecimiento cae en el contacto.
+      const propios = ['cierre', 'techo', 'punto', 'facturas', 'consumo', 'agenda'];
+      if (!propios.includes(estado.paso)) estado.paso = 'cierre';
+      if (estado.paso === 'cierre') return renderContactoRapido();
+    }
     if (estado.paso === 'intro') return renderIntro();
     if (estado.paso === 'result') return renderResult();
     if (estado.paso === 'techo') return renderTecho();
@@ -964,7 +1049,7 @@ export function initDiagnostico({ content, calLink, origen }) {
 
   // Guarda mapa, acometida y facturas apenas termina el paso de facturas, sin esperar
   // a que la persona pulse "Enviar". Se reenvía solo si el contenido cambió.
-  async function guardarEnriquecimiento() {
+  async function guardarEnriquecimiento({ parcial = false } = {}) {
     estado.resultado = assembleResult(estado, content);
     const payload = origenEfectivo ? { ...estado.resultado.leadPayload, origen: origenEfectivo } : estado.resultado.leadPayload;
     const firma = JSON.stringify({
@@ -975,7 +1060,7 @@ export function initDiagnostico({ content, calLink, origen }) {
     });
     const ok = await submitLead(payload, 'enrichment_completed', `enrichment_completed:${firma}`);
     estado.enrichmentSaved = ok;
-    trackDx('enrichment_completed', { profile_id: profileId, saved: ok, files: estado.facturas?.count || 0 });
+    if (!parcial) trackDx('enrichment_completed', { profile_id: profileId, saved: ok, files: estado.facturas?.count || 0 });
     return ok;
   }
 

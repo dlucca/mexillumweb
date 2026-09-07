@@ -317,3 +317,31 @@ test('datos_consumo ignora valores que no son números (true, vacío, arreglo)',
   assert.match(emails[0].text, /Datos de consumo: 8 h de autonomía/);
   assert.doesNotMatch(emails[0].text, /1 kWh\/día|0 kW pico|0 L diésel/);
 });
+
+// Link rápido (origen *-rapido): la persona no respondió el cuestionario. El correo al
+// cliente no debe hablar de "tus respuestas" ni de un diagnóstico que no existe.
+test('rapido: el correo al cliente no presume respuestas ni diagnóstico', async () => {
+  const { emails } = await enviar({
+    ...base, correo: 'rapido@acme.mx', origen: 'industria_comercio-rapido', tipo_cierre: 'preliminar',
+    techo: { area_m2: 200, poligono: [{ lat: 19.4, lng: -99.1 }] },
+    lead_id: 'L1', facturas: { paths: ['L1/1.pdf', 'L1/2.pdf'], count: 2 }
+  });
+  const alCliente = emails.find((e) => e.to === 'rapido@acme.mx');
+  assert.ok(alCliente, 'hay correo al cliente');
+  assert.match(alCliente.subject, /Recibimos tu información/);
+  assert.doesNotMatch(alCliente.text, /tus respuestas del diagnóstico/);
+  assert.doesNotMatch(alCliente.text, /completar tu diagnóstico/);
+  assert.doesNotMatch(alCliente.text, /Lo que más te conviene/);
+  assert.doesNotMatch(alCliente.text, /Evidencia insuficiente/);
+  assert.match(alCliente.text, /la medida de tu techo/);
+  assert.match(alCliente.text, /tus 2 recibos/);
+  assert.match(alCliente.html, /Recibimos/);
+  assert.doesNotMatch(alCliente.html, /completar tu diagnóstico/);
+});
+
+test('rapido: el correo interno avisa que vino del link rápido sin cuestionario', async () => {
+  const { emails } = await enviar({ ...base, origen: 'hoteles-rapido' });
+  const interno = emails[0];
+  assert.match(interno.subject, /Link rápido/);
+  assert.match(interno.text, /sin cuestionario/i);
+});

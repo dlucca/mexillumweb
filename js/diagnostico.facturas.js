@@ -6,6 +6,8 @@ const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 // evita un viaje inútil y da un mensaje claro.
 const OK_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp']);
 const okType = (t) => OK_TYPES.has(String(t || '').toLowerCase());
+// En pantalla táctil no hay nada que arrastrar: el texto invita a tocar o tomar foto.
+const TOUCH = !!globalThis.matchMedia?.('(pointer: coarse)')?.matches;
 
 // Cargador de facturas. Mantiene tres estados por archivo (subiendo / listo / error),
 // permite quitar y reintentar, y puede arrancar con archivos ya subidos (`initial`)
@@ -16,7 +18,9 @@ export function mountFacturasUploader(container, { leadId, onChange, initial = [
     <div class="dx-fac">
       <label class="dx-fac__drop" tabindex="0" role="button" aria-label="Elegir facturas para subir">
         <input class="dx-fac__input" type="file" multiple accept="image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf" hidden>
-        <span>Arrastra tus facturas aquí o <strong>toca para elegir</strong> (foto o PDF, hasta ${MAX_FILES}).</span>
+        <span>${TOUCH
+          ? `<strong>Toca para elegir</strong> tus recibos o tomarles foto (foto o PDF, hasta ${MAX_FILES}).`
+          : `Arrastra tus facturas aquí o <strong>toca para elegir</strong> (foto o PDF, hasta ${MAX_FILES}).`}</span>
       </label>
       <ul class="dx-fac__list"></ul>
     </div>`;

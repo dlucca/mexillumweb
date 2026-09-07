@@ -1,6 +1,6 @@
 // Arranque de la versión de hoteles. Reusa el núcleo con contenido hotelero,
 // su propio evento de Cal y el marcador de lead `hoteles`.
-import content from './diagnostico.hoteles.content.js?v=16';
-import { initDiagnostico } from './diagnostico.app.js?v=16';
+import content from './diagnostico.hoteles.content.js?v=17';
+import { initDiagnostico } from './diagnostico.app.js?v=17';
 
 initDiagnostico({ content, calLink: 'diagnostico/diagnostico-hoteles', origen: 'hoteles' });
