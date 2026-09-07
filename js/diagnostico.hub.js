@@ -3,7 +3,7 @@ import { trackDx } from './diagnostico.analytics.js';
 const params = new URLSearchParams(globalThis.location?.search || '');
 const retained = new URLSearchParams();
 for (const [key, value] of params) {
-  if (key.startsWith('utm_') || ['source', 'ref'].includes(key)) retained.set(key, value);
+  if (key.startsWith('utm_') || ['source', 'ref', 'rapido'].includes(key)) retained.set(key, value);
 }
 
 document.querySelectorAll('[data-profile]').forEach((link) => {
