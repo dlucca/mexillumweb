@@ -1,7 +1,7 @@
-import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=18';
-import { mountRoofPicker } from './diagnostico.roof.js?v=18';
-import { mountFacturasUploader } from './diagnostico.facturas.js?v=18';
-import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=18';
+import { assembleResult, plantaLabel, bookingContact } from './diagnostico.engine.js?v=19';
+import { mountRoofPicker } from './diagnostico.roof.js?v=19';
+import { mountFacturasUploader } from './diagnostico.facturas.js?v=19';
+import { siguienteIndice, anteriorIndice, pasosVisibles, pasosEnriquecimiento } from './diagnostico.flujo.js?v=19';
 import { trackDx } from './diagnostico.analytics.js';
 import { clearDxState, loadDxState, saveDxState } from './diagnostico.state.js';
 
@@ -507,7 +507,7 @@ export function initDiagnostico({ content, calLink, origen }) {
   // ---- Paso: subir facturas (opcional) ----------------------------------------
   function renderFacturas() {
     const copyFac = rapido
-      ? { titulo: 'Sube tus recibos de energía', sub: 'Con uno basta. Con los últimos 12 es ideal: así calculamos tu ahorro real.' }
+      ? { titulo: 'Sube tus últimos 12 recibos de energía', sub: 'Con los 12 meses vemos tu curva de consumo completa y calculamos tu ahorro real.' }
       : (content.postResult?.facturas || { titulo: 'Sube tus últimas 12 facturas de energía', sub: 'Con tus facturas calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.' });
     const view = el(`
       <div class="dx__view">

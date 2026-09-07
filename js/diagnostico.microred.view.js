@@ -1,4 +1,4 @@
-import content from './diagnostico.microred.content.js?v=18';
-import { initDiagnostico } from './diagnostico.app.js?v=18';
+import content from './diagnostico.microred.content.js?v=19';
+import { initDiagnostico } from './diagnostico.app.js?v=19';
 
 initDiagnostico({ content, calLink: 'diagnostico/diagnostico-mexillum', origen: 'microred' });
