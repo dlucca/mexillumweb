@@ -1,4 +1,5 @@
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
+import { redirectToCanonicalHost } from './expediente.origin.js';
 import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations } from './expediente.model.js';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { trackDx } from './diagnostico.analytics.js';
@@ -8,6 +9,7 @@ const num=n=>n==null?'Por confirmar':new Intl.NumberFormat('es-MX',{maximumFract
 const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
+  if (redirectToCanonicalHost()) return;
   const css=document.createElement('link');css.rel='stylesheet';css.href='/css/expediente.css';document.head.append(css);
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
   let fileMessages=[],collect=()=>{}, mapCleanup=null;
