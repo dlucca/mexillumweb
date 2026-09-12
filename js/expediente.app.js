@@ -1,10 +1,11 @@
-import { expedienteEntry } from './expediente.entry.js?v=20260912-10';
-import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260912-10';
-import { billEconomics } from './expediente.billing.js?v=20260912-10';
-import { simulationView } from './expediente.simulation-view.js?v=20260912-10';
-import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260912-10';
-import { redirectToCanonicalHost } from './expediente.origin.js?v=20260912-10';
-import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260912-10';
+import { expedienteEntry } from './expediente.entry.js?v=20260912-11';
+import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260912-11';
+import { billEconomics } from './expediente.billing.js?v=20260912-11';
+import { customerView } from './expediente.summary.js?v=20260912-11';
+import { simulationView } from './expediente.simulation-view.js?v=20260912-11';
+import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260912-11';
+import { redirectToCanonicalHost } from './expediente.origin.js?v=20260912-11';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260912-11';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { trackDx } from './diagnostico.analytics.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,7 +15,7 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-10','/css/expediente-summary.css?v=20260912-10'].map(href=>new Promise((resolve,reject)=>{
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-11','/css/expediente-summary.css?v=20260912-11'].map(href=>new Promise((resolve,reject)=>{
     const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
@@ -253,7 +254,8 @@ export async function initExpediente({root,content}) {
     const simulation={source:{ready:false}};
     const pendingEvaluations=recommendations(d).filter(r=>!['Solar y autoconsumo','Arbitraje horario','Revisión con tu asesor'].includes(r.name));
     frame('Tu consumo y las opciones de ahorro','Explora una simulación preliminar con tus recibos y ajusta los supuestos antes de revisarla con tu asesor.',`
-      ${summaryControls(s)}<div data-simulation role="region" aria-label="Resultado de simulación"><p role="status">Calculando escenarios por servicio…</p></div>
+      <div class="exp-export"><button type="button" class="mx-btn mx-btn--ghost" data-summary-pdf>Descargar resumen en PDF</button><p class="exp-note">Incluye los datos del cliente, los resultados y los supuestos. Puedes abrirlo e imprimirlo.</p></div>
+      ${customerView(d)}${summaryControls(s)}<div data-simulation role="region" aria-label="Resultado de simulación"><p role="status">Calculando escenarios por servicio…</p></div>
       <details class="exp-dossier"><summary>Estado del expediente <span>${stats.clean} procesados sin alertas · ${stats.alerts} con datos por revisar</span></summary>
       ${record.submittedAt?'<p class="exp-success">Solicitud enviada. Tu asesor ya recibió el aviso para revisar este expediente.</p>':''}
       <div class="exp-facts"><div><span>Periodo disponible</span><strong class="exp-small">${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}</strong></div><div><span>Importe confirmado · con IVA</span><strong>${money(s.total)}</strong></div><div><span>Consumo confirmado</span><strong>${num(s.kwh)}${s.kwh!=null?' kWh':''}</strong></div></div>
@@ -270,6 +272,31 @@ export async function initExpediente({root,content}) {
       root.querySelectorAll('[data-resource-setting]').forEach(el=>{data().simulation||={};if(el.value!==''&&el.checkValidity())data().simulation[el.dataset.resourceSetting]=Number(el.value);});
       root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;
     };
+    root.querySelector('[data-summary-pdf]').onclick=()=>{
+      const invalid=[...root.querySelectorAll('input,select')].find(el=>!el.checkValidity());
+      if(invalid){invalid.reportValidity();return;}
+      for(const group of root.querySelectorAll('[data-sim-scope]')){
+        if(group.querySelector('[data-sim=tariffSet]').value==='1'&&['basePrice','intermediatePrice','peakPrice'].some(k=>group.querySelector(`[data-sim=${k}]`).value==='')){message('Completa los tres precios manuales o selecciona Obtener de cada factura.',true);return;}
+      }
+      return action(async()=>{
+        dirty=true;await save();message('Preparando el PDF con los datos y ajustes actuales…');
+        // Finish any display calculation before exporting; use one immutable snapshot.
+        simulationWorker?.terminate();simulationWorker=null;
+        const snapshot=structuredClone(data());
+        const result=await new Promise((resolve,reject)=>{
+          const worker=new Worker(new URL('./expediente.simulation-worker.js?v=20260912-11',import.meta.url),{type:'module'});
+          const timeout=setTimeout(()=>{worker.terminate();reject(Error('El cálculo está tardando más de lo esperado. Intenta descargar el resumen otra vez.'));},120000);
+          const finish=()=>{clearTimeout(timeout);worker.terminate();};
+          worker.onmessage=({data:response})=>{finish();response.error?reject(Error(response.error)):resolve(response.result);};
+          worker.onerror=()=>{finish();reject(Error('No pudimos calcular el resumen para el PDF. Intenta de nuevo.'));};
+          worker.postMessage(snapshot);
+        });
+        try{
+          const {downloadSummaryPdf}=await import('./expediente.pdf.js?v=20260912-11');
+          await downloadSummaryPdf(snapshot,result);message('PDF preparado. Ábrelo desde tus descargas para imprimirlo o compartirlo.');
+        }finally{root.querySelector('[data-simulation]').innerHTML=simulationView(result);bindSimulation();}
+      });
+    };
     root.querySelector('[data-allocation-save]')?.addEventListener('click',()=>action(async()=>{dirty=true;await save();render();}));
     root.querySelector('[data-resource]')?.addEventListener('click',()=>action(async()=>{dirty=true;await save();message('Consultando el recurso solar de la ubicación…');await call('solar-resource');render();}));
     const bindSimulation=()=>{
@@ -282,7 +309,7 @@ export async function initExpediente({root,content}) {
     };
     const container=root.querySelector('[data-simulation]');
     try{
-      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260912-10',import.meta.url),{type:'module'});
+      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260912-11',import.meta.url),{type:'module'});
       worker.onmessage=({data:response})=>{if(!container.isConnected||simulationWorker!==worker)return;worker.terminate();simulationWorker=null;container.innerHTML=response.error?`<p class="exp-error">${esc(response.error)}</p>`:simulationView(response.result);bindSimulation();};
       worker.onerror=()=>{if(container.isConnected)container.innerHTML='<p class="exp-error">No pudimos iniciar la simulación. Recarga para volver a intentarlo. Tus datos siguen guardados.</p>';worker.terminate();};
       worker.postMessage(structuredClone(d));

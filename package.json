@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.js",
+    "build:summary-pdf": "node scripts/build-summary-pdf.mjs",
     "build:simulation": "node scripts/build-simulation-solver.mjs"
   },
   "dependencies": {

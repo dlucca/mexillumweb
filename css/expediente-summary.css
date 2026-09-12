@@ -65,3 +65,21 @@
 .exp-sim-table td{white-space:normal;overflow-wrap:anywhere}
 .exp-sim-table td>span{white-space:normal}
 .exp-sim-settings .exp-fields{margin:24px 0}
+
+/* Keep monetary savings distinct from energy coverage. */
+.exp-export{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:24px 0}
+.exp-export .exp-note{margin:0;flex:1;min-width:220px;max-width:440px}
+.exp-customer{border-block:1px solid var(--border-default);padding:24px 0;margin:28px 0}
+.exp-customer h3{margin:0 0 8px}.exp-customer h4{margin:22px 0 0;font-size:1rem}
+.exp-customer article+article{border-top:1px solid var(--border-default);margin-top:20px}
+.exp-customer .exp-list{margin:16px 0;grid-template-columns:180px minmax(0,1fr)}
+.exp-customer dd{overflow-wrap:anywhere;white-space:pre-line}
+.exp-customer article>.exp-note{font-size:.8rem;margin-bottom:0}
+.exp-bill-impact{margin:28px 0;padding:24px;background:var(--accent-quiet)}
+.exp-bill-impact h4{margin:0 0 20px;font-size:1.1rem}
+.exp-bill-impact .exp-sim-area{margin:0;border:0;padding:0}
+.exp-bill-impact .exp-sim-area dd{color:var(--text-accent);font-size:1.9rem;line-height:1.25;font-variant-numeric:tabular-nums}
+.exp-bill-impact .exp-sim-area dd span{font-size:.8rem;font-weight:400;white-space:nowrap}
+.exp-bill-impact>p{font-size:.9rem;margin:20px 0 0;max-width:none}
+.exp-sim-clarification{max-width:75ch}
+@media(max-width:640px){.exp-export{gap:12px}.exp-export .mx-btn{width:100%}.exp-customer .exp-list{grid-template-columns:1fr}.exp-bill-impact{padding:18px}.exp-bill-impact .exp-sim-area{grid-template-columns:1fr;gap:20px}.exp-bill-impact .exp-sim-area dd{font-size:1.65rem}}

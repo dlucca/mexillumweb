@@ -1,9 +1,9 @@
-import {sanitizeSimulation} from './expediente.simulation-settings.js?v=20260912-10';
-export {sanitizeSimulation} from './expediente.simulation-settings.js?v=20260912-10';
-import {date,receiptIssues,serviceResolver,ALL_SERVICES,usableReading} from './expediente.model.js?v=20260912-10';
-import {billEconomics,billSaving} from './expediente.billing.js?v=20260912-10';
-import {periodProfile,BANDS} from './expediente.profile.js?v=20260912-10';
-import {dispatchDay} from './expediente.dispatch.js?v=20260912-10';
+import {sanitizeSimulation} from './expediente.simulation-settings.js?v=20260912-11';
+export {sanitizeSimulation} from './expediente.simulation-settings.js?v=20260912-11';
+import {date,receiptIssues,serviceResolver,ALL_SERVICES,usableReading} from './expediente.model.js?v=20260912-11';
+import {billEconomics,billSaving} from './expediente.billing.js?v=20260912-11';
+import {periodProfile,BANDS} from './expediente.profile.js?v=20260912-11';
+import {dispatchDay} from './expediente.dispatch.js?v=20260912-11';
 export const SIMULATION_VERSION='calendar-billing-v3';
 const DAY=86400000,sum=(rows,k)=>rows.reduce((n,r)=>n+(r[k]||0),0);
 const unique=a=>[...new Set(a)];

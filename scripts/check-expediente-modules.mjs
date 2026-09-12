@@ -12,7 +12,7 @@ async function load(url){
  const pending=readFile(path,'utf8').then(code=>new SourceTextModule(code,{context,identifier:id}));
  cache.set(id,pending);return pending;
 }
-for(const name of ['js/expediente.app.js','js/expediente.simulation-worker.js']){
+for(const name of ['js/expediente.app.js','js/expediente.simulation-worker.js','js/expediente.pdf.js']){
 const entry=await load(pathToFileURL(resolve(root,name)));
 await entry.link((specifier,parent)=>{
  if(!specifier.startsWith('./')&&!specifier.startsWith('../'))throw Error(`Browser cannot resolve package import: ${specifier}`);

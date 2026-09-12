@@ -1,4 +1,4 @@
-import {usableReading,unresolvedFields} from './expediente.model.js?v=20260912-10';
+import {usableReading,unresolvedFields} from './expediente.model.js?v=20260912-11';
 export const PRICE_FIELDS=['generationBase','generationIntermediate','generationPeak','transmission','cenace','scnmem'];
 export function billEconomics(r) {
   const issues=[],missing=PRICE_FIELDS.filter(k=>!usableReading(r,[k]));
