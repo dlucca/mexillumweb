@@ -120,8 +120,8 @@ test('installation details persist through create, save, sector switch, reopen a
 
 test('simulation assumptions persist without confirming receipts or accepting forged savings',()=>fixture(async(call)=>{
  let r=await draft(call),token=r.token;
- r=(await call({action:'save',revision:r.revision,data:{simulation:{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15,yieldKwh:-3,saving:999999}}},token)).body;
+ r=(await call({action:'save',revision:r.revision,data:{simulation:{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15,basePrice:1,intermediatePrice:2,peakPrice:4,manual:0,tariffSet:1,priceSource:"Recibo julio",yieldKwh:-3,saving:999999}}},token)).body;
  r=(await call({action:'read'},token)).body;
- assert.deepEqual(r.data.simulation,{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15});
+ assert.deepEqual(r.data.simulation,{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15,basePrice:1,intermediatePrice:2,peakPrice:4,manual:0,tariffSet:1,priceSource:"Recibo julio"});
  assert.deepEqual(r.data.receipts,[]);
 }));

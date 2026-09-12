@@ -10,24 +10,27 @@ test('unconfirmed consistent readings produce an explicitly provisional scenario
  assert.match(simulationView(result),/Con datos provisionales/);
  assert.equal(result.source.annualObserved,false);
 });
-test('monthly energy is conserved and financial savings preserve demand charges',()=>{
- for(const solarKw of [0,5,100,10000])for(const selfUsePct of [0,30,100])for(const batteryKwh of [0,1,1000]){
-  const r=simulate(draft(),{solarKw,selfUsePct,batteryKwh,batteryKw:20,energyPrice:30});
-  for(const m of r.monthly){
-   assert.ok(Math.abs(m.generation-m.direct-m.shifted-m.losses-m.unused)<1e-7);
-   assert.ok(Math.abs(m.kwh-m.direct-m.shifted-m.hybridImport)<1e-7);
-   assert.ok(m.hybridImport>=0&&m.losses>=0&&m.unused>=-1e-7);
-   assert.ok(m.hybridBill>=3000&&m.hybridSaving>=m.solarSaving);
-  }
+test('sizing maximizes useful solar, preserves demand charges, and keeps annual balances',()=>{
+ const d=draft([bill({base:700,intermediate:2900,peak:400,demand:25})]);
+ const r=simulate(d,{basePrice:1,intermediatePrice:2,peakPrice:4});
+ assert.ok(r.solarKw>r.source.annualKwh*.6/1500);assert.ok(r.solarKw<=r.maxSolarKw);
+ assert.ok(r.usefulSolar/r.source.annualKwh>.99);assert.ok(r.candidateCount>20);
+ for(const m of r.monthly){
+  assert.ok(Math.abs(m.generation+m.hybridImport-m.kwh-m.losses-m.unused)<1e-4);
+  assert.ok(m.hybridBill>=3000);assert.ok(m.hybridSaving>=0);
  }
 });
-test('zero solar or zero price gives no savings; zero battery or power adds no savings',()=>{
- for(const patch of [{solarKw:0},{energyPrice:0}])assert.equal(simulate(draft(),patch).scenarios[2].saving,0);
- for(const patch of [{batteryKwh:0},{batteryKw:0}])assert.equal(simulate(draft(),patch).extraBatterySaving,0);
+test('without solar space battery arbitrage works, but flat prices suggest no battery',()=>{
+ const d={...draft([bill({base:700,intermediate:2900,peak:400,demand:25})]),roof:{area_m2:0}};
+ const r=simulate(d,{basePrice:1,intermediatePrice:2,peakPrice:4});
+ assert.equal(r.solarKw,0);assert.ok(r.batteryKwh>0);assert.ok(r.gridCharge>0);assert.ok(r.saving>0);
+ assert.equal(simulate(d).batteryKwh,0);assert.equal(simulate(d).pricesProvided,false);
 });
-test('battery respects usable capacity, efficiency and four daily discharge hours',()=>{
- const r=simulate(draft(),{solarKw:100,selfUsePct:0,batteryKwh:10,batteryKw:1,efficiencyPct:80,usablePct:50});
- const m=r.monthly[0];assert.equal(m.shifted,124);assert.equal(m.charged,155);assert.equal(m.losses,31);
+test('manual zero battery adds no savings and period demand limits extra grid charging',()=>{
+ const d=draft([bill({base:700,intermediate:2900,peak:400,demand:10})]);
+ const r=simulate(d,{manual:1,solarKw:0,batteryKwh:1000,batteryKw:100,powerLimitKw:100,basePrice:1,intermediatePrice:2,peakPrice:4});
+ for(const m of r.monthly)for(const h of m.flow.hours)if(h.gridCharge>0)assert.ok(h.grid<=10+1e-5);
+ assert.equal(simulate(d,{manual:1,batteryKwh:0}).extraBatterySaving,0);
 });
 test('excluded and duplicate bills never increase the baseline',()=>{
  const r=simulate(draft([bill(),bill({id:'duplicate',reviewed:true}),bill({id:'excluded',excluded:true,kwh:999999})]));
@@ -50,16 +53,27 @@ test('latest twelve periods are selected without pretending a gap is continuous'
  rows.splice(10,1);const g=simulationSource(draft(rows));assert.equal(g.annualObserved,false);assert.equal(g.gaps,1);
 });
 test('roof limits generation; missing roof is disclosed without assuming zero area',()=>{
- const r=simulate({...draft(),roof:{area_m2:55}},{solarKw:50});assert.equal(r.solarKw,7);assert.equal(r.roofLimited,true);
+ const r=simulate({...draft(),roof:{area_m2:55}},{manual:1,solarKw:50});assert.equal(r.solarKw,7);assert.equal(r.roofLimited,true);
  assert.equal(r.solarAreaM2,38.5);assert.equal(r.usableAreaM2,38.5);
- const actual=simulate({...draft(),roof:{area_m2:1788.6}},{solarKw:46.2});
+ const actual=simulate({...draft(),roof:{area_m2:1788.6}},{manual:1,solarKw:46.2});
  assert.ok(Math.abs(actual.solarAreaM2-254.1)<1e-8);
  assert.match(simulationView(actual),/254.1/);
  assert.match(simulationView(actual),/Área total marcada/);
- assert.equal(simulate({...draft(),roof:null}).maxSolarKw,null);
+ const missing=simulate({...draft(),roof:null});assert.equal(missing.maxSolarKw,null);assert.equal(missing.solarKw,0);assert.match(simulationView(missing),/Falta marcar/);
 });
 test('invalid assumptions and forged results cannot persist, and input text is escaped',()=>{
  assert.deepEqual(sanitizeSimulation({solarKw:-1,yieldKwh:Infinity,energyPrice:'2',saving:99999,batteryKw:0}),{batteryKw:0});
  const r=simulate(draft());r.source.start='<img src=x onerror=alert(1)>';
  assert.ok(!simulationView(r).includes('<img'));assert.match(simulationView(r),/&lt;img/);
+});
+test('flat fallback remains unverified after saving and invalid schedules remain repairable',()=>{
+ const r=simulate(draft(),{basePrice:1,intermediatePrice:1,peakPrice:1,tariffSet:0,peakStart:22,peakEnd:13});
+ assert.equal(r.pricesProvided,false);assert.equal(r.scheduleAdjusted,true);assert.match(simulationView(r),/data-sim="peakEnd"/);
+ const sourced=simulate(draft(),{basePrice:1,intermediatePrice:2,peakPrice:3,priceSource:'<script>alert(1)</script>'});
+ assert.equal(sourced.pricesProvided,true);assert.ok(!simulationView(sourced).includes('<script>'));
+});
+
+test('partial prices cannot silently enable arbitrage behind a flat-price warning',()=>{
+ const d={...draft(),roof:{area_m2:0}};const r=simulate(d,{basePrice:0});
+ assert.equal(r.pricesProvided,false);assert.equal(r.inputs.basePrice,r.inputs.peakPrice);assert.equal(r.gridCharge,0);
 });

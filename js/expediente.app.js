@@ -1,5 +1,5 @@
-import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-4';
-import { simulationView } from './expediente.simulation-view.js?v=20260912-4';
+import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-5';
+import { simulationView } from './expediente.simulation-view.js?v=20260912-5';
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
 import { redirectToCanonicalHost } from './expediente.origin.js';
 import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations } from './expediente.model.js';
@@ -12,7 +12,7 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-4','/css/expediente-summary.css?v=20260912-4'].map(href=>new Promise((resolve,reject)=>{
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-5','/css/expediente-summary.css?v=20260912-5'].map(href=>new Promise((resolve,reject)=>{
     const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
@@ -241,13 +241,14 @@ export async function initExpediente({root,content}) {
       <h3>Contacto para la revisión</h3><div class="exp-fields"><label class="exp-field">Nombre<input data-contact="name" autocomplete="name" value="${esc(d.contact.name||'')}"></label><label class="exp-field">Correo<input type="email" data-contact="email" autocomplete="email" value="${esc(d.contact.email||'')}"></label><label class="exp-field">Empresa o institución<input data-contact="company" autocomplete="organization" value="${esc(d.contact.company||'')}"></label><label class="exp-field">Nombre de la instalación<input data-site value="${esc(d.site||'')}"></label></div>
       <label class="exp-consent"><input data-consent type="checkbox" ${d.consent?'checked':''}> Autorizo a Mexillum a utilizar estos datos para evaluar y dar seguimiento a mi proyecto. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</label>
       <button class="mx-btn mx-btn--primary" type="button" data-action="submit">${record.submittedAt?'Guardar actualización':'Solicitar revisión del asesor'}</button>`,btn('map','Atrás')+btn('receipts','Agregar más recibos'));
-    collect=()=>{const settings={};root.querySelectorAll('[data-sim]').forEach(el=>{if(el.value!==''&&el.checkValidity())settings[el.dataset.sim]=Number(el.value);});if(root.querySelector('[data-sim]'))data().simulation=sanitizeSimulation(settings);root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;};
+    collect=()=>{const settings={priceSource:data().simulation?.priceSource};root.querySelectorAll('[data-sim]').forEach(el=>{if(el.value!==''&&el.checkValidity())settings[el.dataset.sim]=Number(el.value);});if(root.querySelector('[data-sim]'))data().simulation=sanitizeSimulation(settings);root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;};
     root.querySelector('[data-sim-recalculate]')?.addEventListener('click',()=>{
+      const end=root.querySelector('[data-sim=peakEnd]'),start=root.querySelector('[data-sim=peakStart]');end.setCustomValidity(Number(end.value)<=Number(start.value)?'La hora final debe ser posterior a la inicial.':'');
       const invalid=[...root.querySelectorAll('[data-sim]')].find(el=>!el.checkValidity());if(invalid){invalid.reportValidity();return;}
       return action(async()=>{dirty=true;await save();render();root.querySelector('#simulation-title')?.scrollIntoView({block:'start'});});
     });
-    root.querySelector('[data-sim-reset]')?.addEventListener('click',()=>action(async()=>{collect();data().simulation={};collect=()=>{};dirty=true;await save();render();}));
-    root.querySelectorAll('[data-sim]').forEach(el=>el.addEventListener('input',()=>{root.querySelector('[data-sim-dirty]').textContent='Supuestos cambiados. Pulsa Recalcular simulación para actualizar los resultados.';}));
+    root.querySelector('[data-sim-reset]')?.addEventListener('click',()=>action(async()=>{collect();data().simulation={...data().simulation,manual:0};delete data().simulation.solarKw;delete data().simulation.batteryKwh;delete data().simulation.batteryKw;collect=()=>{};dirty=true;await save();render();}));
+    root.querySelectorAll('[data-sim]').forEach(el=>el.addEventListener('input',()=>{if(['solarKw','batteryKwh','batteryKw'].includes(el.dataset.sim))root.querySelector('[data-sim=manual]').value='1';if(['basePrice','intermediatePrice','peakPrice'].includes(el.dataset.sim)){delete data().simulation?.priceSource;root.querySelector('[data-sim=tariffSet]').value='1';}root.querySelector('[data-sim=peakEnd]')?.setCustomValidity('');root.querySelector('[data-sim-dirty]').textContent='Supuestos cambiados. Pulsa Recalcular simulación para actualizar los resultados.';}));
     root.querySelector('[data-action=submit]').onclick=()=>action(async()=>{dirty=true;await save();if(!record.submittedAt){await call('submit');trackDx('expediente_submitted',{profile_id:content.profile?.id,receipts:s.usable.length});}render();message('Tu expediente quedó guardado para revisión.');});
   }
   function render(){({receipts:receiptStep,review:reviewStep,operation:operationStep,map:mapStep,summary:summaryStep}[data().step]||receiptStep)();}

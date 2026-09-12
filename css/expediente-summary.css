@@ -54,3 +54,8 @@
  .exp-sim-table td>span{white-space:nowrap}
  .exp-sim-actions .mx-btn{width:100%}.exp-dossier>summary span{display:block;margin:8px 0 0}
 }
+.exp-sim-equipment{margin:28px 0;padding:24px 0;border-block:1px solid var(--border-default)}
+.exp-sim-alert{padding:14px 18px;border-left:3px solid var(--text-accent);background:var(--accent-quiet)}
+.exp-sim-table th:first-child{overflow-wrap:anywhere}
+.exp-sim-flows th:first-child{width:65%}
+@media(max-width:700px){.exp-sim-flows th:first-child{width:auto}}

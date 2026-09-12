@@ -1,10 +1,14 @@
+import {BANDS,dailyProfile,dispatchDay} from './expediente.dispatch.js?v=20260912-5';
 import {date,receiptIssues} from './expediente.model.js';
 
-export const SIMULATION_VERSION='monthly-balance-v1';
+export const SIMULATION_VERSION='hourly-dispatch-v2';
 const DAY=86400000;
-const bounds={solarKw:[0,10000],yieldKwh:[500,2500],selfUsePct:[0,100],batteryKwh:[0,100000],batteryKw:[0,10000],efficiencyPct:[50,100],usablePct:[50,100],energyPrice:[0,30]};
+const bounds={solarKw:[0,10000],yieldKwh:[500,2500],selfUsePct:[0,100],batteryKwh:[0,100000],batteryKw:[0,10000],efficiencyPct:[50,100],usablePct:[50,100],energyPrice:[0,30],basePrice:[0,30],intermediatePrice:[0,30],peakPrice:[0,30],baseEnd:[1,10],peakStart:[12,22],peakEnd:[13,24],powerLimitKw:[0,10000],areaUsePct:[0,100],manual:[0,1],tariffSet:[0,1]};
 export function sanitizeSimulation(input={}) {
-  return Object.fromEntries(Object.entries(bounds).filter(([k,[lo,hi]])=>typeof input?.[k]==='number'&&Number.isFinite(input[k])&&input[k]>=lo&&input[k]<=hi).map(([k])=>[k,input[k]]));
+  const clean=Object.fromEntries(Object.entries(bounds).filter(([k,[lo,hi]])=>typeof input?.[k]==='number'&&Number.isFinite(input[k])&&input[k]>=lo&&input[k]<=hi).map(([k])=>[k,input[k]]));
+  for(const k of ['baseEnd','peakStart','peakEnd','manual','tariffSet'])if(k in clean&&!Number.isInteger(clean[k]))delete clean[k];
+  if(typeof input?.priceSource==='string')clean.priceSource=input.priceSource.slice(0,160);
+  return clean;
 }
 const sum=(rows,k)=>rows.reduce((n,r)=>n+r[k],0);
 const critical=['service','tariff','start','end','kwh','subtotal','capacity','distribution'];
@@ -37,42 +41,82 @@ export function simulationSource(data) {
     referencePrice:residual/sum(chosen,'kwh')};
 }
 
+const options=(values,max)=>[...new Set(values.map(v=>Math.max(0,Math.min(max,v))))].sort((a,b)=>a-b);
+let lastKey,lastResult;
 export function simulate(data,overrides=data.simulation) {
   const source=simulationSource(data);
   if(!source.ready)return {version:SIMULATION_VERSION,source};
-  const area=Number.isFinite(data.roof?.area_m2)&&data.roof.area_m2>0?data.roof.area_m2:null;
-  // Scenario assumptions, not a roof survey or a weather-service prediction.
-  const maxSolarKw=area==null?null:area*.7/5.5;
-  const defaultSolar=Math.min(source.annualKwh*.6/1500,maxSolarKw??Infinity);
-  const defaults={solarKw:Number(defaultSolar.toFixed(1)),yieldKwh:1500,selfUsePct:70,
-    batteryKwh:Number((source.annualKwh/365*.2).toFixed(1)),batteryKw:Number((source.annualKwh/365*.1).toFixed(1)),
-    efficiencyPct:90,usablePct:90,energyPrice:Number(source.referencePrice.toFixed(3))};
-  for(const [key,[lo,hi]] of Object.entries(bounds))defaults[key]=Math.max(lo,Math.min(hi,defaults[key]));
-  const inputs={...defaults,...sanitizeSimulation(overrides)};
-  const solarKw=Math.min(inputs.solarKw,maxSolarKw??Infinity);
-  const efficiency=inputs.efficiencyPct/100;
-  const monthly=source.rows.map(r=>{
-    const days=(date(r.end)-date(r.start))/DAY;
-    const generation=solarKw*inputs.yieldKwh*days/365;
-    const direct=Math.min(r.kwh,generation*inputs.selfUsePct/100);
-    const surplus=generation-direct;
-    // One cycle/day, at most four discharge hours/day; energy never appears for free.
-    const shifted=Math.min(surplus*efficiency,r.kwh-direct,inputs.batteryKwh*inputs.usablePct/100*efficiency*days,inputs.batteryKw*4*days);
-    const charged=shifted/efficiency;
-    const energyBudget=r.subtotal-r.capacity-r.distribution;
-    const solarSaving=Math.min(energyBudget,direct*inputs.energyPrice);
-    const hybridSaving=Math.min(energyBudget,(direct+shifted)*inputs.energyPrice);
-    return {id:r.id,start:r.start,end:r.end,days,kwh:r.kwh,subtotal:r.subtotal,generation,direct,
-      shifted,charged,losses:charged-shifted,unused:surplus-charged,
-      solarImport:r.kwh-direct,hybridImport:r.kwh-direct-shifted,
-      solarSaving,hybridSaving,solarBill:r.subtotal-solarSaving,hybridBill:r.subtotal-hybridSaving};
-  });
-  const annual=k=>sum(monthly,k)/source.days*365;
-  const baseline={id:'baseline',label:'Situación actual',importKwh:source.annualKwh,bill:source.annualSubtotal,saving:0};
-  const solar={id:'solar',label:'Con solar',importKwh:annual('solarImport'),bill:annual('solarBill'),saving:annual('solarSaving')};
-  const hybrid={id:'hybrid',label:'Solar + batería',importKwh:annual('hybridImport'),bill:annual('hybridBill'),saving:annual('hybridSaving')};
-  return {version:SIMULATION_VERSION,source,inputs,maxSolarKw,solarKw,area,usableAreaM2:area==null?null:area*.7,solarAreaM2:solarKw*5.5,monthly,
-    scenarios:[baseline,solar,hybrid],generation:annual('generation'),direct:annual('direct'),shifted:annual('shifted'),
-    losses:annual('losses'),unused:annual('unused'),extraBatterySaving:hybrid.saving-solar.saving,
-    roofLimited:solarKw<inputs.solarKw};
+  const clean=sanitizeSimulation(overrides);
+  const area=Number.isFinite(data.roof?.area_m2)&&data.roof.area_m2>=0?data.roof.area_m2:null;
+  const key=JSON.stringify([source,area,clean]);if(key===lastKey)return lastResult;
+  const pricesProvided=clean.tariffSet!==0&&['basePrice','intermediatePrice','peakPrice'].every(k=>k in clean);
+  const flat=Math.min(30,Math.max(0,source.referencePrice));
+  const inputs={yieldKwh:1500,efficiencyPct:90,usablePct:90,areaUsePct:70,baseEnd:6,peakStart:18,peakEnd:22,
+    basePrice:flat,intermediatePrice:flat,peakPrice:flat,manual:0,...clean};
+  if(!pricesProvided){for(const k of ['basePrice','intermediatePrice','peakPrice'])inputs[k]=flat;delete inputs.priceSource;}
+  const scheduleAdjusted=inputs.peakEnd<=inputs.peakStart;
+  if(scheduleAdjusted){inputs.peakStart=18;inputs.peakEnd=22;}
+  const usableAreaM2=area==null?null:area*inputs.areaUsePct/100;
+  const maxSolarKw=area==null?null:usableAreaM2/5.5;
+  const profiles=source.rows.map(r=>{const days=(date(r.end)-date(r.start))/DAY;return {r,days,profile:dailyProfile(r,days,inputs)};});
+  const maxLoad=Math.max(...profiles.flatMap(p=>p.profile.load));
+  const demandValues=source.rows.map(r=>r.demand).filter(v=>Number.isFinite(v)&&v>0);
+  // Never infer new demand-charge savings; extra grid charging needs unused connection headroom.
+  inputs.powerLimitKw??=Math.min(10000,demandValues.length?Math.max(...demandValues):maxLoad);
+  const maxDaily=Math.max(...profiles.map(p=>p.r.kwh/p.days));
+  const maxBattery=Math.min(100000,maxDaily/(inputs.usablePct/100)/(inputs.efficiencyPct/100));
+  const solarMatch=source.annualKwh/inputs.yieldKwh;
+  const cap=Math.min(10000,maxSolarKw??0); // Missing surface is not permission to assume a roof.
+  const solarOptions=options([0,solarMatch*.5,solarMatch*.75,solarMatch,solarMatch*1.25,solarMatch*1.5,cap],cap);
+  const batteryOptions=options([0,maxBattery*.25,maxBattery*.5,maxBattery*.75,maxBattery],maxBattery);
+  const powerFor=kwh=>Math.min(10000,kwh,Math.max(maxLoad,inputs.powerLimitKw));
+  function evaluate(solarKw,batteryKwh,batteryKw) {
+    const monthly=profiles.map(({r,days,profile})=>{
+      const flow=dispatchDay(profile,{...inputs,powerLimitKw:Math.min(inputs.powerLimitKw,Number.isFinite(r.demand)&&r.demand>0?r.demand:Math.max(...profile.load)),solarKw,batteryKwh,batteryKw});
+      // Keep non-energy charges/adjustments unchanged. A cap protects the subtotal if supplied prices are inconsistent.
+      const rawSaving=(flow.baselineCost-flow.cost)*days;
+      const budget=r.subtotal-r.capacity-r.distribution;
+      const saving=Math.max(0,Math.min(budget,rawSaving));
+      return {id:r.id,start:r.start,end:r.end,days,kwh:r.kwh,subtotal:r.subtotal,flow,
+        generation:flow.generation*days,direct:flow.direct*days,shifted:flow.solarDischarge*days,
+        gridCharge:flow.gridCharge*days,gridDischarge:flow.gridDischarge*days,solarCharge:flow.solarCharge*days,
+        losses:flow.losses*days,unused:flow.unused*days,hybridImport:flow.grid*days,hybridSaving:saving,hybridBill:r.subtotal-saving,
+        capped:rawSaving>budget+.01};
+    });
+    const annual=k=>sum(monthly,k)/source.days*365;
+    const gridByBand=Object.fromEntries(BANDS.map(b=>[b,monthly.reduce((s,m)=>s+m.flow.gridByBand[b]*m.days,0)/source.days*365]));
+    return {solarKw,batteryKwh,batteryKw,monthly,gridByBand,importKwh:annual('hybridImport'),bill:annual('hybridBill'),saving:annual('hybridSaving'),
+      generation:annual('generation'),direct:annual('direct'),shifted:annual('shifted'),solarCharge:annual('solarCharge'),gridCharge:annual('gridCharge'),gridDischarge:annual('gridDischarge'),
+      losses:annual('losses'),unused:annual('unused'),usefulSolar:annual('direct')+annual('shifted'),requiredKw:Math.max(...monthly.map(m=>m.flow.requiredKw))};
+  }
+  const candidates=[];
+  for(const solar of solarOptions)for(const battery of batteryOptions)candidates.push(evaluate(solar,battery,powerFor(battery)));
+  // Service objective: first maximize useful solar; among near-equal coverage, minimize grid energy cost.
+  // At near-equal results prefer smaller systems. This is not investment/ROI optimization.
+  const bestCoverage=Math.max(...candidates.map(c=>c.usefulSolar));
+  const covered=candidates.filter(c=>c.usefulSolar>=bestCoverage-source.annualKwh*.001);
+  const bestSaving=Math.max(...covered.map(c=>c.saving));
+  const economic=covered.filter(c=>c.saving>=bestSaving-Math.max(1,bestSaving*.001));
+  let recommended=economic.sort((a,b)=>(a.solarKw/(cap||1)+a.batteryKwh/(maxBattery||1))-(b.solarKw/(cap||1)+b.batteryKwh/(maxBattery||1)))[0];
+  const acceptable=c=>c.usefulSolar>=bestCoverage-source.annualKwh*.001&&c.saving>=bestSaving-Math.max(1,bestSaving*.001);
+  // Refine between coarse candidates to avoid filling unused roof area or oversizing storage.
+  for(const dimension of ['solarKw','batteryKwh','batteryKw','solarKw']) {
+    let lo=0,hi=recommended[dimension];
+    for(let i=0;i<10&&hi-lo>.01;i++){
+      const mid=(lo+hi)/2,trial={...recommended,[dimension]:mid};
+      const c=evaluate(trial.solarKw,trial.batteryKwh,trial.batteryKw);candidates.push(c);
+      if(acceptable(c)){hi=mid;recommended=c;}else lo=mid;
+    }
+  }
+  const selected=inputs.manual===1?evaluate(Math.min(clean.solarKw??recommended.solarKw,cap),clean.batteryKwh??recommended.batteryKwh,clean.batteryKw??recommended.batteryKw):recommended;
+  inputs.solarKw=selected.solarKw;inputs.batteryKwh=selected.batteryKwh;inputs.batteryKw=selected.batteryKw;
+  const baseline=evaluate(0,0,0),solar=evaluate(selected.solarKw,0,0),battery=evaluate(0,selected.batteryKwh,selected.batteryKw);
+  const scenarios=[{...baseline,id:'baseline',label:'Situación actual'},...(selected.solarKw>0?[{...solar,id:'solar',label:'Solo solar'}]:[]),
+    ...(selected.solarKw>0?[{...battery,id:'battery',label:'Solo batería'}]:[]),{...selected,id:'hybrid',label:selected.solarKw>0?'Solar + batería':'Batería con carga de red'}];
+  const result={version:SIMULATION_VERSION,source,inputs,pricesProvided,scheduleAdjusted,area,maxSolarKw,usableAreaM2,solarAreaM2:selected.solarKw*5.5,...selected,
+    scenarios,recommended:{solarKw:recommended.solarKw,batteryKwh:recommended.batteryKwh,batteryKw:recommended.batteryKw},
+    candidateCount:candidates.length,extraBatterySaving:selected.saving-solar.saving,
+    roofLimited:inputs.manual===1&&(clean.solarKw??0)>cap,missingBands:profiles.filter(p=>!p.profile.hasBands).length,
+    capped:selected.monthly.some(m=>m.capped)};
+  lastKey=key;lastResult=result;return result;
 }
