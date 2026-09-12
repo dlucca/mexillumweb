@@ -1,6 +1,6 @@
 import {sanitizeSimulation} from './expediente.simulation-settings.js';
 export {sanitizeSimulation} from './expediente.simulation-settings.js';
-import {BANDS,dailyProfile,dispatchDay} from './expediente.dispatch.js?v=20260912-6';
+import {BANDS,dailyProfile,dispatchDay} from './expediente.dispatch.js?v=20260912-7';
 import {date,receiptIssues} from './expediente.model.js';
 
 export const SIMULATION_VERSION='hourly-dispatch-v2';

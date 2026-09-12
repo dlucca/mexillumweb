@@ -1,5 +1,5 @@
-import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-6';
-import { simulationView } from './expediente.simulation-view.js?v=20260912-6';
+import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-7';
+import { simulationView } from './expediente.simulation-view.js?v=20260912-7';
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
 import { redirectToCanonicalHost } from './expediente.origin.js';
 import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations } from './expediente.model.js';
@@ -12,7 +12,7 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-6','/css/expediente-summary.css?v=20260912-6'].map(href=>new Promise((resolve,reject)=>{
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-7','/css/expediente-summary.css?v=20260912-7'].map(href=>new Promise((resolve,reject)=>{
     const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();

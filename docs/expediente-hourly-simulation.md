@@ -33,6 +33,8 @@ These are marginal energy references excluding VAT and with fixed adjustments, n
 
 `test/expediente.dispatch.test.js` checks source/total conservation, cyclic inventories, shared capacity, power, no simultaneous charge/discharge, import headroom, no profitable arbitration without a loss-adjusted spread, limited-storage prioritization of peak, and zero-grid supply with ample solar. Simulation tests cover sizing, absent/zero space, manual overrides, per-invoice demand limits, provisional status, persistence and HTML escaping. Existing API and invoice tests remain applicable.
 
-The browser solver is an exact local copy of the pinned YALPS 0.6.3 ESM distribution with its MIT license, avoiding runtime CDN requests.
+The browser solver is a self-contained ESM bundle of pinned YALPS 0.6.3 and heap 0.2.7 with their MIT licenses, avoiding runtime CDN requests.
 
 References: [CFE GDMTH](https://app.cfe.mx/Aplicaciones/CCFE/Tarifas/TarifasCRENegocio/Tarifas/GranDemandaMTH.aspx), [YALPS source and API](https://github.com/IanManske/YALPS).
+
+Browser loading is checked separately from the numerical tests: the full expediente graph must link and evaluate with relative URL imports only, without Node package resolution. This catches dependencies accidentally left as bare npm imports.

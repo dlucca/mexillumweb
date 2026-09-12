@@ -1,4 +1,4 @@
-import {solve} from './vendor/yalps-0.6.3.js';
+import {solve} from './vendor/yalps-0.6.3.bundle.js';
 
 export const BANDS=['base','intermediate','peak'];
 const total=a=>a.reduce((s,n)=>s+n,0);
