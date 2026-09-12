@@ -31,3 +31,20 @@ test('a year of monthly bills has continuous coverage; missing month is visible'
  const list=Array.from({length:12},(_,i)=>{const start=new Date(Date.UTC(2025,i,0)).toISOString().slice(0,10),end=new Date(Date.UTC(2025,i+1,0)).toISOString().slice(0,10);return bill({start,end},String(i));});
  assert.equal(summarize(list).annualReady,true);assert.equal(summarize(list).monthCoverage.filter(m=>m.complete).length,12);assert.equal(summarize(list.filter((_,i)=>i!==5)).annualReady,false);assert.equal(summarize(list.filter((_,i)=>i!==5)).gaps.length,1);
 });
+test('all services includes every bill without treating different meters as duplicate or overlapping',()=>{
+ const a=bill(),b=bill({service:'456'},'b');const s=summarize([a,b],'__all__');
+ assert.equal(s.rows.length,2);assert.equal(s.total,a.total+b.total);assert.equal(s.kwh,a.kwh+b.kwh);assert.equal(s.duplicates.length,0);assert.equal(s.overlaps.length,0);
+ const duplicate=summarize([a,b,bill({},'copy')],'__all__');assert.equal(duplicate.duplicates.length,1);assert.equal(duplicate.total,s.total);
+});
+test('service labels and an explicitly paired RMU resolve to one service without changing original readings',()=>{
+ const values=['961020200049','No.deservicio:961020200049','7839502-01-15ATP9-61018001CFE','NO.DESERVICIO:961020200049/RMU:7839502-01-15ATP9-61018001CFE'];
+ const rows=values.map((service,i)=>bill({service,start:`2026-0${i+1}-01`,end:`2026-0${i+2}-01`},String(i))),before=JSON.stringify(rows);
+ const s=summarize(rows,'__all__');assert.deepEqual(s.services,['961020200049']);assert.equal(s.usable.length,4);assert.equal(s.duplicates.length,0);assert.equal(JSON.stringify(rows),before);
+ assert.equal(summarize(rows,values[1]).rows.length,4);
+ s.rows[0].reviewed=false;assert.equal(rows[0].reviewed,false,'review action still reaches the original receipt');
+});
+test('RMU is not inferred without an explicit unique pairing',()=>{
+ const rmu='7839502-01-15ATP9-61018001CFE';
+ assert.equal(summarize([bill({service:rmu}),bill({service:'961020200049'},'b')],'__all__').services.length,2);
+ const rows=[bill({service:rmu}),bill({service:'NO.DESERVICIO:961020200049/RMU:'+rmu},'b'),bill({service:'NO.DESERVICIO:961020200050/RMU:'+rmu},'c')];assert.equal(summarize(rows,'__all__').services.length,3);
+});

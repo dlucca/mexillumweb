@@ -77,3 +77,8 @@ test('partial prices cannot silently enable arbitrage behind a flat-price warnin
  const d={...draft(),roof:{area_m2:0}};const r=simulate(d,{basePrice:0});
  assert.equal(r.pricesProvided,false);assert.equal(r.inputs.basePrice,r.inputs.peakPrice);assert.equal(r.gridCharge,0);
 });
+test('all-service selection simulates aliases of one meter but never shares energy across distinct meters',()=>{
+ const d=draft([bill({service:'961020200049'}),bill({id:'two',service:'No.deservicio:961020200049',start:'2026-02-01',end:'2026-03-01'})]);d.service='__all__';
+ assert.equal(simulationSource(d).ready,true);assert.equal(simulationSource(d).rows.length,2);
+ d.receipts[1].service='961020200050';assert.equal(simulationSource(d).ready,false);
+});

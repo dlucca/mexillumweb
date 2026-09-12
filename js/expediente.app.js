@@ -1,9 +1,9 @@
 import { expedienteEntry } from './expediente.entry.js';
-import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-7';
+import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-9';
 import { simulationView } from './expediente.simulation-view.js?v=20260912-7';
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
 import { redirectToCanonicalHost } from './expediente.origin.js';
-import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations } from './expediente.model.js';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES } from './expediente.model.js?v=20260912-9';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { trackDx } from './diagnostico.analytics.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -110,17 +110,17 @@ export async function initExpediente({root,content}) {
     });
   }
   function reviewStep() {
-    const s=summarize(data().receipts,data().service);
+    const s=summarize(data().receipts,data().service),identity=serviceResolver(data().receipts);
     frame('Esto encontramos en tus recibos','Revisa los datos antes de utilizarlos. Los importes corresponden a los periodos disponibles; todavía no son una estimación de ahorro.',`
-      ${s.services.length>1?`<label class="exp-field">Hay varios servicios. Elige el que vamos a evaluar<select data-service><option value="">Seleccionar servicio</option>${s.services.map(v=>`<option ${v===data().service?'selected':''}>${esc(v)}</option>`).join('')}</select></label><p class="exp-note">Los otros recibos se conservan, pero sus consumos no se sumarán a este servicio.</p>`:''}
+      ${s.services.length?`<label class="exp-field">Servicios que quieres revisar<select data-service><option value="">Seleccionar servicio</option><option value="${ALL_SERVICES}" ${s.selected===ALL_SERVICES?'selected':''}>Todos los servicios</option>${s.services.map(v=>`<option value="${esc(v)}" ${v===s.selected?'selected':''}>${esc(v)}</option>`).join('')}</select></label><p class="exp-note">${s.selected===ALL_SERVICES?'Se muestran todos los recibos. Los duplicados y periodos superpuestos se revisan dentro de cada servicio.':'También puedes elegir Todos los servicios para revisar el conjunto.'}</p>`:''}
       <div class="exp-facts"><div><span>Recibos identificados</span><strong>${s.rows.length}</strong></div><div><span>Confirmados y utilizables</span><strong>${s.usable.length}</strong></div><div><span>Total confirmado · con IVA</span><strong>${money(s.total)}</strong></div></div>
-      <p class="exp-note">Periodo disponible: ${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}. ${s.days?`${num(s.days)} días en recibos confirmados.`:''}</p>
+      <p class="exp-note">Periodo disponible: ${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}. ${s.days?`${num(s.days)} días en recibos confirmados${s.selected===ALL_SERVICES&&s.services.length>1?' · sumados por servicio':''}.`:''}</p>
       ${s.monthCoverage.length?`<div class="exp-months" aria-label="Cobertura documental por mes">${s.monthCoverage.map(m=>`<span class="${m.complete?'is-covered':''}">${m.month} · ${m.complete?'cubierto':'incompleto'}</span>`).join('')}</div>`:''}
       ${s.duplicates.length?'<p class="exp-error">Hay recibos duplicados. Excluye una copia para evitar contar el mismo consumo dos veces.</p>':''}
       ${s.overlaps.length?'<p class="exp-error">Hay periodos que se superponen. Confirma si se trata de una corrección y excluye el que no corresponda.</p>':''}
       ${s.tariffs.length>1?'<p class="exp-note">Encontramos cambios de tarifa. Se conservará la tarifa de cada periodo.</p>':''}
       ${s.rows.some(r=>!r.reviewed&&!receiptIssues(r).length&&!r.uncertain?.length)?'<button type="button" class="mx-btn mx-btn--ghost" data-confirm-clean>Confirmar lecturas sin alertas</button>':''}
-      <div class="exp-receipts">${data().receipts.filter(r=>r.kind==='bill'&&(!s.selected||r.service===s.selected)).map(r=>receiptCard(r)).join('')||'<p>No hay recibos identificados para este servicio. Puedes continuar y completar los datos con tu asesor.</p>'}</div>`,btn('receipts','Atrás')+btn('operation','Continuar con mi operación',true));
+      <div class="exp-receipts">${data().receipts.filter(r=>r.kind==='bill'&&(!s.selected||s.selected===ALL_SERVICES||identity(r.service)===s.selected)).map(r=>receiptCard(r)).join('')||'<p>No hay recibos identificados para este servicio. Puedes continuar y completar los datos con tu asesor.</p>'}</div>`,btn('receipts','Atrás')+btn('operation','Continuar con mi operación',true));
     collect=()=>{
       if(root.querySelector('[data-service]'))data().service=root.querySelector('[data-service]').value;
       root.querySelectorAll('[data-receipt]').forEach(card=>{

@@ -44,15 +44,40 @@ export function normalizeReceipt(raw, fileId, index) {
   r.original = Object.fromEntries(Object.keys(RECEIPT_FIELDS).map(k => [k,r[k]]));
   return r;
 }
+export const ALL_SERVICES='__all__';
+// Only explicit 12-digit service numbers are canonicalized. RMU-only readings
+// join a service only when another receipt explicitly pairs that same RMU with
+// exactly one service. Preserve the source text and review/provenance state.
+export function serviceResolver(receipts=[]) {
+  const compact=v=>String(v||'').trim().replace(/\s/g,'').toUpperCase();
+  const number=v=>{const x=compact(v);return /^\d{12}$/.test(x)?x:x.match(/(?:NO\.?DESERVICIO|N[ÚU]MERODESERVICIO|SERVICIO)[:#.]?(\d{12})(?!\d)/)?.[1]||'';};
+  const rmu=v=>compact(v).match(/(?:RMU:?)?(\d{7}-\d{2}-\d{2}[A-Z0-9-]+CFE)/)?.[1]||'';
+  const pairs=new Map();
+  for(const r of receipts){const n=number(r.service),m=rmu(r.service);if(n&&m){if(!pairs.has(m))pairs.set(m,new Set());pairs.get(m).add(n);}}
+  return value=>{const n=number(value);if(n)return n;const m=rmu(value),matches=pairs.get(m);return matches?.size===1?[...matches][0]:compact(value);};
+}
 export function summarize(receipts = [], service = '') {
   const source = receipts.filter(r => r.kind !== 'history' && !r.excluded);
-  const services = [...new Set(source.map(r=>r.service).filter(Boolean))];
-  const selected = service || (services.length === 1 ? services[0] : '');
-  const rows = source.filter(r => selected && r.service === selected);
+  const identity=serviceResolver(receipts);
+  const services = [...new Set(source.map(r=>identity(r.service)).filter(Boolean))];
+  if(service===ALL_SERVICES){
+    const groups=services.map(id=>summarize(receipts,id));
+    const usable=groups.flatMap(g=>g.usable),totals=k=>usable.length&&usable.every(r=>r[k]!=null)?usable.reduce((n,r)=>n+r[k],0):null;
+    const months=[...new Set(groups.flatMap(g=>g.monthCoverage.map(m=>m.month)))].sort().slice(-12);
+    return {services,selected:ALL_SERVICES,rows:source,usable,duplicates:groups.flatMap(g=>g.duplicates),overlaps:groups.flatMap(g=>g.overlaps),
+      pending:source.filter(r=>!r.reviewed||receiptIssues(r).length),gaps:groups.flatMap(g=>g.gaps),
+      monthCoverage:months.map(month=>({month,complete:groups.every(g=>g.monthCoverage.some(m=>m.month===month&&m.complete))})),
+      days:groups.reduce((n,g)=>n+g.days,0),start:groups.map(g=>g.start).filter(Boolean).sort()[0]||null,end:groups.map(g=>g.end).filter(Boolean).sort().at(-1)||null,
+      tariffs:[...new Set(usable.map(r=>r.tariff))],total:totals('total'),kwh:totals('kwh'),capacity:totals('capacity'),distribution:totals('distribution'),
+      monthlyEquivalent:groups.length&&groups.every(g=>g.monthlyEquivalent!=null)?groups.reduce((n,g)=>n+g.monthlyEquivalent,0):null,
+      annualReady:groups.length>0&&groups.every(g=>g.annualReady)&&source.every(r=>identity(r.service))};
+  }
+  const selected = identity(service) || (services.length === 1 ? services[0] : '');
+  const rows = source.filter(r => selected && identity(r.service) === selected);
   const sorted = [...rows].sort((a,b)=>(a.start||'').localeCompare(b.start||''));
   const duplicates = [], overlaps = [], seen = new Map();
   for (const r of sorted) {
-    const key = `${r.service}:${r.start}:${r.end}`;
+    const key = `${identity(r.service)}:${r.start}:${r.end}`;
     if (seen.has(key)) duplicates.push(r.id); else seen.set(key,r.id);
   }
   const unique = sorted.filter(r=>!duplicates.includes(r.id));

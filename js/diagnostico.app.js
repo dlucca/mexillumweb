@@ -14,7 +14,7 @@ const CAL_ORIGIN = 'https://cal.mexillum.com';
 export function initDiagnostico({ content, calLink, origen }) {
   const root = document.getElementById('dx-root');
   if (new URLSearchParams(globalThis.location?.search || '').has('rapido')) {
-    import('./expediente.app.js?v=20260912-8').then(({ initExpediente }) => initExpediente({ root, content })).catch(() => {
+    import('./expediente.app.js?v=20260912-9').then(({ initExpediente }) => initExpediente({ root, content })).catch(() => {
       root.textContent = 'No pudimos abrir el expediente. Recarga la página o contacta a tu asesor.';
     });
     return;

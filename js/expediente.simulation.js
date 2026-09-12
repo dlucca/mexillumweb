@@ -1,7 +1,7 @@
 import {sanitizeSimulation} from './expediente.simulation-settings.js';
 export {sanitizeSimulation} from './expediente.simulation-settings.js';
 import {BANDS,dailyProfile,dispatchDay} from './expediente.dispatch.js?v=20260912-7';
-import {date,receiptIssues} from './expediente.model.js';
+import {date,receiptIssues,serviceResolver,ALL_SERVICES} from './expediente.model.js?v=20260912-9';
 
 export const SIMULATION_VERSION='hourly-dispatch-v2';
 const DAY=86400000;
@@ -10,10 +10,12 @@ const critical=['service','tariff','start','end','kwh','subtotal','capacity','di
 
 export function simulationSource(data) {
   const all=(data.receipts||[]).filter(r=>r.kind==='bill'&&!r.excluded);
-  const services=[...new Set(all.map(r=>r.service).filter(Boolean))];
-  const service=data.service||(services.length===1?services[0]:'');
+  const identity=serviceResolver(data.receipts);
+  const services=[...new Set(all.map(r=>identity(r.service)).filter(Boolean))];
+  if(data.service===ALL_SERVICES&&services.length>1)return {ready:false,reason:'Estás revisando todos los servicios juntos. Para dimensionar solar y batería, elige un servicio en Revisión: cada medidor requiere su propio balance de energía.'};
+  const service=(data.service===ALL_SERVICES?'':identity(data.service))||(services.length===1?services[0]:'');
   if(!service)return {ready:false,reason:services.length>1?'Selecciona un servicio en Revisión para simularlo por separado.':'Necesitamos al menos un recibo con consumo, periodo y número de servicio legibles.'};
-  const selected=all.filter(r=>r.service===service);
+  const selected=all.filter(r=>identity(r.service)===service);
   const valid=selected.filter(r=>!receiptIssues(r).length&&r.kwh>0&&r.subtotal>0&&r.capacity!=null&&r.distribution!=null&&r.subtotal>=r.capacity+r.distribution &&
     !(!r.reviewed&&(r.uncertain||[]).some(k=>critical.includes(k)&&!(r.correctedFields||[]).includes(k))));
   // Exact duplicates use one copy, preferring an explicitly reviewed one.
