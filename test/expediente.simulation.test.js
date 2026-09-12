@@ -51,6 +51,11 @@ test('latest twelve periods are selected without pretending a gap is continuous'
 });
 test('roof limits generation; missing roof is disclosed without assuming zero area',()=>{
  const r=simulate({...draft(),roof:{area_m2:55}},{solarKw:50});assert.equal(r.solarKw,7);assert.equal(r.roofLimited,true);
+ assert.equal(r.solarAreaM2,38.5);assert.equal(r.usableAreaM2,38.5);
+ const actual=simulate({...draft(),roof:{area_m2:1788.6}},{solarKw:46.2});
+ assert.ok(Math.abs(actual.solarAreaM2-254.1)<1e-8);
+ assert.match(simulationView(actual),/254.1/);
+ assert.match(simulationView(actual),/Área total marcada/);
  assert.equal(simulate({...draft(),roof:null}).maxSolarKw,null);
 });
 test('invalid assumptions and forged results cannot persist, and input text is escaped',()=>{

@@ -71,7 +71,7 @@ export function simulate(data,overrides=data.simulation) {
   const baseline={id:'baseline',label:'Situación actual',importKwh:source.annualKwh,bill:source.annualSubtotal,saving:0};
   const solar={id:'solar',label:'Con solar',importKwh:annual('solarImport'),bill:annual('solarBill'),saving:annual('solarSaving')};
   const hybrid={id:'hybrid',label:'Solar + batería',importKwh:annual('hybridImport'),bill:annual('hybridBill'),saving:annual('hybridSaving')};
-  return {version:SIMULATION_VERSION,source,inputs,maxSolarKw,solarKw,area,monthly,
+  return {version:SIMULATION_VERSION,source,inputs,maxSolarKw,solarKw,area,usableAreaM2:area==null?null:area*.7,solarAreaM2:solarKw*5.5,monthly,
     scenarios:[baseline,solar,hybrid],generation:annual('generation'),direct:annual('direct'),shifted:annual('shifted'),
     losses:annual('losses'),unused:annual('unused'),extraBatterySaving:hybrid.saving-solar.saving,
     roofLimited:solarKw<inputs.solarKw};

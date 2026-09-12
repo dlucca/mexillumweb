@@ -12,7 +12,9 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const css=document.createElement('link');css.rel='stylesheet';css.href='/css/expediente.css';document.head.append(css);
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-3','/css/expediente-summary.css?v=20260912-3'].map(href=>new Promise((resolve,reject)=>{
+    const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
+  })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
   let fileMessages=[],collect=()=>{}, mapCleanup=null;
   if(!token){try{token=localStorage.getItem('mexillum:expediente:token')||'';}catch{}}
@@ -229,11 +231,11 @@ export async function initExpediente({root,content}) {
     const s=summarize(data().receipts,data().service),d=data(),simulation=simulate(d);
     frame('Tu consumo y las opciones de ahorro','Explora una simulación preliminar con tus recibos y ajusta los supuestos antes de revisarla con tu asesor.',`
       ${simulationView(simulation)}
-      <h3>Estado del expediente</h3>
+      <details class="exp-dossier"><summary>Estado del expediente <span>${s.pending.length} recibos por revisar</span></summary>
       ${record.submittedAt?'<p class="exp-success">Solicitud enviada. Tu asesor ya recibió el aviso para revisar este expediente.</p>':''}
       <div class="exp-facts"><div><span>Periodo disponible</span><strong class="exp-small">${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}</strong></div><div><span>Importe confirmado · con IVA</span><strong>${money(s.total)}</strong></div><div><span>Consumo confirmado</span><strong>${num(s.kwh)}${s.kwh!=null?' kWh':''}</strong></div></div>
       <dl class="exp-list"><dt>Documentos</dt><dd>${d.files.filter(f=>f.status!=='pending').length} archivos · ${s.usable.length} recibos confirmados</dd><dt>Tarifa confirmada</dt><dd>${esc(s.tariffs.join(', ')||'Pendiente')}</dd><dt>Datos por revisar</dt><dd>${s.pending.length} recibos · ${s.duplicates.length} duplicados · ${s.overlaps.length} periodos superpuestos</dd><dt>Espacios candidatos</dt><dd>${d.roof?.area_m2?`~${num(d.roof.area_m2)} m²`:'Pendientes'}</dd><dt>Certeza del ahorro</dt><dd>${simulation.source.ready?'Escenario preliminar disponible arriba. La validación técnica requiere revisar los recibos y la curva de demanda.':'Completa los datos indicados arriba para calcular un escenario.'}</dd></dl>
-      <h3>Alternativas para evaluar</h3><div class="exp-recommendations">${recommendations(d).map(r=>`<article><h4>${r.name}</h4><span>${r.status}</span><p>${r.reason}</p></article>`).join('')}</div>
+      </details><h3>Alternativas para evaluar</h3><div class="exp-recommendations">${recommendations(d).map(r=>`<article><h4>${r.name}</h4><span>${r.status}</span><p>${r.reason}</p></article>`).join('')}</div>
       ${installationFor(d.answers.sector)?`<details class="exp-operation-summary"><summary>Datos de ${esc(installationFor(d.answers.sector).label.toLowerCase())}</summary><dl class="exp-list"><dt>${esc(installationFor(d.answers.sector).scheduleLabel||'Horarios y temporadas')}</dt><dd>${esc(d.answers.schedule||'Por confirmar')}</dd>${installationSummary(d.answers).map(item=>`<dt>${esc(item.label)}</dt><dd>${esc(item.value)}</dd>`).join('')}</dl></details>`:''}
       <h3>Contacto para la revisión</h3><div class="exp-fields"><label class="exp-field">Nombre<input data-contact="name" autocomplete="name" value="${esc(d.contact.name||'')}"></label><label class="exp-field">Correo<input type="email" data-contact="email" autocomplete="email" value="${esc(d.contact.email||'')}"></label><label class="exp-field">Empresa o institución<input data-contact="company" autocomplete="organization" value="${esc(d.contact.company||'')}"></label><label class="exp-field">Nombre de la instalación<input data-site value="${esc(d.site||'')}"></label></div>
       <label class="exp-consent"><input data-consent type="checkbox" ${d.consent?'checked':''}> Autorizo a Mexillum a utilizar estos datos para evaluar y dar seguimiento a mi proyecto. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</label>
@@ -251,6 +253,7 @@ export async function initExpediente({root,content}) {
   window.addEventListener('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
   root.innerHTML='<p class="dx__col-sub" role="status">Abriendo tu expediente…</p>';
   try {
+    await stylesReady;
     if(token){await call('read');storeToken();}
     else await call('create');
     trackDx('expediente_opened',{profile_id:content.profile?.id});render();

@@ -1,0 +1,56 @@
+/* Summary layout has a versioned URL so older receipts styles cannot hide it. */
+.exp-simulation{padding:32px;margin:32px 0;background:var(--bg-inset);border:1px solid var(--border-default);line-height:1.65}
+.exp-sim-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.exp-sim-heading h3{margin:0;font-size:clamp(1.6rem,3vw,2rem);line-height:1.15}
+.exp-sim-heading .exp-site{margin:0 0 8px;font-size:.875rem}
+.exp-sim-tag{display:inline-block;padding:6px 10px;background:var(--accent-quiet);color:var(--text-accent);font-size:.875rem}
+.exp-simulation>p{max-width:76ch;margin:20px 0}
+.exp-sim-source{margin:20px 0 28px;color:var(--text-body);font-size:.9rem}
+.exp-sim-source summary,.exp-sim-settings summary,.exp-sim-method summary{cursor:pointer;min-height:44px;align-content:center;font-size:.95rem;font-weight:600;color:var(--text-accent)}
+.exp-sim-footprint{padding:24px 0;border-block:1px solid var(--border-default);margin:24px 0 32px}
+.exp-sim-footprint h4{margin:0 0 20px;font-size:1.1rem}
+.exp-sim-area{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:24px;margin:0}
+.exp-sim-area dt{font-size:.875rem;color:var(--text-body);line-height:1.5}
+.exp-sim-area dd{margin:8px 0 0;font-size:1.5rem;font-weight:600;color:var(--text-strong);font-variant-numeric:tabular-nums;line-height:1.2}
+.exp-sim-area>div:first-child dd{font-size:1.9rem;color:var(--text-accent)}
+.exp-sim-area dd span{font-size:.95rem;font-weight:400}
+.exp-sim-footprint .exp-note{margin:20px 0 12px;max-width:75ch}
+.exp-sim-formula{display:flex;gap:10px;flex-wrap:wrap;margin:0;font-size:.9rem;color:var(--text-body)}
+.exp-sim-formula strong{color:var(--text-strong)}
+.exp-sim-table-wrap{max-width:100%;margin:28px 0;overflow-x:auto}
+.exp-sim-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums;font-size:1rem}
+.exp-sim-table caption{text-align:left;padding:0 0 16px;font-size:.875rem;color:var(--text-body)}
+.exp-sim-table th,.exp-sim-table td{padding:20px 16px;text-align:right;vertical-align:middle;border-bottom:1px solid var(--border-default);line-height:1.4}
+.exp-sim-table thead th{background:var(--surface-sunken,var(--bg-inset));font-size:.875rem;font-weight:500;color:var(--text-body)}
+.exp-sim-table th:first-child{text-align:left;width:27%}
+.exp-sim-table tbody th{font-weight:600}
+.exp-sim-table td{white-space:nowrap}
+.exp-sim-table small{font-size:.8em;color:var(--text-body);font-weight:400}
+.exp-sim-table tbody tr:hover{background:var(--surface-sunken,var(--bg-inset))}
+.exp-sim-table .exp-sim-highlight{background:var(--accent-quiet)}
+.exp-sim-table .exp-sim-highlight td:last-child{color:var(--text-accent);font-weight:700}
+.exp-sim-balance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding:8px 0 24px;margin:24px 0 0;border-bottom:1px solid var(--border-default)}
+.exp-sim-balance>div{min-width:0}.exp-sim-balance span{display:block;color:var(--text-body);font-size:.875rem;line-height:1.5;max-width:23ch}
+.exp-sim-balance strong{display:block;font-size:1.5rem;line-height:1.25;margin-top:10px;font-variant-numeric:tabular-nums}
+.exp-sim-settings,.exp-sim-method{border-top:1px solid var(--border-default);padding:12px 0}
+.exp-sim-settings:hover summary,.exp-sim-method:hover summary,.exp-sim-source:hover summary{color:var(--text-strong)}
+.exp-sim-method li{margin:14px 0;font-size:.95rem;max-width:75ch}
+.exp-sim-actions{display:flex;gap:12px;flex-wrap:wrap}
+.exp-dossier{padding:20px 0;border-block:1px solid var(--border-default);margin:32px 0}
+.exp-dossier>summary{min-height:44px;cursor:pointer;font-size:1.2rem;font-weight:600;align-content:center}
+.exp-dossier>summary span{display:inline-block;margin-left:20px;font-size:.9rem;font-weight:400;color:var(--text-body)}
+.exp [data-focus]:focus{outline:none}
+@media(max-width:700px){
+ .exp-simulation{padding:20px 16px;margin-inline:0}
+ .exp-sim-area{grid-template-columns:1fr 1fr;gap:20px}.exp-sim-area>div:first-child{grid-column:1/-1}
+ .exp-sim-area dd{font-size:1.35rem}.exp-sim-area>div:first-child dd{font-size:1.8rem}
+ .exp-sim-balance{grid-template-columns:1fr;gap:20px}.exp-sim-balance>div{display:flex;justify-content:space-between;align-items:baseline;gap:20px}.exp-sim-balance strong{margin:0;font-size:1.25rem;white-space:nowrap}
+ .exp-sim-table,.exp-sim-table tbody{display:block}.exp-sim-table caption{display:block}
+ .exp-sim-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .exp-sim-table tr{display:block;padding:16px 12px;border-bottom:1px solid var(--border-default)}
+ .exp-sim-table th:first-child{display:block;width:auto;padding:0 0 12px;border:0;text-align:left;font-size:1rem}
+ .exp-sim-table td{display:flex;justify-content:space-between;align-items:baseline;gap:16px;white-space:normal;padding:8px 0;border:0;text-align:right;font-size:.95rem}
+ .exp-sim-table td::before{content:attr(data-label);font-size:.875rem;color:var(--text-body);text-align:left;max-width:55%;font-weight:400}
+ .exp-sim-table td>span{white-space:nowrap}
+ .exp-sim-actions .mx-btn{width:100%}.exp-dossier>summary span{display:block;margin:8px 0 0}
+}
