@@ -1,4 +1,4 @@
-import { sanitizeSimulation } from '../js/expediente.simulation.js';
+import { sanitizeSimulation } from '../js/expediente.simulation-settings.js';
 import { installationSummary } from '../js/expediente.installations.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { bearer, tokenHash, isAdvisor, clean, fail, read, write, create, publicRow, db, storage, config, sanitizeAnswers } from '../lib/onboarding/store.js';

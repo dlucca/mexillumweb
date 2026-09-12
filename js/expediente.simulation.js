@@ -1,15 +1,10 @@
-import {BANDS,dailyProfile,dispatchDay} from './expediente.dispatch.js?v=20260912-5';
+import {sanitizeSimulation} from './expediente.simulation-settings.js';
+export {sanitizeSimulation} from './expediente.simulation-settings.js';
+import {BANDS,dailyProfile,dispatchDay} from './expediente.dispatch.js?v=20260912-6';
 import {date,receiptIssues} from './expediente.model.js';
 
 export const SIMULATION_VERSION='hourly-dispatch-v2';
 const DAY=86400000;
-const bounds={solarKw:[0,10000],yieldKwh:[500,2500],selfUsePct:[0,100],batteryKwh:[0,100000],batteryKw:[0,10000],efficiencyPct:[50,100],usablePct:[50,100],energyPrice:[0,30],basePrice:[0,30],intermediatePrice:[0,30],peakPrice:[0,30],baseEnd:[1,10],peakStart:[12,22],peakEnd:[13,24],powerLimitKw:[0,10000],areaUsePct:[0,100],manual:[0,1],tariffSet:[0,1]};
-export function sanitizeSimulation(input={}) {
-  const clean=Object.fromEntries(Object.entries(bounds).filter(([k,[lo,hi]])=>typeof input?.[k]==='number'&&Number.isFinite(input[k])&&input[k]>=lo&&input[k]<=hi).map(([k])=>[k,input[k]]));
-  for(const k of ['baseEnd','peakStart','peakEnd','manual','tariffSet'])if(k in clean&&!Number.isInteger(clean[k]))delete clean[k];
-  if(typeof input?.priceSource==='string')clean.priceSource=input.priceSource.slice(0,160);
-  return clean;
-}
 const sum=(rows,k)=>rows.reduce((n,r)=>n+r[k],0);
 const critical=['service','tariff','start','end','kwh','subtotal','capacity','distribution'];
 
