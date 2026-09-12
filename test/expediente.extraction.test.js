@@ -8,7 +8,7 @@ async function withProvider(fetcher,fn) {
   global.fetch=fetcher;
   try{return await fn();}finally{global.fetch=previous;}
 }
-const extract=()=>extractReceipts({id:'file1',mime:'application/pdf'},'https://example.supabase.co/private.pdf?token=never-log');
+const extract=()=>extractReceipts({id:'file1',mime:'image/png'},'https://example.supabase.co/private.pdf?token=never-log');
 test('usage subtracts cache hits and includes reasoning only once',()=>{
   const u=extractionUsage(result(),'gpt-5.4-mini');
   assert.equal(u.estimatedCostUSD,.07425);assert.equal(u.reasoningTokens,2000);

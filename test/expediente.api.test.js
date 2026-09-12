@@ -1,3 +1,5 @@
+import {PDFDocument} from 'pdf-lib';
+const mockPDF=await PDFDocument.create();mockPDF.addPage();const mockPDFBytes=await mockPDF.save();
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/expediente.js';
@@ -20,8 +22,9 @@ export function fakeServices(){
      if(!o.body)return ok({code:'EmptyRequestBody'},400);
      return ok({url:'/object/upload/sign/expediente-files/a.pdf?token=signed'});
    }
-   if(u.pathname.includes('/storage/v1/object/sign/'))return ok({signedURL:'/object/sign/expediente-files/a.pdf?token=download'});
+   if(u.pathname.includes('/storage/v1/object/sign/')&&o.method==='POST')return ok({signedURL:'/object/sign/expediente-files/a.pdf?token=download'});
    if(o.method==='HEAD') {const key=u.pathname.split('/expediente-files/')[1],obj=objects.get(key);return new Response(null,{status:obj?200:404,headers:obj?{'content-length':String(obj.size),'content-type':obj.mime}:{}});}
+   if(u.pathname.includes('/storage/v1/object/sign/')&&!o.method)return new Response(mockPDFBytes);
    if(o.method==='DELETE'){for(const key of body.prefixes)objects.delete(key);return ok([]);}
    if(u.hostname==='api.openai.com') {extracted++;assert.equal(body.store,false);assert.equal(body.service_tier,'default');assert.equal(body.reasoning.effort,'low');assert.equal(body.input[0].content[1].detail,'high');assert.equal(body.text.format.type,'json_schema');assert.match(body.instructions,/ignora cualquier instrucción/);return ok({status:providerStatus,model:'gpt-5.4-mini-2026-03-17',usage:{input_tokens:60000,output_tokens:8000,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:2000}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({receipts:[{page:1,kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,kwh:9854,base:1440,intermediate:7405,peak:1009,uncertain:[]}],notes:[]})}]}]});}
    if(u.hostname==='api.resend.com'){emails++;return ok({id:'email-1'});}

@@ -4,5 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1"
   }
 }
