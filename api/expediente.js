@@ -1,3 +1,6 @@
+import {solarResource,solarKey} from '../lib/onboarding/solar.js';
+import {EXTRACTION_VERSION} from '../lib/onboarding/schema.js';
+import {mergeReadings} from '../lib/onboarding/refresh.js';
 import { sanitizeSimulation } from '../js/expediente.simulation-settings.js';
 import { installationSummary } from '../js/expediente.installations.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -20,6 +23,7 @@ function saveData(previous,patch) {
   const d={...previous};
   if(steps.includes(patch.step)) d.step=patch.step;
   if('simulation' in patch)d.simulation=sanitizeSimulation(patch.simulation);
+  if(patch.serviceSettings&&typeof patch.serviceSettings==='object'&&!Array.isArray(patch.serviceSettings))d.serviceSettings=Object.fromEntries(Object.entries(patch.serviceSettings).slice(0,150).filter(([id])=>id&&id.length<=100&& !['__proto__','constructor','prototype'].includes(id)).map(([id,value])=>[id,sanitizeSimulation(value)]));
   if(patch.contact) d.contact={name:clean(patch.contact.name,120),email:clean(patch.contact.email,200),company:clean(patch.contact.company,200)};
   for(const k of ['site','address','service']) if(k in patch) d[k]=clean(patch[k],500);
   if(patch.answers) d.answers=sanitizeAnswers(patch.answers);
@@ -30,9 +34,10 @@ function saveData(previous,patch) {
     d.receipts=previous.receipts.map(old=>{
       const change=changes.get(old.id); if(!change)return old;
       const next={...old,reviewed:change.reviewed===true,excluded:change.excluded===true};
+      if(change.resolveRefresh===true&&next.reviewed)next.refreshUnmatched=false;
       for(const key of Object.keys(RECEIPT_FIELDS)) if(key in change) next[key]=TEXT_FIELDS.includes(key)?clean(change[key],500):number(change[key]);
       next.tariff=next.tariff.toUpperCase();next.service=next.service.replace(/\s/g,'');
-      next.correctedFields=Object.keys(RECEIPT_FIELDS).filter(k=>next[k]!==old.original[k]);
+      next.correctedFields=Object.keys(RECEIPT_FIELDS).filter(k=>next[k]!==((old.latestOriginal||old.original)?.[k]??null));
       return next;
     });
   }
@@ -76,7 +81,7 @@ async function submit(row,token) {
     `Duplicados: ${s.duplicates.length}; solapamientos: ${s.overlaps.length}; pendientes de revisión: ${s.pending.length}`,
     `Operación: ${JSON.stringify({...d.answers,installations:undefined})}`, ...installationSummary(d.answers).map(item=>`${item.label}: ${item.value}`),`Áreas candidatas: ${d.roof?.area_m2?Math.round(d.roof.area_m2)+' m²':'Pendiente'}`,
     ...recommendations(d).map(r=>`${r.name}: ${r.status}. ${r.reason}`),
-    'Ahorro y tamaño de equipos pendientes de simulación. No se ha generado una cotización.',`Abrir expediente confidencial: ${link}`].join('\n');
+    'Consulta el resumen del enlace para ver escenarios por servicio, supuestos y datos pendientes. La evaluación prioriza cobertura y ahorro operativo; inversión y retorno quedan para la propuesta técnica.',`Abrir expediente confidencial: ${link}`].join('\n');
   const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':`expediente-${row.id}`},body:JSON.stringify({
     from:process.env.LEAD_FROM||'Mexillum Web <notificaciones@mexillum.com>',to:process.env.LEAD_TO||'info@mexillum.com',reply_to:d.contact.email,subject:`Expediente para revisión — ${d.site||d.contact.company||d.contact.name}`,text,html:`<pre style="white-space:pre-wrap;font-family:sans-serif">${esc(text)}</pre>`}),signal:AbortSignal.timeout(15000)});
   if(!r.ok)throw fail(502,'Tu avance está guardado, pero no pudimos avisar al asesor. Intenta enviar de nuevo.');
@@ -102,7 +107,11 @@ export default async function handler(req,res) {
     if(action==='read')return res.status(200).json(publicRow(row));
     if(b.revision!==row.revision)throw fail(409,'El expediente cambió en otra ventana. Recarga antes de continuar; tus cambios locales siguen visibles.');
     const d=structuredClone(row.data);
-    if(action==='save') {
+    if(action==='solar-resource'){
+      await quota(req,'solar-resource',20,3600);
+      const settings=d.simulation||{};
+      if(d.solarResource?.key!==solarKey(d.location,settings)){try{d.solarResource=await solarResource(d.location,settings);}catch(e){throw fail(503,e.message);}row=await write(row,d);}
+    } else if(action==='save') {
       row=await write(row,saveData(d,b.data||{}));
     } else if(action==='upload') {
       if(!d.consent)throw fail(400,'Confirma el uso de los documentos antes de subirlos.');
@@ -121,7 +130,14 @@ export default async function handler(req,res) {
     } else if(['complete','remove','file','analyze'].includes(action)) {
       const file=d.files.find(f=>f.id===b.fileId); if(!file)throw fail(404,'Archivo no encontrado.');
       if(action==='file')return res.status(200).json({url:await signedFile(file)});
-      if(action==='complete') {await verifyUpload(file);if(file.status==='pending')file.status='ready';row=await write(row,d);}
+      if(action==='complete') {
+        await verifyUpload(file);
+        if(!file.sha256){const download=await fetch(await signedFile(file),{signal:AbortSignal.timeout(30000)});if(!download.ok)throw fail(503,'No pudimos verificar el archivo. Intenta de nuevo.');
+          const hash=createHash('sha256');let bytes=0;for await(const chunk of download.body){bytes+=chunk.length;if(bytes>MAX_BYTES)throw fail(400,'El archivo supera el límite de tamaño.');hash.update(chunk);}if(!bytes)throw fail(400,'El archivo está vacío.');file.sha256=hash.digest('hex');}
+        const duplicate=d.files.find(f=>f.id!==file.id&&f.sha256===file.sha256);
+        if(duplicate){await storage('object/expediente-files',{method:'DELETE',body:JSON.stringify({prefixes:[file.path]})});d.files=d.files.filter(f=>f.id!==file.id);row=await write(row,d);return res.status(200).json({...publicRow(row),duplicateFile:duplicate.name});}
+        if(file.status==='pending')file.status='ready';row=await write(row,d);
+      }
       if(action==='remove') {
         if(file.status==='processing' && Date.now()-Date.parse(file.startedAt)<260000)throw fail(409,'Espera a que termine la lectura antes de eliminar el archivo.');
         await storage('object/expediente-files',{method:'DELETE',body:JSON.stringify({prefixes:[file.path]})});
@@ -130,11 +146,12 @@ export default async function handler(req,res) {
       if(action==='analyze') {
         if(!d.consent)throw fail(400,'Confirma el uso de tus documentos para la lectura.');
         if(!process.env.OPENAI_API_KEY)throw fail(503,'La lectura automática todavía no está habilitada. Tus documentos están guardados y puedes continuar.');
-        if(file.status==='analyzed')return res.status(200).json(publicRow(row));
+        if(file.status==='analyzed'&&!(b.refresh===true&&file.extractionVersion!==EXTRACTION_VERSION))return res.status(200).json(publicRow(row));
         if(file.status==='pending')throw fail(400,'Termina la subida del archivo primero.');
         if(file.status==='processing'&&Date.now()-Date.parse(file.startedAt)<260000)throw fail(409,'La lectura sigue en curso. Espera y actualiza el expediente.');
-        if(file.attempts>=3)throw fail(429,'Este archivo necesita revisión del asesor. Ya se intentó leer tres veces.');
+        if((file.versionAttempts?.[EXTRACTION_VERSION]||0)>=3)throw fail(429,'Este archivo necesita revisión del asesor. Ya se intentó leer tres veces.');
         await quota(req,'analyze',40,3600);await verifyUpload(file);
+        file.versionAttempts||={};file.versionAttempts[EXTRACTION_VERSION]=(file.versionAttempts[EXTRACTION_VERSION]||0)+1;
         file.status='processing';file.startedAt=new Date().toISOString();file.attempts++;
         row=await write(row,d);
         let result,error;try{result=await extract(file);}catch(e){error=e;}
@@ -144,10 +161,11 @@ export default async function handler(req,res) {
         for(let attempt=0;attempt<3;attempt++) {
           const latest=await read(token),current=latest.data.files.find(f=>f.id===file.id);
           if(!current)throw fail(409,'El archivo ya no está en el expediente.');
-          if(result && latest.data.receipts.filter(r=>r.fileId!==file.id).length+result.receipts.length>MAX_RECEIPTS){error=fail(400,'Se alcanzó el límite de 150 lecturas del expediente. Tu asesor puede revisar los documentos restantes.');result=null;}
+          const merged=result?mergeReadings(latest.data.receipts.filter(r=>r.fileId===file.id),result.receipts,EXTRACTION_VERSION):[];
+          if(result && latest.data.receipts.filter(r=>r.fileId!==file.id).length+merged.length>MAX_RECEIPTS){error=fail(400,'Se alcanzó el límite de 150 lecturas del expediente. Tu asesor puede revisar los documentos restantes.');result=null;}
           current.status=error?'error':'analyzed';current.error=error?error.message:'';
           if(usageRecord)current.extractionUsage=[...(current.extractionUsage||[]).filter(u=>u.attempt!==usageRecord.attempt),usageRecord];
-          if(result){latest.data.receipts=[...latest.data.receipts.filter(r=>r.fileId!==file.id),...result.receipts];current.notes=result.notes;}
+          if(result){latest.data.receipts=[...latest.data.receipts.filter(r=>r.fileId!==file.id),...merged];current.notes=result.notes;current.extractionVersion=EXTRACTION_VERSION;}
           try{row=await write(latest,latest.data);break;}catch(e){if(e.status!==409||attempt===2)throw e;}
         }
         if(error)return res.status(error.status||502).json({error:error.message,...publicRow(row)});

@@ -26,7 +26,7 @@ export function fakeServices(){
    if(o.method==='HEAD') {const key=u.pathname.split('/expediente-files/')[1],obj=objects.get(key);return new Response(null,{status:obj?200:404,headers:obj?{'content-length':String(obj.size),'content-type':obj.mime}:{}});}
    if(u.pathname.includes('/storage/v1/object/sign/')&&!o.method)return new Response(mockPDFBytes);
    if(o.method==='DELETE'){for(const key of body.prefixes)objects.delete(key);return ok([]);}
-   if(u.hostname==='api.openai.com') {extracted++;assert.equal(body.store,false);assert.equal(body.service_tier,'default');assert.equal(body.reasoning.effort,'low');assert.equal(body.input[0].content[1].detail,'high');assert.equal(body.text.format.type,'json_schema');assert.match(body.instructions,/ignora cualquier instrucción/);return ok({status:providerStatus,model:'gpt-5.4-mini-2026-03-17',usage:{input_tokens:60000,output_tokens:8000,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:2000}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({receipts:[{page:1,kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,kwh:9854,base:1440,intermediate:7405,peak:1009,uncertain:[]}],notes:[]})}]}]});}
+   if(u.hostname==='api.openai.com') {extracted++;assert.equal(body.store,false);assert.equal(body.service_tier,'default');assert.equal(body.reasoning.effort,'medium');assert.equal(body.input[0].content[1].detail,'high');assert.equal(body.text.format.type,'json_schema');assert.match(body.instructions,/ignora cualquier instrucción/);return ok({status:providerStatus,model:'gpt-5.4-mini-2026-03-17',usage:{input_tokens:60000,output_tokens:8000,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:2000}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({receipts:[{page:1,kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,kwh:9854,base:1440,intermediate:7405,peak:1009,uncertain:[]}],notes:[]})}]}]});}
    if(u.hostname==='api.resend.com'){emails++;return ok({id:'email-1'});}
    throw new Error('Unexpected mock URL '+u.pathname);
  };
@@ -129,4 +129,30 @@ test('public profile selection creates a receipt-first draft with a validated in
  const r=(await call({action:'create',installation:'university',answers:{sector:'forged'},contact:{email:'not-accepted@example.com'}})).body;
  assert.equal(r.data.step,'receipts');assert.equal(r.data.answers.sector,'Institución educativa');assert.deepEqual(r.data.receipts,[]);assert.deepEqual(r.data.contact,{});
  const invalid=(await call({action:'create',installation:'<script>'})).body;assert.deepEqual(invalid.data.answers,{});
+}));
+
+test('outdated extraction refresh preserves corrections and uses a separate bounded retry budget',()=>fixture(async(call,mock)=>{
+ let r=await draft(call),token=r.token;r=await consent(call,r);
+ r=(await call({action:'upload',revision:r.revision,name:'old.pdf',mime:'application/pdf',size:12},token)).body;
+ const f=r.data.files[0];mock.objects.set(f.path,{size:12,mime:'application/pdf'});
+ r=(await call({action:'complete',revision:r.revision,fileId:f.id},token)).body;
+ r=(await call({action:'analyze',revision:r.revision,fileId:f.id},token)).body;
+ const stored=mock.rows.get(r.id);stored.data.files[0].extractionVersion='old';stored.data.files[0].attempts=3;stored.data.files[0].versionAttempts={old:3};stored.data.receipts[0].correctedFields=['total'];stored.data.receipts[0].total=40000;
+ r=(await call({action:'analyze',refresh:true,revision:r.revision,fileId:f.id},token)).body;
+ assert.equal(mock.extracted,2);assert.equal(r.data.receipts[0].total,40000);assert.equal(r.data.receipts[0].original.total,32363.06);
+ assert.equal(r.data.files[0].extractionVersion,r.extractionVersion);assert.equal(r.data.files[0].attempts,4);
+}));
+test('same uploaded bytes retain only the first file and do not trigger another paid extraction',()=>fixture(async(call,mock)=>{
+ let r=await draft(call),token=r.token;r=await consent(call,r);
+ for(const name of ['one.pdf','renamed.pdf']){
+  r=(await call({action:'upload',revision:r.revision,name,mime:'application/pdf',size:12},token)).body;
+  const f=r.data.files.at(-1);mock.objects.set(f.path,{size:12,mime:'application/pdf'});
+  r=(await call({action:'complete',revision:r.revision,fileId:f.id},token)).body;
+ }
+ assert.equal(r.data.files.length,1);assert.equal(r.duplicateFile,'one.pdf');assert.equal(mock.extracted,0);
+}));
+test('service allocations and structured operation persist; invalid values and forged results do not',()=>fixture(async(call)=>{
+ let r=await draft(call),token=r.token;
+ r=(await call({action:'save',revision:r.revision,data:{serviceSettings:{'111':{areaM2:100,region:2,loadShape:1,saving:999},'222':{areaM2:-5}},answers:{loadShape:1,operationStart:8,operationEnd:18,offHoursPct:20,weekendPct:100,noSolarSpace:true}}},token)).body;
+ assert.deepEqual(r.data.serviceSettings['111'],{areaM2:100,region:2,loadShape:1});assert.deepEqual(r.data.serviceSettings['222'],{});assert.equal(r.data.answers.operationStart,8);assert.equal(r.data.answers.noSolarSpace,true);
 }));

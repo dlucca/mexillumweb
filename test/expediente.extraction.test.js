@@ -39,3 +39,11 @@ test('empty or history-only extraction remains retryable and preserves usage',as
   }
 });
 test('network failures do not expose signed URLs or claim known usage',()=>withProvider(async()=>{throw Error('https://example.supabase.co/private.pdf?token=never-log');},()=>assert.rejects(extract(),e=>e.status===503&&!e.message.includes('never-log')&&e.extractionUsage===null)));
+
+test('a bounded second reading clears only matching confident fields, preserves disagreements and counts both requests',async()=>{
+ for(const disagree of [false,true]){
+  let calls=0;await withProvider(async(_url,o)=>{calls++;const body=JSON.parse(o.body);assert.equal(body.reasoning.effort,'medium');const raw={kind:'bill',page:1,service:'123',kwh:calls===2&&disagree?201:200,total:500,uncertain:calls===1?['kwh']:[]};return Response.json(result({output:[{content:[{type:'output_text',text:JSON.stringify({receipts:[raw],notes:[]})}]}]}));},async()=>{
+   const r=await extract();assert.equal(calls,2);assert.equal(r.usage.requests,2);assert.equal(r.usage.inputTokens,120000);assert.equal(r.receipts[0].kwh,200);assert.equal(r.receipts[0].uncertain.includes('kwh'),disagree);assert.equal(!!r.receipts[0].automaticChecks,!disagree);assert.equal(r.receipts[0].reviewed,false);
+  });
+ }
+});

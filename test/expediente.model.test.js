@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeReceipt,summarize,receiptIssues,requiredQuestions,recommendations,number} from '../js/expediente.model.js';
+import {normalizeReceipt,summarize,receiptIssues,requiredQuestions,recommendations,number,serviceResolver} from '../js/expediente.model.js';
 const bill=(overrides={},id='a')=>({...normalizeReceipt({service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,subtotal:27899.19,kwh:9854,base:1440,intermediate:7405,peak:1009,demand:47,peakDemand:21,capacity:8442.21,distribution:1759.68,kind:'bill',...overrides},id,0),reviewed:true});
 test('missing values stay null, zero consumption remains zero',()=>{assert.equal(number(''),null);assert.equal(number(null),null);assert.equal(number(0),0);assert.equal(number('$32,363.06'),32363.06);});
 test('uses actual bill rather than category representative; no annualization of a lone bill',()=>{
@@ -47,4 +47,10 @@ test('RMU is not inferred without an explicit unique pairing',()=>{
  const rmu='7839502-01-15ATP9-61018001CFE';
  assert.equal(summarize([bill({service:rmu}),bill({service:'961020200049'},'b')],'__all__').services.length,2);
  const rows=[bill({service:rmu}),bill({service:'NO.DESERVICIO:961020200049/RMU:'+rmu},'b'),bill({service:'NO.DESERVICIO:961020200050/RMU:'+rmu},'c')];assert.equal(summarize(rows,'__all__').services.length,3);
+});
+
+test('a separately extracted RMU pairs legacy labels only when its RPU is explicit and unique',()=>{
+ const rows=[{service:'961020200049',rmu:'78395 02-01-15 ATP9-61018 001 CFE'},{service:'7839502-01-15ATP9-61018001CFE'}];
+ const resolve=serviceResolver(rows);assert.equal(resolve(rows[1].service),'961020200049');
+ const ambiguous=serviceResolver([...rows,{service:'961020200050',rmu:rows[0].rmu}]);assert.notEqual(ambiguous(rows[1].service),'961020200049');
 });

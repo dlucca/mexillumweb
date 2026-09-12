@@ -18,32 +18,34 @@ export function dailyProfile(receipt,days,inputs) {
  * All battery flows are AC kWh for a one-hour step; losses occur on discharge.
  * No exports, only base grid charging, and no increase above the input import ceiling.
  */
-export function dispatchDay(profile,{solarKw,batteryKwh,batteryKw,efficiencyPct,usablePct,powerLimitKw,basePrice,intermediatePrice,peakPrice}) {
+export function dispatchDay(profile,{solarKw,batteryKwh,batteryKw,efficiencyPct,usablePct,powerLimitKw,basePrice,intermediatePrice,peakPrice,initialSOC=null,terminalZero=false}) {
+  const N=profile.load.length;
   const eta=efficiencyPct/100,capacity=batteryKwh*usablePct/100;
   const prices={base:basePrice,intermediate:intermediatePrice,peak:peakPrice};
   const constraints={},variables={};
   const add=(name,c)=>variables[name]=c;
   const initial=profile.load.map((load,h)=>{
     const generation=profile.solar[h]*solarKw,direct=Math.min(load,generation);
-    return {h,band:profile.bands[h],price:prices[profile.bands[h]],load,generation,direct,surplus:generation-direct,residual:load-direct};
+    return {h,band:profile.bands[h],price:profile.prices?.[h]??prices[profile.bands[h]],load,generation,direct,surplus:generation-direct,residual:load-direct};
   });
   if(capacity>0&&batteryKw>0) {
     for(const r of initial){
-      const h=r.h,next=(h+1)%24;
+      const h=r.h,next=(h+1)%N;
       constraints[`solar${h}`]={max:r.surplus};
       constraints[`load${h}`]={max:r.residual};
       constraints[`charge${h}`]={max:batteryKw};
       constraints[`discharge${h}`]={max:batteryKw};
       constraints[`capacity${h}`]={max:capacity};
-      constraints[`grid${h}`]={max:r.band==='base'?Math.max(0,powerLimitKw-r.residual):0};
-      constraints[`s${h}`]={equal:0};constraints[`g${h}`]={equal:0};
+      constraints[`grid${h}`]={max:r.band==='base'?Math.max(0,(profile.limits?.[h]??powerLimitKw)-r.residual):0};
+      constraints[`s${h}`]={equal:initialSOC&&h===0?initialSOC.solar:0};constraints[`g${h}`]={equal:initialSOC&&h===0?initialSOC.grid:0};
+      if(terminalZero&&h===N-1)constraints[`capacity${h}`]={max:0};
       // Small tie-break prevents pointless cycling at zero/equal prices.
       add(`cs${h}`,{cost:1e-6,[`solar${h}`]:1,[`charge${h}`]:1,[`s${h}`]:-1});
       add(`cg${h}`,{cost:r.price+1e-6,[`grid${h}`]:1,[`charge${h}`]:1,[`g${h}`]:-1});
       add(`ds${h}`,{cost:-r.price+1e-6,[`load${h}`]:1,[`discharge${h}`]:1,[`s${h}`]:1/eta});
       add(`dg${h}`,{cost:-r.price+1e-6,[`load${h}`]:1,[`discharge${h}`]:1,[`g${h}`]:1/eta});
-      add(`ss${h}`,{cost:1e-9,[`capacity${h}`]:1,[`s${h}`]:1,[`s${next}`]:-1});
-      add(`sg${h}`,{cost:1e-9,[`capacity${h}`]:1,[`g${h}`]:1,[`g${next}`]:-1});
+      add(`ss${h}`,{cost:1e-9,[`capacity${h}`]:1,[`s${h}`]:1,...(!initialSOC||h<N-1?{[`s${next}`]:-1}:{})});
+      add(`sg${h}`,{cost:1e-9,[`capacity${h}`]:1,[`g${h}`]:1,...(!initialSOC||h<N-1?{[`g${next}`]:-1}:{})});
     }
   }
   const solution=Object.keys(variables).length?solve({direction:'minimize',objective:'cost',constraints,variables},{precision:1e-8}):{status:'optimal',variables:[]};

@@ -1,9 +1,10 @@
-import { expedienteEntry } from './expediente.entry.js';
-import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-9';
-import { simulationView } from './expediente.simulation-view.js?v=20260912-7';
-import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
-import { redirectToCanonicalHost } from './expediente.origin.js';
-import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES } from './expediente.model.js?v=20260912-9';
+import { expedienteEntry } from './expediente.entry.js?v=20260912-10';
+import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260912-10';
+import { billEconomics } from './expediente.billing.js?v=20260912-10';
+import { simulationView } from './expediente.simulation-view.js?v=20260912-10';
+import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260912-10';
+import { redirectToCanonicalHost } from './expediente.origin.js?v=20260912-10';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260912-10';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { trackDx } from './diagnostico.analytics.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,11 +14,13 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-7','/css/expediente-summary.css?v=20260912-7'].map(href=>new Promise((resolve,reject)=>{
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-10','/css/expediente-summary.css?v=20260912-10'].map(href=>new Promise((resolve,reject)=>{
     const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
-  let fileMessages=[],collect=()=>{}, mapCleanup=null;
+  let fileMessages=[],collect=()=>{}, mapCleanup=null,simulationWorker=null;
+  const resourceAttempts=new Set();
+  async function updateSolarResource(){const d=data();if(d.step!=='summary'||!d.location||d.answers.noSolarSpace)return;const key=`${Number(d.location.lat).toFixed(3)},${Number(d.location.lng).toFixed(3)}:${d.simulation?.tilt??20}:${d.simulation?.azimuth??0}`;if(d.solarResource?.key===key||resourceAttempts.has(key))return;resourceAttempts.add(key);message('Consultando el recurso solar de la ubicación…');try{await call('solar-resource');}catch{ /* A failed lookup remains visibly a stated solar-yield assumption. */ }}
   let storedToken='';try{storedToken=localStorage.getItem('mexillum:expediente:token')||'';}catch{}
   const entry=expedienteEntry({search:location.search,hash:location.hash,storedToken,profileId:content.profile?.id});token=entry.token;
   const data=()=>record.data;
@@ -53,7 +56,7 @@ export async function initExpediente({root,content}) {
     finally{busy=false;root.removeAttribute('aria-busy');locked.filter(n=>n.isConnected).forEach(n=>n.disabled=false);}
   }
   function frame(title,subtitle,body,nav='') {
-    mapCleanup?.();mapCleanup=null;collect=()=>{};
+    mapCleanup?.();mapCleanup=null;simulationWorker?.terminate();simulationWorker=null;collect=()=>{};
     const i=steps.indexOf(data().step);
     root.innerHTML=`<div class="dx__view exp"><div class="exp-topline"><span class="dx__diag-kicker">Tu proyecto con Mexillum</span><span data-save role="status">${dirty?'Cambios pendientes':'Avance guardado'}</span></div>
       <ol class="exp-steps" aria-label="Progreso">${labels.map((l,k)=>`<li ${k===i?'aria-current="step"':''}><span>${k+1}</span>${l}</li>`).join('')}</ol>
@@ -62,7 +65,7 @@ export async function initExpediente({root,content}) {
       <div class="exp-resume"><button type="button" class="dx__skip" data-save-link>Copiar enlace para continuar después</button><p>El enlace permite acceder a tus datos. Compártelo solo con quienes participen en este proyecto.</p></div></div>`;
     root.querySelector('[data-focus]')?.focus({preventScroll:true});window.scrollTo(0,0);
     root.querySelector('[data-save-link]').onclick=()=>action(async()=>{await save();try{await navigator.clipboard.writeText(location.href);message('Enlace copiado. Puedes continuar desde otro dispositivo.');}catch{message('Guarda la dirección de esta página para continuar después.');}});
-    root.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>action(async()=>{await save();data().step=b.dataset.nav;dirty=true;await save();render();}));
+    root.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>action(async()=>{await save();data().step=b.dataset.nav;dirty=true;await save();await updateSolarResource();render();}));
     root.querySelectorAll('input:not([type=file]),textarea,select').forEach(el=>el.addEventListener('input',markDirty));
   }
   const btn=(step,label,primary=false)=>`<button type="button" class="mx-btn mx-btn--${primary?'primary':'ghost'}" data-nav="${step}">${label}</button>`;
@@ -70,8 +73,9 @@ export async function initExpediente({root,content}) {
     frame('Empecemos por tus recibos','Comparte los que tengas. Un solo PDF puede contener varios meses; también puedes subir fotos. Completar 12 meses nos ayuda a ver la estacionalidad.',`
       <div class="exp-consent"><label><input type="checkbox" data-consent ${data().consent?'checked':''}> Autorizo el uso de mis datos y recibos para esta evaluación, incluida su lectura automática con proveedores de procesamiento. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</label></div>
       <label class="exp-drop"> <strong>Selecciona o arrastra tus recibos</strong><span>PDF, JPG, PNG o WebP · hasta 25 MB por archivo</span><span class="mx-btn mx-btn--ghost">Elegir archivos</span><input data-file aria-label="Seleccionar recibos" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp"></label>
-      <ul class="exp-files">${data().files.map(f=>`<li><div><strong>${esc(f.name)}</strong><span>${esc(({pending:'Subida pendiente',ready:'Recibido · listo para leer',processing:'Lectura en curso',analyzed:'Lectura terminada · revisa los datos',error:'Lectura pendiente de revisión'})[f.status])}</span></div><button class="dx__skip" data-remove="${f.id}" type="button">Quitar</button></li>`).join('')}</ul>
+      <ul class="exp-files">${data().files.map(f=>`<li><div><strong>${esc(f.name)}</strong><span>${esc(({pending:'Subida pendiente',ready:'Recibido · listo para leer',processing:'Lectura en curso',analyzed:'Procesado · datos extraídos',error:'Lectura pendiente de revisión'})[f.status])}</span></div><button class="dx__skip" data-remove="${f.id}" type="button">Quitar</button></li>`).join('')}</ul>
       <p class="exp-note">${data().files.length} archivo(s) en tu expediente. El número de meses se obtiene al leerlos.</p>
+      ${data().files.some(f=>f.status==='analyzed'&&f.extractionVersion!==record.extractionVersion)?'<p class="exp-note exp-sim-alert">Hay lecturas anteriores sin el desglose completo de cargos. Pulsa Leer recibos para actualizarlas desde los documentos guardados. Se conservan tus correcciones.</p>':''}
       ${!record.extractionEnabled?'<p class="exp-note">La lectura automática aún no está disponible. Puedes compartir tus documentos y continuar; tu asesor los revisará.</p>':''}
       ${fileMessages.map(m=>`<p class="exp-note">${esc(m)}</p>`).join('')}
       <div class="exp-upload-progress" data-upload-progress role="status"></div>
@@ -87,7 +91,7 @@ export async function initExpediente({root,content}) {
           try {
             const result=await call('upload',{name:file.name,mime:file.type,size:file.size});fileId=result.fileId;
             const r=await fetch(result.uploadURL,{method:'PUT',headers:{'Content-Type':file.type},body:file});if(!r.ok)throw new Error('No se pudo subir el archivo.');
-            await call('complete',{fileId});trackDx('receipt_uploaded',{profile_id:content.profile?.id});
+            const completed=await call('complete',{fileId});if(completed.duplicateFile)fileMessages.push(`${file.name}: ya estaba guardado como ${completed.duplicateFile}; no se volvió a leer.`);trackDx('receipt_uploaded',{profile_id:content.profile?.id});
           }catch(e){fileMessages.push(`${file.name}: ${e.message}`);if(fileId)try{await call('remove',{fileId});}catch{}}
         }
         render();
@@ -99,10 +103,10 @@ export async function initExpediente({root,content}) {
     root.querySelector('[data-action=read]').onclick=()=>action(async()=>{
       await save();
       if(record.extractionEnabled) {
-        const ids=data().files.filter(f=>['ready','error','processing'].includes(f.status)&&f.attempts<3).map(f=>f.id);
+        const ids=data().files.filter(f=>(['ready','error','processing'].includes(f.status)||(f.status==='analyzed'&&f.extractionVersion!==record.extractionVersion))&&(f.versionAttempts?.[record.extractionVersion]||0)<3).map(f=>f.id);
         for(let i=0;i<ids.length;i++) {
           message(`Leyendo archivo ${i+1} de ${ids.length}. Un PDF con varios recibos puede tardar unos minutos.`);
-          try{await call('analyze',{fileId:ids[i]});}catch(e){fileMessages.push(e.message);}
+          try{await call('analyze',{fileId:ids[i],refresh:true});}catch(e){fileMessages.push(e.message);}
         }
       }
       data().step=data().receipts.length?'review':fileMessages.length?'receipts':'operation';dirty=true;await save();render();
@@ -110,11 +114,11 @@ export async function initExpediente({root,content}) {
     });
   }
   function reviewStep() {
-    const s=summarize(data().receipts,data().service),identity=serviceResolver(data().receipts);
+    const s=summarize(data().receipts,data().service),identity=serviceResolver(data().receipts),stats=readingStats(s.rows);
     frame('Esto encontramos en tus recibos','Revisa los datos antes de utilizarlos. Los importes corresponden a los periodos disponibles; todavía no son una estimación de ahorro.',`
       ${s.services.length?`<label class="exp-field">Servicios que quieres revisar<select data-service><option value="">Seleccionar servicio</option><option value="${ALL_SERVICES}" ${s.selected===ALL_SERVICES?'selected':''}>Todos los servicios</option>${s.services.map(v=>`<option value="${esc(v)}" ${v===s.selected?'selected':''}>${esc(v)}</option>`).join('')}</select></label><p class="exp-note">${s.selected===ALL_SERVICES?'Se muestran todos los recibos. Los duplicados y periodos superpuestos se revisan dentro de cada servicio.':'También puedes elegir Todos los servicios para revisar el conjunto.'}</p>`:''}
-      <div class="exp-facts"><div><span>Recibos identificados</span><strong>${s.rows.length}</strong></div><div><span>Confirmados y utilizables</span><strong>${s.usable.length}</strong></div><div><span>Total confirmado · con IVA</span><strong>${money(s.total)}</strong></div></div>
-      <p class="exp-note">Periodo disponible: ${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}. ${s.days?`${num(s.days)} días en recibos confirmados${s.selected===ALL_SERVICES&&s.services.length>1?' · sumados por servicio':''}.`:''}</p>
+      <div class="exp-facts"><div><span>Recibos identificados</span><strong>${s.rows.length}</strong></div><div><span>Procesados sin alertas</span><strong>${stats.clean}</strong></div><div><span>Facturación leída · con IVA</span><strong>${money(stats.total)}</strong></div></div>
+      <p class="exp-note">Periodo disponible: ${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}. ${s.days?`${num(s.days)} días confirmados por ti${s.selected===ALL_SERVICES&&s.services.length>1?' · sumados por servicio':''}.`:''}</p>
       ${s.monthCoverage.length?`<div class="exp-months" aria-label="Cobertura documental por mes">${s.monthCoverage.map(m=>`<span class="${m.complete?'is-covered':''}">${m.month} · ${m.complete?'cubierto':'incompleto'}</span>`).join('')}</div>`:''}
       ${s.duplicates.length?'<p class="exp-error">Hay recibos duplicados. Excluye una copia para evitar contar el mismo consumo dos veces.</p>':''}
       ${s.overlaps.length?'<p class="exp-error">Hay periodos que se superponen. Confirma si se trata de una corrección y excluye el que no corresponda.</p>':''}
@@ -126,12 +130,12 @@ export async function initExpediente({root,content}) {
       root.querySelectorAll('[data-receipt]').forEach(card=>{
         const r=data().receipts.find(r=>r.id===card.dataset.receipt);
         card.querySelectorAll('[data-field]').forEach(el=>{r[el.dataset.field]=TEXT_FIELDS.includes(el.dataset.field)?el.value:number(el.value);});
-        r.reviewed=card.querySelector('[data-reviewed]').checked;r.excluded=card.querySelector('[data-excluded]').checked;
+        r.reviewed=card.querySelector('[data-reviewed]').checked;if(r.reviewed)r.resolveRefresh=true;r.excluded=card.querySelector('[data-excluded]').checked;
       });
     };
     root.querySelector('[data-service]')?.addEventListener('change',()=>action(async()=>{dirty=true;await save();render();}));
     root.querySelector('[data-confirm-clean]')?.addEventListener('click',()=>action(async()=>{
-      collect(); for(const r of summarize(data().receipts,data().service).rows) if(!receiptIssues(r).length&&!r.uncertain?.length)r.reviewed=true;
+      collect(); for(const r of summarize(data().receipts,data().service).rows) if(!receiptStatus(r).needsReview&&!billEconomics(r).issues.length&&!r.refreshUnmatched)r.reviewed=true;
       dirty=true; collect=()=>{}; await save(); render();
     }));
     root.querySelectorAll('[data-confirm]').forEach(b=>b.onclick=()=>action(async()=>{collect();dirty=true;await save();render();}));
@@ -140,11 +144,12 @@ export async function initExpediente({root,content}) {
     }));
   }
   function receiptCard(r) {
-    const issues=receiptIssues(r),file=data().files.find(f=>f.id===r.fileId);
-    return `<details class="exp-receipt" data-receipt="${esc(r.id)}"><summary><span>${esc(r.start||'Fecha pendiente')} → ${esc(r.end||'Fecha pendiente')}</span><strong>${money(r.total)} · ${num(r.kwh)} kWh</strong><span>${r.excluded?'Excluido':r.reviewed&&!issues.length?'Confirmado':'Por revisar'}</span></summary>
+    const status=receiptStatus(r),economics=billEconomics(r),issues=[...status.issues,...economics.issues,...(r.refreshUnmatched?['La actualización no identificó una coincidencia segura. Revisa o excluye este registro.']:[])],file=data().files.find(f=>f.id===r.fileId);
+    return `<details class="exp-receipt" data-receipt="${esc(r.id)}"><summary><span>${esc(r.start||'Fecha pendiente')} → ${esc(r.end||'Fecha pendiente')}</span><strong>${money(r.total)} · ${num(r.kwh)} kWh</strong><span>${issues.length?'Requiere revisión':status.label}</span></summary>
       <p class="exp-source">${esc(file?.name||'Documento')} · página ${r.page||'?'} <button type="button" class="dx__skip" data-open="${r.fileId}">Ver original</button></p>
       ${issues.map(v=>`<p class="exp-error">${esc(v)}</p>`).join('')}
-      <p class="exp-note">${esc(r.tariff||'Tarifa pendiente')} · ${num(r.kwh)} kWh · Servicio ${esc(r.service||'pendiente')}. ${r.uncertain?.length?`${r.uncertain.length} campo(s) de lectura dudosa.`:''}</p>
+      <p class="exp-note">${r.automaticChecks?.length?'Datos comprobados o recuperados mediante una lectura automática adicional. ':''}${r.derivedFields?.includes('kwh')?'Consumo total calculado como suma exacta de base, intermedio y punta. ':''}${economics.prices?'Precios horarios obtenidos del recibo.':'Desglose horario pendiente: actualiza la lectura o completa los cargos.'} ${economics.reconciled?'La factura concilia.':''} ${r.correctedFields?.length?`${r.correctedFields.length} campos corregidos por ti; se preservan al actualizar.`:''}</p>
+      <p class="exp-note">${esc(r.tariff||'Tarifa pendiente')} · ${num(r.kwh)} kWh · Servicio ${esc(r.service||'pendiente')}. ${unresolvedFields(r).length?`${unresolvedFields(r).length} campo(s) de lectura dudosa.`:''}</p>
       <details class="exp-edit"><summary>Ver o corregir datos del recibo</summary><div class="exp-fields">${Object.entries(RECEIPT_FIELDS).map(([k,label])=>`<label class="exp-field">${label}${r.uncertain?.includes(k)?' · revisar lectura':''}<input data-field="${k}" ${['start','end'].includes(k)?'type="date"':!TEXT_FIELDS.includes(k)?'type="number" step="any"':'type="text"'} value="${esc(r[k]??'')}"></label>`).join('')}</div></details>
       <div class="exp-checks"><label><input type="checkbox" data-reviewed ${r.reviewed?'checked':''}> Revisé estos datos con el recibo.</label><label><input type="checkbox" data-excluded ${r.excluded?'checked':''}> Excluir este recibo del análisis.</label></div>
       <button class="mx-btn mx-btn--ghost" type="button" data-confirm>Guardar revisión</button></details>`;
@@ -165,16 +170,23 @@ export async function initExpediente({root,content}) {
     const p=installationFor(data().answers.sector);
     return textarea('schedule',p?.scheduleLabel||'Días, horarios y temporadas de actividad',p?.scheduleHint||'Días y horas de operación, turnos y temporadas de menor actividad. Si no lo sabes, déjalo pendiente.');
   }
+  function readingStats(rows){
+    const clean=rows.filter(r=>!receiptStatus(r).needsReview&&!billEconomics(r).issues.length&&!r.refreshUnmatched);
+    const identity=serviceResolver(rows),unique=new Map();for(const r of rows)if(!r.excluded&&r.total!=null)unique.set(`${identity(r.service)}:${r.start}:${r.end}`,r);
+    return {clean:clean.length,alerts:rows.length-clean.length,total:unique.size?[...unique.values()].reduce((n,r)=>n+r.total,0):null};
+  }
+  function operationInputs(){const a=data().answers;return `<section class="exp-installation"><h3>Perfil de actividad para la simulación</h3><p class="exp-note">Estas respuestas distribuyen el consumo facturado por hora. Puedes ajustar cada servicio en el resumen. Los comentarios de texto se guardan para tu asesor.</p><label class="exp-field">Actividad habitual<select name="loadShape" data-numeric><option value="">No lo sé · perfil uniforme supuesto</option>${[[0,'Uniforme las 24 horas'],[1,'Mayor durante el día'],[2,'Mayor durante la noche']].map(([v,l])=>`<option value="${v}" ${a.loadShape===v?'selected':''}>${l}</option>`).join('')}</select></label><div class="exp-fields">${[['operationStart','Inicio del horario diurno',0,23,8],['operationEnd','Fin del horario diurno',1,24,18],['offHoursPct','Consumo fuera de actividad, relativo al habitual (%)',1,100,50],['weekendPct','Consumo de fin de semana, relativo al habitual (%)',1,100,100]].map(([k,l,min,max,def])=>`<label class="exp-field">${l}<input name="${k}" type="number" data-numeric min="${min}" max="${max}" step="1" value="${a[k]??''}" placeholder="Supuesto: ${def}"></label>`).join('')}</div></section>`;}
   function operationStep() {
     const questions=requiredQuestions(data()),a=data().answers;
     frame('Completemos cómo funciona tu instalación','Solo necesitamos lo que no aparece en los recibos. Puedes dejar pendiente cualquier dato que tengas que consultar.',`
       <form class="exp-operation" onsubmit="return false">
       <label class="exp-field">Tipo de instalación<select name="sector"><option value="">Seleccionar</option>${INSTALLATIONS.map(p=>`<option value="${p.sector}" ${a.sector===p.sector?'selected':''}>${p.label}</option>`).join('')}</select></label>
       ${checks('objective','¿Qué quieres mejorar?',[['cost','Reducir el costo de energía'],['continuity','Evitar interrupciones'],['growth','Ampliar capacidad'],['unknown','Quiero orientación']])}
-      <div data-schedule>${scheduleField()}</div>
+      <div data-schedule>${scheduleField()}</div>${operationInputs()}
       ${checks('equipment','¿Qué equipos tienen hoy?',[['solar','Paneles solares'],['battery','Baterías'],['generator','Planta de emergencia'],['ups','UPS'],['none','Ninguno'],['unknown','No lo sé']])}
       <label class="exp-field">¿Este servicio abastece toda la instalación?<select name="scope"><option value="">Por confirmar</option>${['Sí, toda la instalación','Solo una parte; hay otros medidores','No lo sé'].map(v=>`<option ${a.scope===v?'selected':''}>${v}</option>`).join('')}</select></label>
-      ${questions.includes('manualTariff')?`<div class="exp-manual"><p>Mientras revisamos tus recibos, puedes completar estos datos si los conoces.</p><label class="exp-field">Tarifa o suministro<select name="manualTariff"><option value="">No lo sé</option>${['GDMTH','GDMTO','GDBT','PDBT','DIST','DIT','Suministrador privado','Sin conexión a la red'].map(v=>`<option ${a.manualTariff===v?'selected':''}>${v}</option>`).join('')}</select></label>${field('manualBill','Pago mensual aproximado (MXN)','number','Monto, no un rango')}</div>`:''}
+      ${questions.includes('manualTariff')?`<div class="exp-manual"><p>Mientras revisamos tus recibos, puedes completar estos datos si los conoces.</p><label class="exp-field">Tarifa o suministro<select name="manualTariff"><option value="">No lo sé</option>${['GDMTH','GDMTO','GDBT','PDBT','DIST','DIT','Suministrador privado','Sin conexión a la red'].map(v=>`<option ${a.manualTariff===v?'selected':''}>${v}</option>`).join('')}</select></label></div>`:'<p class="exp-note">Tarifa obtenida de los recibos. Puedes corregirla en Revisión.</p>'}
+      ${questions.includes('manualBill')?field('manualBill','Pago mensual aproximado (MXN)','number','Monto, no un rango'):''}
       <div data-installation>${installationSection()}</div>
       ${textarea('quality','Cortes o variaciones de voltaje que debamos conocer','Si ocurren, describe qué equipos o actividades afectan. Si no lo sabes, puedes dejarlo pendiente.')}
       <div data-conditional>${conditionalFields(questions)}</div>
@@ -188,7 +200,7 @@ export async function initExpediente({root,content}) {
         fields.forEach(el=>{const key=el.dataset.installField;if(el.type==='checkbox')multiKeys.add(key);else values[key]=el.value;});
         for(const key of multiKeys)values[key]=[...f.querySelectorAll(`[data-install-field="${key}"]:checked`)].map(el=>el.value);
       }
-      f.querySelectorAll('input[name]:not([type=checkbox]):not([data-install-field]),select[name],textarea[name]').forEach(el=>data().answers[el.name]=el.name==='manualBill'?number(el.value):el.value);
+      f.querySelectorAll('input[name]:not([type=checkbox]):not([data-install-field]),select[name],textarea[name]').forEach(el=>data().answers[el.name]=el.name==='manualBill'||el.hasAttribute('data-numeric')?number(el.value):el.value);
       for(const k of ['objective','equipment'])data().answers[k]=[...f.querySelectorAll(`input[name=${k}]:checked`)].map(el=>el.value);
     };
     const form=root.querySelector('form');
@@ -217,8 +229,9 @@ export async function initExpediente({root,content}) {
   function mapStep() {
     const hasCost=data().answers.objective?.includes('cost'), allowRoof=hasCost || data().answers.objective?.includes('unknown') || data().answers.equipment?.includes('solar') || !data().answers.objective?.length;
     frame('Ubica tu instalación y los espacios disponibles',allowRoof?'Confirma la dirección y marca las áreas donde podríamos evaluar paneles. No necesitas medidas exactas; puedes completarlo con mantenimiento después.':'Confirma la ubicación de tu instalación. Si lo conoces, también puedes marcar el medidor o punto eléctrico.',`
-      <div data-map></div><div data-area-types></div>
+      <label class="exp-consent"><input type="checkbox" data-no-solar ${data().answers.noSolarSpace?'checked':''}> No hay espacio disponible para instalar paneles; evaluar baterías.</label><div data-map></div><div data-area-types></div>
       <p class="exp-note">La superficie marcada es candidata. Su disponibilidad, estructura y sombras se revisan antes de diseñar el sistema.</p>`,btn('operation','Atrás')+btn('summary','Ver simulación',true));
+    collect=()=>{data().answers.noSolarSpace=root.querySelector('[data-no-solar]').checked;};
     const types=()=>{
       const n=data().roof?.poligonos?.length||0;
       root.querySelector('[data-area-types]').innerHTML=Array.from({length:n},(_,i)=>`<label class="exp-field">Área ${i+1}<select data-area="${i}">${[['otro','Tipo por confirmar'],['techo','Techo'],['estacionamiento','Estacionamiento'],['terreno','Terreno']].map(([v,l])=>`<option value="${v}" ${(data().roof?.types?.[i]||'otro')===v?'selected':''}>${l}</option>`).join('')}</select></label>`).join('');
@@ -229,28 +242,51 @@ export async function initExpediente({root,content}) {
       onLocation:location=>{data().location=location;markDirty();},onRoof:roof=>{data().roof={...roof,types:data().roof?.types||[]};types();markDirty();},onServicePoint:p=>{data().servicePoint=p;markDirty();}
     });types();
   }
+  function summaryControls(s){
+    const d=data(),ids=s.services||[],multi=ids.length>1;
+    return `<details class="exp-operation-summary" ${multi?'open':''}><summary>Ubicación, recurso solar y distribución de superficie</summary><p class="exp-note">Área marcada: ${num(d.roof?.area_m2)} m². La estimación conserva 70% aprovechable, ajustable por servicio. Si un servicio no tiene espacio, asigna 0; un campo vacío significa pendiente.</p>
+    ${multi?`<div class="exp-fields">${ids.map(id=>`<label class="exp-field">Área para servicio ${esc(id)} (m²)<input data-allocation="${esc(id)}" type="number" min="0" max="10000000" step="any" value="${d.serviceSettings?.[id]?.areaM2??''}"></label>`).join('')}</div><button type="button" class="mx-btn mx-btn--ghost" data-allocation-save>Aplicar distribución y recalcular</button>`:''}
+    <p class="exp-note">${d.location?'Ubicación guardada. Consulta PVGIS para sustituir el rendimiento solar supuesto por una serie mensual del sitio.':'Marca la ubicación en Espacios para consultar el recurso solar.'} El servicio recibe solo coordenadas redondeadas y orientación del sistema.</p><div class="exp-fields"><label class="exp-field">Inclinación solar (grados)<input data-resource-setting="tilt" type="number" min="0" max="90" value="${d.simulation?.tilt??20}"></label><label class="exp-field">Orientación desde el sur (−90 este; 90 oeste)<input data-resource-setting="azimuth" type="number" min="-180" max="180" value="${d.simulation?.azimuth??0}"></label></div><button type="button" class="mx-btn mx-btn--ghost" data-resource ${!d.location?'disabled':''}>Consultar recurso solar y recalcular</button></details>`;
+  }
   function summaryStep() {
-    const s=summarize(data().receipts,data().service),d=data(),simulation=simulate(d);
-    const pendingEvaluations=recommendations(d).filter(r=>!simulation.source.ready||!['Solar y autoconsumo','Revisión con tu asesor'].includes(r.name));
+    const s=summarize(data().receipts,data().service),d=data(),stats=readingStats(s.rows);
+    const simulation={source:{ready:false}};
+    const pendingEvaluations=recommendations(d).filter(r=>!['Solar y autoconsumo','Arbitraje horario','Revisión con tu asesor'].includes(r.name));
     frame('Tu consumo y las opciones de ahorro','Explora una simulación preliminar con tus recibos y ajusta los supuestos antes de revisarla con tu asesor.',`
-      ${simulationView(simulation)}
-      <details class="exp-dossier"><summary>Estado del expediente <span>${s.pending.length} recibos por revisar</span></summary>
+      ${summaryControls(s)}<div data-simulation role="region" aria-label="Resultado de simulación"><p role="status">Calculando escenarios por servicio…</p></div>
+      <details class="exp-dossier"><summary>Estado del expediente <span>${stats.clean} procesados sin alertas · ${stats.alerts} con datos por revisar</span></summary>
       ${record.submittedAt?'<p class="exp-success">Solicitud enviada. Tu asesor ya recibió el aviso para revisar este expediente.</p>':''}
       <div class="exp-facts"><div><span>Periodo disponible</span><strong class="exp-small">${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}</strong></div><div><span>Importe confirmado · con IVA</span><strong>${money(s.total)}</strong></div><div><span>Consumo confirmado</span><strong>${num(s.kwh)}${s.kwh!=null?' kWh':''}</strong></div></div>
-      <dl class="exp-list"><dt>Documentos</dt><dd>${d.files.filter(f=>f.status!=='pending').length} archivos · ${s.usable.length} recibos confirmados</dd><dt>Tarifa confirmada</dt><dd>${esc(s.tariffs.join(', ')||'Pendiente')}</dd><dt>Datos por revisar</dt><dd>${s.pending.length} recibos · ${s.duplicates.length} duplicados · ${s.overlaps.length} periodos superpuestos</dd><dt>Espacios candidatos</dt><dd>${d.roof?.area_m2?`~${num(d.roof.area_m2)} m²`:'Pendientes'}</dd><dt>Certeza del ahorro</dt><dd>${simulation.source.ready?'Escenario preliminar disponible arriba. La validación técnica requiere revisar los recibos y la curva de demanda.':'Completa los datos indicados arriba para calcular un escenario.'}</dd></dl>
+      <dl class="exp-list"><dt>Documentos</dt><dd>${d.files.filter(f=>f.status!=='pending').length} archivos · ${s.usable.length} recibos confirmados</dd><dt>Tarifa confirmada</dt><dd>${esc(s.tariffs.join(', ')||'Pendiente')}</dd><dt>Datos por revisar</dt><dd>${stats.alerts} recibos con alertas · ${s.duplicates.length} duplicados · ${s.overlaps.length} periodos superpuestos</dd><dt>Espacios candidatos</dt><dd>${d.roof?.area_m2?`~${num(d.roof.area_m2)} m²`:'Pendientes'}</dd><dt>Certeza del ahorro</dt><dd>Consulta el estado y los supuestos de cada escenario arriba. La curva medida de demanda sigue pendiente.</dd></dl>
       </details>${pendingEvaluations.length?`<details class="exp-operation-summary"><summary>Otras evaluaciones pendientes</summary><p class="exp-note">Estos temas requieren datos adicionales y no están calculados en los escenarios de arriba.</p><div class="exp-recommendations">${pendingEvaluations.map(r=>`<article><h4>${esc(r.name)}</h4><span>${esc(r.status)}</span><p>${esc(r.reason)}</p></article>`).join('')}</div></details>`:''}
       ${installationFor(d.answers.sector)?`<details class="exp-operation-summary"><summary>Datos de ${esc(installationFor(d.answers.sector).label.toLowerCase())}</summary><dl class="exp-list"><dt>${esc(installationFor(d.answers.sector).scheduleLabel||'Horarios y temporadas')}</dt><dd>${esc(d.answers.schedule||'Por confirmar')}</dd>${installationSummary(d.answers).map(item=>`<dt>${esc(item.label)}</dt><dd>${esc(item.value)}</dd>`).join('')}</dl></details>`:''}
       <h3>Contacto para la revisión</h3><div class="exp-fields"><label class="exp-field">Nombre<input data-contact="name" autocomplete="name" value="${esc(d.contact.name||'')}"></label><label class="exp-field">Correo<input type="email" data-contact="email" autocomplete="email" value="${esc(d.contact.email||'')}"></label><label class="exp-field">Empresa o institución<input data-contact="company" autocomplete="organization" value="${esc(d.contact.company||'')}"></label><label class="exp-field">Nombre de la instalación<input data-site value="${esc(d.site||'')}"></label></div>
       <label class="exp-consent"><input data-consent type="checkbox" ${d.consent?'checked':''}> Autorizo a Mexillum a utilizar estos datos para evaluar y dar seguimiento a mi proyecto. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</label>
       <button class="mx-btn mx-btn--primary" type="button" data-action="submit">${record.submittedAt?'Guardar actualización':'Solicitar revisión del asesor'}</button>`,btn('map','Atrás')+btn('receipts','Agregar más recibos'));
-    collect=()=>{const settings={priceSource:data().simulation?.priceSource};root.querySelectorAll('[data-sim]').forEach(el=>{if(el.value!==''&&el.checkValidity())settings[el.dataset.sim]=Number(el.value);});if(root.querySelector('[data-sim]'))data().simulation=sanitizeSimulation(settings);root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;};
-    root.querySelector('[data-sim-recalculate]')?.addEventListener('click',()=>{
-      const end=root.querySelector('[data-sim=peakEnd]'),start=root.querySelector('[data-sim=peakStart]');end.setCustomValidity(Number(end.value)<=Number(start.value)?'La hora final debe ser posterior a la inicial.':'');
-      const invalid=[...root.querySelectorAll('[data-sim]')].find(el=>!el.checkValidity());if(invalid){invalid.reportValidity();return;}
-      return action(async()=>{dirty=true;await save();render();root.querySelector('#simulation-title')?.scrollIntoView({block:'start'});});
-    });
-    root.querySelector('[data-sim-reset]')?.addEventListener('click',()=>action(async()=>{collect();data().simulation={...data().simulation,manual:0};delete data().simulation.solarKw;delete data().simulation.batteryKwh;delete data().simulation.batteryKw;collect=()=>{};dirty=true;await save();render();}));
-    root.querySelectorAll('[data-sim]').forEach(el=>el.addEventListener('input',()=>{if(['solarKw','batteryKwh','batteryKw'].includes(el.dataset.sim))root.querySelector('[data-sim=manual]').value='1';if(['basePrice','intermediatePrice','peakPrice'].includes(el.dataset.sim)){delete data().simulation?.priceSource;root.querySelector('[data-sim=tariffSet]').value='1';}root.querySelector('[data-sim=peakEnd]')?.setCustomValidity('');root.querySelector('[data-sim-dirty]').textContent='Supuestos cambiados. Pulsa Recalcular simulación para actualizar los resultados.';}));
+    collect=()=>{
+      root.querySelectorAll('[data-sim-scope]').forEach(group=>{const id=group.dataset.simScope,settings={};group.querySelectorAll('[data-sim]').forEach(el=>{if(el.value!==''&&el.checkValidity())settings[el.dataset.sim]=Number(el.value);});
+        if(id){data().serviceSettings||={};data().serviceSettings[id]={...sanitizeSimulation(settings),...(data().serviceSettings[id]?.areaM2!=null?{areaM2:data().serviceSettings[id].areaM2}:{})};}else data().simulation={...sanitizeSimulation(settings),tilt:data().simulation?.tilt,azimuth:data().simulation?.azimuth};});
+      root.querySelectorAll('[data-allocation]').forEach(el=>{data().serviceSettings||={};const local=data().serviceSettings[el.dataset.allocation]||={};if(el.value!==''&&el.checkValidity())local.areaM2=Number(el.value);else delete local.areaM2;});
+      root.querySelectorAll('[data-resource-setting]').forEach(el=>{data().simulation||={};if(el.value!==''&&el.checkValidity())data().simulation[el.dataset.resourceSetting]=Number(el.value);});
+      root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;
+    };
+    root.querySelector('[data-allocation-save]')?.addEventListener('click',()=>action(async()=>{dirty=true;await save();render();}));
+    root.querySelector('[data-resource]')?.addEventListener('click',()=>action(async()=>{dirty=true;await save();message('Consultando el recurso solar de la ubicación…');await call('solar-resource');render();}));
+    const bindSimulation=()=>{
+      root.querySelectorAll('[data-sim-scope]').forEach(group=>{
+        group.addEventListener('input',e=>{if(['solarKw','batteryKwh','batteryKw'].includes(e.target.dataset.sim))group.querySelector('[data-sim=manual]').value='1';group.querySelector('[data-sim-dirty]').textContent='Cambios pendientes de recalcular.';markDirty();});
+        group.querySelector('[data-sim-recalculate]').onclick=()=>action(async()=>{const invalid=[...group.querySelectorAll('input,select')].find(el=>!el.checkValidity());if(invalid){invalid.reportValidity();return;}if(group.querySelector('[data-sim=tariffSet]').value==='1'&&['basePrice','intermediatePrice','peakPrice'].some(k=>group.querySelector(`[data-sim=${k}]`).value===''))throw Error('Completa los tres precios manuales o selecciona Obtener de cada factura.');dirty=true;await save();render();});
+        group.querySelector('[data-sim-reset]').onclick=()=>action(async()=>{collect();const id=group.dataset.simScope;if(id){const area=data().serviceSettings?.[id]?.areaM2;data().serviceSettings[id]=area==null?{}:{areaM2:area};}else data().simulation={};collect=()=>{};dirty=true;await save();render();});
+      });
+      root.querySelector('[data-simulation]').querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>action(async()=>{await save();data().step=b.dataset.nav;dirty=true;await save();await updateSolarResource();render();}));
+    };
+    const container=root.querySelector('[data-simulation]');
+    try{
+      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260912-10',import.meta.url),{type:'module'});
+      worker.onmessage=({data:response})=>{if(!container.isConnected||simulationWorker!==worker)return;worker.terminate();simulationWorker=null;container.innerHTML=response.error?`<p class="exp-error">${esc(response.error)}</p>`:simulationView(response.result);bindSimulation();};
+      worker.onerror=()=>{if(container.isConnected)container.innerHTML='<p class="exp-error">No pudimos iniciar la simulación. Recarga para volver a intentarlo. Tus datos siguen guardados.</p>';worker.terminate();};
+      worker.postMessage(structuredClone(d));
+    }catch{container.innerHTML='<p class="exp-error">No pudimos iniciar el cálculo en este navegador. Actualízalo o intenta desde otro dispositivo.</p>';}
     root.querySelector('[data-action=submit]').onclick=()=>action(async()=>{dirty=true;await save();if(!record.submittedAt){await call('submit');trackDx('expediente_submitted',{profile_id:content.profile?.id,receipts:s.usable.length});}render();message('Tu expediente quedó guardado para revisión.');});
   }
   function render(){({receipts:receiptStep,review:reviewStep,operation:operationStep,map:mapStep,summary:summaryStep}[data().step]||receiptStep)();}
@@ -260,6 +296,6 @@ export async function initExpediente({root,content}) {
     await stylesReady;
     if(token){await call('read');storeToken();}
     else await call('create',{installation:entry.installation});
-    trackDx('expediente_opened',{profile_id:content.profile?.id});render();
+    trackDx('expediente_opened',{profile_id:content.profile?.id});await updateSolarResource();render();
   }catch(e){root.innerHTML=`<div class="dx__view"><h2 class="dx__question">No pudimos abrir el expediente</h2><p role="alert">${esc(e.message)}</p><p>Tu asesor puede ayudarte a recuperar el acceso.</p><button class="mx-btn mx-btn--ghost" data-retry>Intentar de nuevo</button></div>`;root.querySelector('[data-retry]').onclick=()=>location.reload();}
 }

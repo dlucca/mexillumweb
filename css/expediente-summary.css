@@ -59,3 +59,9 @@
 .exp-sim-table th:first-child{overflow-wrap:anywhere}
 .exp-sim-flows th:first-child{width:65%}
 @media(max-width:700px){.exp-sim-flows th:first-child{width:auto}}
+.exp-service-result{border-top:1px solid var(--border-default);margin:28px 0}
+.exp-service-result>summary{cursor:pointer;font-size:1.2rem;font-weight:600;padding:22px 0}
+.exp-service-result>.exp-simulation{margin-top:0}
+.exp-sim-table td{white-space:normal;overflow-wrap:anywhere}
+.exp-sim-table td>span{white-space:normal}
+.exp-sim-settings .exp-fields{margin:24px 0}

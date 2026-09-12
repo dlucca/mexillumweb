@@ -1,4 +1,4 @@
-import { redirectToCanonicalHost } from './expediente.origin.js';
+import { redirectToCanonicalHost } from './expediente.origin.js?v=20260912-10';
 
 if (!redirectToCanonicalHost()) {
  const form=document.querySelector('#advisor'),status=document.querySelector('#status');

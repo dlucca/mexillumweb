@@ -1,84 +1,66 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {simulate,simulationSource,sanitizeSimulation} from '../js/expediente.simulation.js';
 import {simulationView} from '../js/expediente.simulation-view.js';
-const bill=(extra={})=>({id:'one',kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-01',end:'2026-02-01',total:11600,subtotal:10000,kwh:4000,capacity:2000,distribution:1000,reviewed:false,uncertain:[],...extra});
-const draft=(receipts=[bill()])=>({receipts,roof:{area_m2:1000},answers:{}});
-test('unconfirmed consistent readings produce an explicitly provisional scenario without mutating review state',()=>{
- const data=draft(),before=JSON.stringify(data),result=simulate(data);
- assert.equal(result.source.unconfirmed,1);assert.equal(JSON.stringify(data),before);
- assert.match(simulationView(result),/Con datos provisionales/);
- assert.equal(result.source.annualObserved,false);
+import {billEconomics} from '../js/expediente.billing.js';
+const golden=JSON.parse(readFileSync(new URL('./fixtures/cfe-san-luis-2026-01.json',import.meta.url)));
+const bill=(extra={})=>({...golden,id:'one',fileId:'file',reviewed:false,...extra});
+const draft=(receipts=[bill()])=>({receipts,roof:{area_m2:443.2},answers:{}});
+test('January bill reconstructs invoice-specific prices, subtotal, VAT and prior balance independently',()=>{
+ const e=billEconomics(bill());assert.equal(e.reconciled,true);assert.equal(e.reconstructed,412762.49);
+ for(const [b,v] of Object.entries({base:1.0012,intermediate:1.6932,peak:1.9621}))assert.ok(Math.abs(e.prices[b]-v)<1e-6);
+ assert.equal(billEconomics(bill({generationPeak:999999})).prices,null);
+ assert.equal(billEconomics(bill({uncertain:['generationPeak']})).prices,null);
+ assert.ok(billEconomics(bill({uncertain:['generationPeak'],correctedFields:['generationPeak']})).prices);
 });
-test('sizing maximizes useful solar, preserves demand charges, and keeps annual balances',()=>{
- const d=draft([bill({base:700,intermediate:2900,peak:400,demand:25})]);
- const r=simulate(d,{basePrice:1,intermediatePrice:2,peakPrice:4});
- assert.ok(r.solarKw>r.source.annualKwh*.6/1500);assert.ok(r.solarKw<=r.maxSolarKw);
- assert.ok(r.usefulSolar/r.source.annualKwh>.99);assert.ok(r.candidateCount>20);
- for(const m of r.monthly){
-  assert.ok(Math.abs(m.generation+m.hybridImport-m.kwh-m.losses-m.unused)<1e-4);
-  assert.ok(m.hybridBill>=3000);assert.ok(m.hybridSaving>=0);
- }
+test('processed January bill produces solar and battery without manual confirmation or manual tariffs',()=>{
+ const d=draft(),before=JSON.stringify(d),r=simulate(d);assert.equal(JSON.stringify(d),before);
+ assert.equal(r.status,'estimated');assert.equal(r.pricesProvided,false);assert.ok(r.batteryKwh>0);assert.ok(r.solarKw>0);assert.ok(r.gridCharge>0);assert.ok(r.saving>0);assert.equal(r.demandSaving,null);
+ assert.match(simulationView(r),/datos provisionales/);assert.equal(r.modeledDays,31);assert.equal(r.source.annualObserved,false);
+ for(const c of r.scenarios){assert.ok(Math.abs(c.generation+c.importKwh-r.annualKwh-c.losses-c.unused)<1e-3);assert.ok(c.bill>=0);}
+ assert.ok(r.solarAreaM2<=443.2*.7+.01);assert.equal(r.monthly[0].prices.base,billEconomics(bill()).prices.base);
 });
-test('without solar space battery arbitrage works, but flat prices suggest no battery',()=>{
- const d={...draft([bill({base:700,intermediate:2900,peak:400,demand:25})]),roof:{area_m2:0}};
- const r=simulate(d,{basePrice:1,intermediatePrice:2,peakPrice:4});
- assert.equal(r.solarKw,0);assert.ok(r.batteryKwh>0);assert.ok(r.gridCharge>0);assert.ok(r.saving>0);
- assert.equal(simulate(d).batteryKwh,0);assert.equal(simulate(d).pricesProvided,false);
+test('no space supports tariff arbitrage; flat prices choose no storage; missing prices stay pending',()=>{
+ const d={...draft(),roof:{area_m2:0}},r=simulate(d);assert.equal(r.solarKw,0);assert.ok(r.batteryKwh>0);assert.ok(r.saving>0);
+ const flat=simulate(d,{tariffSet:1,basePrice:1,intermediatePrice:1,peakPrice:1});assert.equal(flat.batteryKwh,0);assert.equal(flat.saving,0);
+ const missing=simulate(draft([bill({generationPeak:null})]));assert.equal(missing.status,'pending');assert.equal(missing.batteryKwh,undefined);assert.match(simulationView(missing),/permanecen pendientes/);
 });
-test('manual zero battery adds no savings and period demand limits extra grid charging',()=>{
- const d=draft([bill({base:700,intermediate:2900,peak:400,demand:10})]);
- const r=simulate(d,{manual:1,solarKw:0,batteryKwh:1000,batteryKw:100,powerLimitKw:100,basePrice:1,intermediatePrice:2,peakPrice:4});
- for(const m of r.monthly)for(const h of m.flow.hours)if(h.gridCharge>0)assert.ok(h.grid<=10+1e-5);
- assert.equal(simulate(d,{manual:1,batteryKwh:0}).extraBatterySaving,0);
+test('manual zero battery adds no battery saving and solar size cannot exceed assigned roof',()=>{
+ const r=simulate(draft(),{manual:1,solarKw:1000,batteryKwh:0,batteryKw:0});assert.equal(r.extraBatterySaving,0);assert.equal(r.solarKw,r.maxSolarKw);assert.equal(r.solarAreaM2,r.usableAreaM2);
 });
-test('excluded and duplicate bills never increase the baseline',()=>{
- const r=simulate(draft([bill(),bill({id:'duplicate',reviewed:true}),bill({id:'excluded',excluded:true,kwh:999999})]));
- assert.equal(r.source.rows.length,1);assert.equal(r.source.rows[0].id,'duplicate');assert.equal(r.source.duplicates,1);
- assert.equal(r.source.annualKwh,4000/31*365);
-});
-test('overlap and critical uncertainty block use until explicitly corrected or reviewed',()=>{
+test('duplicates, overlaps, critical uncertainty and exclusions have per-receipt reasons',()=>{
+ const r=simulationSource(draft([bill(),bill({id:'duplicate',reviewed:true}),bill({id:'excluded',excluded:true,kwh:999999})]));
+ assert.equal(r.rows.length,1);assert.equal(r.rows[0].id,'duplicate');assert.equal(r.duplicates,1);assert.equal(r.decisions.length,3);
  assert.equal(simulationSource(draft([bill(),bill({id:'two',start:'2026-01-15',end:'2026-02-15'})])).ready,false);
  assert.equal(simulationSource(draft([bill({uncertain:['kwh']})])).ready,false);
  assert.equal(simulationSource(draft([bill({uncertain:['kwh'],correctedFields:['kwh']})])).ready,true);
  assert.equal(simulationSource(draft([bill({uncertain:['address']})])).ready,true);
 });
-test('multiple services require selection and selected source is isolated',()=>{
- const d=draft([bill(),bill({id:'two',service:'456',kwh:8000})]);
- assert.equal(simulate(d).source.ready,false);d.service='123';assert.equal(simulate(d).source.rows.length,1);
-});
-test('latest twelve periods are selected without pretending a gap is continuous',()=>{
- const rows=Array.from({length:14},(_,i)=>{const a=new Date(Date.UTC(2024,i,1)),b=new Date(Date.UTC(2024,i+1,1));return bill({id:String(i),start:a.toISOString().slice(0,10),end:b.toISOString().slice(0,10)});});
+test('latest twelve periods selected; a gap is never presented as a complete year',()=>{
+ const rows=Array.from({length:14},(_,i)=>{const a=new Date(Date.UTC(2025,i,1)),b=new Date(Date.UTC(2025,i+1,1));return bill({id:String(i),start:a.toISOString().slice(0,10),end:b.toISOString().slice(0,10)});});
  const s=simulationSource(draft(rows));assert.equal(s.rows.length,12);assert.equal(s.rows[0].id,'2');assert.equal(s.annualObserved,true);
  rows.splice(10,1);const g=simulationSource(draft(rows));assert.equal(g.annualObserved,false);assert.equal(g.gaps,1);
 });
-test('roof limits generation; missing roof is disclosed without assuming zero area',()=>{
- const r=simulate({...draft(),roof:{area_m2:55}},{manual:1,solarKw:50});assert.equal(r.solarKw,7);assert.equal(r.roofLimited,true);
- assert.equal(r.solarAreaM2,38.5);assert.equal(r.usableAreaM2,38.5);
- const actual=simulate({...draft(),roof:{area_m2:1788.6}},{manual:1,solarKw:46.2});
- assert.ok(Math.abs(actual.solarAreaM2-254.1)<1e-8);
- assert.match(simulationView(actual),/254.1/);
- assert.match(simulationView(actual),/Área total marcada/);
- const missing=simulate({...draft(),roof:null});assert.equal(missing.maxSolarKw,null);assert.equal(missing.solarKw,0);assert.match(simulationView(missing),/Falta marcar/);
+test('services have independent equipment, totals sum only calculated meters, roof is not duplicated',()=>{
+ const d=draft([bill({service:'111111111111'}),bill({id:'two',service:'222222222222'})]);d.service='__all__';d.serviceSettings={'111111111111':{areaM2:443.2},'222222222222':{areaM2:0}};
+ const r=simulate(d);assert.equal(r.project,true);assert.equal(r.comparable,true);assert.equal(r.results[1].result.solarKw,0);
+ assert.equal(r.scenarios[3].saving,r.results.reduce((n,x)=>n+x.result.saving,0));
+ d.service='222222222222';assert.equal(simulate(d).solarKw,0);
+ d.service='__all__';d.serviceSettings['222222222222'].areaM2=443.2;const invalid=simulate(d);assert.equal(invalid.allocationError,true);assert.ok(invalid.results.every(x=>x.result.areaPending));
+ d.receipts[1].generationPeak=null;const partial=simulate(d);assert.equal(partial.evaluated,1);assert.equal(partial.comparable,false);assert.match(simulationView(partial),/Resumen parcial/);
 });
-test('invalid assumptions and forged results cannot persist, and input text is escaped',()=>{
+test('unknown roof, unsupported tariff, missing location region and installed generation are explicit states',()=>{
+ assert.equal(simulate({...draft(),roof:null}).areaPending,true);
+ assert.equal(simulate(draft([bill({tariff:'DIST'})])).status,'pending');
+ assert.equal(simulate(draft([bill({state:null,address:null})])).status,'pending');
+ assert.equal(simulate({...draft(),answers:{equipment:['solar']}}).status,'pending');
+});
+test('assumptions are bounded, optional blanks survive, and source text is escaped',()=>{
  assert.deepEqual(sanitizeSimulation({solarKw:-1,yieldKwh:Infinity,energyPrice:'2',saving:99999,batteryKw:0}),{batteryKw:0});
- const r=simulate(draft());r.source.start='<img src=x onerror=alert(1)>';
- assert.ok(!simulationView(r).includes('<img'));assert.match(simulationView(r),/&lt;img/);
+ const r=simulate(draft());r.source.decisions[0].start='<img src=x onerror=alert(1)>';assert.ok(!simulationView(r).includes('<img'));assert.match(simulationView(r),/&lt;img/);
 });
-test('flat fallback remains unverified after saving and invalid schedules remain repairable',()=>{
- const r=simulate(draft(),{basePrice:1,intermediatePrice:1,peakPrice:1,tariffSet:0,peakStart:22,peakEnd:13});
- assert.equal(r.pricesProvided,false);assert.equal(r.scheduleAdjusted,true);assert.match(simulationView(r),/data-sim="peakEnd"/);
- const sourced=simulate(draft(),{basePrice:1,intermediatePrice:2,peakPrice:3,priceSource:'<script>alert(1)</script>'});
- assert.equal(sourced.pricesProvided,true);assert.ok(!simulationView(sourced).includes('<script>'));
-});
-
-test('partial prices cannot silently enable arbitrage behind a flat-price warning',()=>{
- const d={...draft(),roof:{area_m2:0}};const r=simulate(d,{basePrice:0});
- assert.equal(r.pricesProvided,false);assert.equal(r.inputs.basePrice,r.inputs.peakPrice);assert.equal(r.gridCharge,0);
-});
-test('all-service selection simulates aliases of one meter but never shares energy across distinct meters',()=>{
- const d=draft([bill({service:'961020200049'}),bill({id:'two',service:'No.deservicio:961020200049',start:'2026-02-01',end:'2026-03-01'})]);d.service='__all__';
- assert.equal(simulationSource(d).ready,true);assert.equal(simulationSource(d).rows.length,2);
- d.receipts[1].service='961020200050';assert.equal(simulationSource(d).ready,false);
+test('stale location or orientation never reuse a solar resource from another site',()=>{
+ const d={...draft(),location:{lat:22,lng:-100},solarResource:{key:'22.000,-100.000:20:0',monthly:Array(12).fill(150),source:'Fixture'}};
+ assert.equal(simulate(d).inputs.yieldKwh,1800);d.location.lat=23;assert.equal(simulate(d).resource,null);
 });

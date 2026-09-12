@@ -1,15 +1,15 @@
 // Shared, deterministic receipt validation. Missing data stays null; never becomes zero.
 export const RECEIPT_FIELDS = {
-  service: 'Número de servicio', holder: 'Titular', address: 'Dirección', tariff: 'Tarifa',
+  service: 'Número de servicio', rmu:'RMU', account:'Cuenta', meter:'Número de medidor', state:'Estado', holder: 'Titular', address: 'Dirección', tariff: 'Tarifa',
   start: 'Inicio del periodo', end: 'Fin del periodo', total: 'Total facturado con IVA (MXN)',
   subtotal: 'Subtotal sin IVA (MXN)', kwh: 'Consumo total (kWh)', base: 'Consumo base (kWh)',
   intermediate: 'Consumo intermedio (kWh)', peak: 'Consumo punta (kWh)',
   demand: 'Demanda máxima (kW)', peakDemand: 'Demanda en punta (kW)',
   contractedDemand: 'Demanda contratada (kW)', capacity: 'Cargo por capacidad (MXN)',
   distribution: 'Cargo por distribución (MXN)', powerFactor: 'Factor de potencia (%)',
-  powerFactorAdjustment: 'Ajuste por factor de potencia (MXN)'
+  powerFactorAdjustment: 'Ajuste por factor de potencia (MXN)', baseDemand:'Demanda base (kW)', intermediateDemand:'Demanda intermedia (kW)', connectedLoad:'Carga conectada (kW)', generationBase:'Generación base (MXN)', generationIntermediate:'Generación intermedia (MXN)', generationPeak:'Generación punta (MXN)', transmission:'Transmisión (MXN)', cenace:'CENACE (MXN)', scnmem:'SCnMEM (MXN)', supply:'Suministro / cargo fijo (MXN)', vat:'IVA (MXN)', priorBalance:'Adeudo anterior (MXN)', priorPayment:'Pago anterior (MXN)', payable:'Total con saldos anteriores (MXN)', otherAdjustment:'Otros ajustes del periodo (MXN)'
 };
-export const TEXT_FIELDS = ['service', 'holder', 'address', 'tariff', 'start', 'end'];
+export const TEXT_FIELDS = ['service','rmu','account','meter','state', 'holder', 'address', 'tariff', 'start', 'end'];
 export function number(value) {
   if (value == null || value === '') return null;
   const n = typeof value === 'number' ? value : Number(String(value).replace(/[$,\s]/g, ''));
@@ -27,7 +27,7 @@ export function receiptIssues(r) {
   if (!date(r.start) || !date(r.end) || r.start >= r.end) issues.push('Revisa las fechas del periodo.');
   if (r.total == null || r.kwh == null) issues.push('Falta importe o consumo total.');
   for (const k of Object.keys(RECEIPT_FIELDS).filter(k => !TEXT_FIELDS.includes(k))) {
-    if (r[k] != null && (!Number.isFinite(r[k]) || (k !== 'powerFactorAdjustment' && r[k] < 0))) issues.push(`Revisa ${RECEIPT_FIELDS[k].toLowerCase()}.`);
+    if (r[k] != null && (!Number.isFinite(r[k]) || (!['powerFactorAdjustment','priorBalance','priorPayment','otherAdjustment'].includes(k) && r[k] < 0))) issues.push(`Revisa ${RECEIPT_FIELDS[k].toLowerCase()}.`);
   }
   if (r.powerFactor != null && r.powerFactor > 100) issues.push('El factor de potencia supera 100%.');
   if ([r.base,r.intermediate,r.peak,r.kwh].every(v => v != null) && Math.abs(r.base+r.intermediate+r.peak-r.kwh) > Math.max(2,r.kwh*.005)) issues.push('La suma de los horarios no coincide con el consumo total.');
@@ -35,6 +35,10 @@ export function receiptIssues(r) {
   if (r.subtotal != null && r.total != null && r.subtotal > r.total) issues.push('El subtotal supera al total. Revisa si hay ajustes.');
   return issues;
 }
+export function unresolvedFields(r){return (r.uncertain||[]).filter(k=>!r.reviewed&&!(r.correctedFields||[]).includes(k)&&r[k]!=null&&r[k]!=='');}
+export function receiptStatus(r){const issues=receiptIssues(r),uncertain=unresolvedFields(r);return {needsReview:issues.length>0||uncertain.length>0,label:r.excluded?'Excluido':issues.length||uncertain.length?'Requiere revisión':r.reviewed?'Confirmado por ti':'Procesado sin alertas',issues,uncertain};}
+export function usableReading(r,fields){return fields.every(k=>r[k]!=null&&r[k]!==''&&!unresolvedFields(r).includes(k));}
+
 export function normalizeReceipt(raw, fileId, index) {
   const r = { id: `${fileId}:${index}`, fileId, page: Number.isInteger(raw.page) && raw.page > 0 ? raw.page : null, kind: raw.kind === 'history' ? 'history' : 'bill', reviewed: false, excluded: false };
   for (const k of Object.keys(RECEIPT_FIELDS)) r[k] = TEXT_FIELDS.includes(k) ? (typeof raw[k] === 'string' ? raw[k].trim().slice(0,500) : '') : number(raw[k]);
@@ -51,9 +55,9 @@ export const ALL_SERVICES='__all__';
 export function serviceResolver(receipts=[]) {
   const compact=v=>String(v||'').trim().replace(/\s/g,'').toUpperCase();
   const number=v=>{const x=compact(v);return /^\d{12}$/.test(x)?x:x.match(/(?:NO\.?DESERVICIO|N[ÚU]MERODESERVICIO|SERVICIO)[:#.]?(\d{12})(?!\d)/)?.[1]||'';};
-  const rmu=v=>compact(v).match(/(?:RMU:?)?(\d{7}-\d{2}-\d{2}[A-Z0-9-]+CFE)/)?.[1]||'';
+  const rmu=v=>(compact(v).match(/(?:RMU:?)?(\d{7}-\d{2}-\d{2}[A-Z0-9-]+CFE)/)?.[1]||'').replace(/-/g,'');
   const pairs=new Map();
-  for(const r of receipts){const n=number(r.service),m=rmu(r.service);if(n&&m){if(!pairs.has(m))pairs.set(m,new Set());pairs.get(m).add(n);}}
+  for(const r of receipts){const n=number(r.service),m=rmu(r.rmu)||rmu(r.service);if(n&&m){if(!pairs.has(m))pairs.set(m,new Set());pairs.get(m).add(n);}}
   return value=>{const n=number(value);if(n)return n;const m=rmu(value),matches=pairs.get(m);return matches?.size===1?[...matches][0]:compact(value);};
 }
 export function summarize(receipts = [], service = '') {
@@ -118,7 +122,9 @@ export function summarize(receipts = [], service = '') {
 export function requiredQuestions(data) {
   const s=summarize(data.receipts,data.service);
   const questions=['sector','objective','schedule','equipment','scope'];
-  if(!s.usable.length) questions.push('manualTariff','manualBill');
+  const rows=s.rows.length?s.rows:(data.receipts||[]).filter(r=>r.kind==='bill'&&!r.excluded);
+  if(!rows.some(r=>usableReading(r,['tariff'])))questions.push('manualTariff');
+  if(!rows.some(r=>usableReading(r,['total'])))questions.push('manualBill');
   if(data.answers?.objective?.includes('continuity')) questions.push('outage');
   if(data.answers?.objective?.includes('growth')) questions.push('growth');
   if(data.answers?.equipment?.includes('solar')) questions.push('solar');
