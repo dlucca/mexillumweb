@@ -1,6 +1,6 @@
 # PRD — Diagnóstico energético adaptativo multiindustria de Mexillum
 
-**Actualización 12 de septiembre de 2026:** los prospectos enviados por un asesor usan el nuevo expediente `?rapido`, con recibos primero, lectura y revisión, preguntas pendientes, mapa y resumen. La implementación y activación están en [onboarding-recibos-primero.md](docs/onboarding-recibos-primero.md). Esta dirección sustituye, para ese recorrido, el orden contacto → mapa → recibos y la exclusión de lectura automática. El cuestionario público conserva su recorrido. El motor económico de simulación sigue pendiente.
+**Actualización 12 de septiembre de 2026:** los prospectos enviados por un asesor usan el nuevo expediente `?rapido`, con recibos primero, lectura y revisión, preguntas pendientes, mapa y resumen. La implementación y activación están en [onboarding-recibos-primero.md](docs/onboarding-recibos-primero.md). Esta dirección sustituye, para ese recorrido, el orden contacto → mapa → recibos y la exclusión de lectura automática. El cuestionario público conserva su recorrido. El resumen incorpora una simulación preliminar de balance mensual para solar y solar con batería, con supuestos editables y datos provisionales identificados. La refacturación tarifaria y simulación de demanda de 15 minutos siguen pendientes.
 
 **Versión:** 1.1
 **Fecha:** 31 de agosto de 2026

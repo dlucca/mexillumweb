@@ -1,3 +1,4 @@
+import { sanitizeSimulation } from '../js/expediente.simulation.js';
 import { installationSummary } from '../js/expediente.installations.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { bearer, tokenHash, isAdvisor, clean, fail, read, write, create, publicRow, db, storage, config, sanitizeAnswers } from '../lib/onboarding/store.js';
@@ -18,6 +19,7 @@ function coordinates(v) {
 function saveData(previous,patch) {
   const d={...previous};
   if(steps.includes(patch.step)) d.step=patch.step;
+  if('simulation' in patch)d.simulation=sanitizeSimulation(patch.simulation);
   if(patch.contact) d.contact={name:clean(patch.contact.name,120),email:clean(patch.contact.email,200),company:clean(patch.contact.company,200)};
   for(const k of ['site','address','service']) if(k in patch) d[k]=clean(patch[k],500);
   if(patch.answers) d.answers=sanitizeAnswers(patch.answers);

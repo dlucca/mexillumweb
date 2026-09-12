@@ -1,3 +1,5 @@
+import { simulate, sanitizeSimulation } from './expediente.simulation.js';
+import { simulationView } from './expediente.simulation-view.js';
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
 import { redirectToCanonicalHost } from './expediente.origin.js';
 import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations } from './expediente.model.js';
@@ -212,7 +214,7 @@ export async function initExpediente({root,content}) {
     const hasCost=data().answers.objective?.includes('cost'), allowRoof=hasCost || data().answers.objective?.includes('unknown') || data().answers.equipment?.includes('solar') || !data().answers.objective?.length;
     frame('Ubica tu instalación y los espacios disponibles',allowRoof?'Confirma la dirección y marca las áreas donde podríamos evaluar paneles. No necesitas medidas exactas; puedes completarlo con mantenimiento después.':'Confirma la ubicación de tu instalación. Si lo conoces, también puedes marcar el medidor o punto eléctrico.',`
       <div data-map></div><div data-area-types></div>
-      <p class="exp-note">La superficie marcada es candidata. Su disponibilidad, estructura y sombras se revisan antes de diseñar el sistema.</p>`,btn('operation','Atrás')+btn('summary','Ver resumen',true));
+      <p class="exp-note">La superficie marcada es candidata. Su disponibilidad, estructura y sombras se revisan antes de diseñar el sistema.</p>`,btn('operation','Atrás')+btn('summary','Ver simulación',true));
     const types=()=>{
       const n=data().roof?.poligonos?.length||0;
       root.querySelector('[data-area-types]').innerHTML=Array.from({length:n},(_,i)=>`<label class="exp-field">Área ${i+1}<select data-area="${i}">${[['otro','Tipo por confirmar'],['techo','Techo'],['estacionamiento','Estacionamiento'],['terreno','Terreno']].map(([v,l])=>`<option value="${v}" ${(data().roof?.types?.[i]||'otro')===v?'selected':''}>${l}</option>`).join('')}</select></label>`).join('');
@@ -224,17 +226,25 @@ export async function initExpediente({root,content}) {
     });types();
   }
   function summaryStep() {
-    const s=summarize(data().receipts,data().service),d=data();
-    frame('Tu expediente, en un solo lugar','Revisa el resumen y compártelo con tu asesor. El ahorro y el tamaño del sistema se definirán con el análisis técnico.',`
+    const s=summarize(data().receipts,data().service),d=data(),simulation=simulate(d);
+    frame('Tu consumo y las opciones de ahorro','Explora una simulación preliminar con tus recibos y ajusta los supuestos antes de revisarla con tu asesor.',`
+      ${simulationView(simulation)}
+      <h3>Estado del expediente</h3>
       ${record.submittedAt?'<p class="exp-success">Solicitud enviada. Tu asesor ya recibió el aviso para revisar este expediente.</p>':''}
       <div class="exp-facts"><div><span>Periodo disponible</span><strong class="exp-small">${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}</strong></div><div><span>Importe confirmado · con IVA</span><strong>${money(s.total)}</strong></div><div><span>Consumo confirmado</span><strong>${num(s.kwh)}${s.kwh!=null?' kWh':''}</strong></div></div>
-      <dl class="exp-list"><dt>Documentos</dt><dd>${d.files.filter(f=>f.status!=='pending').length} archivos · ${s.usable.length} recibos confirmados</dd><dt>Tarifa confirmada</dt><dd>${esc(s.tariffs.join(', ')||'Pendiente')}</dd><dt>Datos por revisar</dt><dd>${s.pending.length} recibos · ${s.duplicates.length} duplicados · ${s.overlaps.length} periodos superpuestos</dd><dt>Espacios candidatos</dt><dd>${d.roof?.area_m2?`~${num(d.roof.area_m2)} m²`:'Pendientes'}</dd><dt>Certeza del ahorro</dt><dd>Pendiente de simulación. Los recibos no incluyen la curva de demanda de 15 minutos.</dd></dl>
+      <dl class="exp-list"><dt>Documentos</dt><dd>${d.files.filter(f=>f.status!=='pending').length} archivos · ${s.usable.length} recibos confirmados</dd><dt>Tarifa confirmada</dt><dd>${esc(s.tariffs.join(', ')||'Pendiente')}</dd><dt>Datos por revisar</dt><dd>${s.pending.length} recibos · ${s.duplicates.length} duplicados · ${s.overlaps.length} periodos superpuestos</dd><dt>Espacios candidatos</dt><dd>${d.roof?.area_m2?`~${num(d.roof.area_m2)} m²`:'Pendientes'}</dd><dt>Certeza del ahorro</dt><dd>${simulation.source.ready?'Escenario preliminar disponible arriba. La validación técnica requiere revisar los recibos y la curva de demanda.':'Completa los datos indicados arriba para calcular un escenario.'}</dd></dl>
       <h3>Alternativas para evaluar</h3><div class="exp-recommendations">${recommendations(d).map(r=>`<article><h4>${r.name}</h4><span>${r.status}</span><p>${r.reason}</p></article>`).join('')}</div>
       ${installationFor(d.answers.sector)?`<details class="exp-operation-summary"><summary>Datos de ${esc(installationFor(d.answers.sector).label.toLowerCase())}</summary><dl class="exp-list"><dt>${esc(installationFor(d.answers.sector).scheduleLabel||'Horarios y temporadas')}</dt><dd>${esc(d.answers.schedule||'Por confirmar')}</dd>${installationSummary(d.answers).map(item=>`<dt>${esc(item.label)}</dt><dd>${esc(item.value)}</dd>`).join('')}</dl></details>`:''}
       <h3>Contacto para la revisión</h3><div class="exp-fields"><label class="exp-field">Nombre<input data-contact="name" autocomplete="name" value="${esc(d.contact.name||'')}"></label><label class="exp-field">Correo<input type="email" data-contact="email" autocomplete="email" value="${esc(d.contact.email||'')}"></label><label class="exp-field">Empresa o institución<input data-contact="company" autocomplete="organization" value="${esc(d.contact.company||'')}"></label><label class="exp-field">Nombre de la instalación<input data-site value="${esc(d.site||'')}"></label></div>
       <label class="exp-consent"><input data-consent type="checkbox" ${d.consent?'checked':''}> Autorizo a Mexillum a utilizar estos datos para evaluar y dar seguimiento a mi proyecto. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</label>
       <button class="mx-btn mx-btn--primary" type="button" data-action="submit">${record.submittedAt?'Guardar actualización':'Solicitar revisión del asesor'}</button>`,btn('map','Atrás')+btn('receipts','Agregar más recibos'));
-    collect=()=>{root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;};
+    collect=()=>{const settings={};root.querySelectorAll('[data-sim]').forEach(el=>{if(el.value!==''&&el.checkValidity())settings[el.dataset.sim]=Number(el.value);});if(root.querySelector('[data-sim]'))data().simulation=sanitizeSimulation(settings);root.querySelectorAll('[data-contact]').forEach(el=>data().contact[el.dataset.contact]=el.value.trim());data().site=root.querySelector('[data-site]').value.trim();data().consent=root.querySelector('[data-consent]').checked;};
+    root.querySelector('[data-sim-recalculate]')?.addEventListener('click',()=>{
+      const invalid=[...root.querySelectorAll('[data-sim]')].find(el=>!el.checkValidity());if(invalid){invalid.reportValidity();return;}
+      return action(async()=>{dirty=true;await save();render();root.querySelector('#simulation-title')?.scrollIntoView({block:'start'});});
+    });
+    root.querySelector('[data-sim-reset]')?.addEventListener('click',()=>action(async()=>{collect();data().simulation={};collect=()=>{};dirty=true;await save();render();}));
+    root.querySelectorAll('[data-sim]').forEach(el=>el.addEventListener('input',()=>{root.querySelector('[data-sim-dirty]').textContent='Supuestos cambiados. Pulsa Recalcular simulación para actualizar los resultados.';}));
     root.querySelector('[data-action=submit]').onclick=()=>action(async()=>{dirty=true;await save();if(!record.submittedAt){await call('submit');trackDx('expediente_submitted',{profile_id:content.profile?.id,receipts:s.usable.length});}render();message('Tu expediente quedó guardado para revisión.');});
   }
   function render(){({receipts:receiptStep,review:reviewStep,operation:operationStep,map:mapStep,summary:summaryStep}[data().step]||receiptStep)();}

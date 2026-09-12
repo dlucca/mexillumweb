@@ -117,3 +117,11 @@ test('installation details persist through create, save, sector switch, reopen a
  r=(await call({action:'read'},token)).body;assert.equal(r.data.answers.installations.university.criticalDetail,'Muestras: 2 horas');assert.equal(r.data.answers.installations.pumping.hidraulica,'sin_tanque');assert.equal(r.data.answers.installations.university.injected,undefined);
  r=(await call({action:'submit',revision:r.revision},token)).body;assert.ok(r.submittedAt);assert.equal(mock.emails,1);
 }));
+
+test('simulation assumptions persist without confirming receipts or accepting forged savings',()=>fixture(async(call)=>{
+ let r=await draft(call),token=r.token;
+ r=(await call({action:'save',revision:r.revision,data:{simulation:{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15,yieldKwh:-3,saving:999999}}},token)).body;
+ r=(await call({action:'read'},token)).body;
+ assert.deepEqual(r.data.simulation,{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15});
+ assert.deepEqual(r.data.receipts,[]);
+}));
