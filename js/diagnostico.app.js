@@ -13,6 +13,12 @@ const CAL_ORIGIN = 'https://cal.mexillum.com';
 // el lead. Toda la lógica de pantallas vive aquí; los archivos *.view.js solo arrancan.
 export function initDiagnostico({ content, calLink, origen }) {
   const root = document.getElementById('dx-root');
+  if (new URLSearchParams(globalThis.location?.search || '').has('rapido')) {
+    import('./expediente.app.js').then(({ initExpediente }) => initExpediente({ root, content })).catch(() => {
+      root.textContent = 'No pudimos abrir el expediente. Recarga la página o contacta a tu asesor.';
+    });
+    return;
+  }
   const profileId = content.profile?.id || origen || 'industria_comercio';
   const stateId = `${profileId}:${content.profile?.version || '1.0'}`;
 
@@ -507,8 +513,8 @@ export function initDiagnostico({ content, calLink, origen }) {
   // ---- Paso: subir facturas (opcional) ----------------------------------------
   function renderFacturas() {
     const copyFac = rapido
-      ? { titulo: 'Sube tus últimos 12 recibos de energía', sub: 'Con los 12 meses vemos tu curva de consumo completa y calculamos tu ahorro real.' }
-      : (content.postResult?.facturas || { titulo: 'Sube tus últimas 12 facturas de energía', sub: 'Con tus facturas calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.' });
+      ? { titulo: 'Sube tus últimos 12 recibos de energía', sub: 'Con los 12 meses vemos tu historial mensual y preparamos una evaluación de ahorro.' }
+      : (content.postResult?.facturas || { titulo: 'Sube tus últimas 12 facturas de energía', sub: 'Con tus facturas preparamos una evaluación preliminar de ahorro. Es opcional, pero mejora mucho tu anteproyecto.' });
     const view = el(`
       <div class="dx__view">
         ${kickerRapido(3)}

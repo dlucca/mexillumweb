@@ -401,7 +401,7 @@ const content = {
 
   // ---- BLOQUE D ----
   datoFaltante: [
-    { when: { factura: 'nolose' }, text: 'Para volver esto un número exacto, el dato clave es tu recibo de CFE — con 12 meses vemos tu cargo por demanda real y tu perfil horario.' },
+    { when: { factura: 'nolose' }, text: 'Para volver esto un número exacto, el dato clave es tu recibo de CFE — con 12 meses vemos los cargos por demanda y el consumo por periodo; la curva de demanda requiere medición.' },
     { when: { tarifa: 'privado' }, text: 'El dato que define tu caso es la estructura de tu contrato de suministro — si tienes exposición a precios horarios del mercado, hay arbitraje; si es precio fijo, el margen se lo queda tu suministrador. Es la primera pregunta que resolvemos en la llamada.' }
   ],
   datoFaltantePorOportunidad: {
@@ -569,7 +569,7 @@ const content = {
     label: 'Precisar mi hotel',
     facturas: {
       titulo: 'Sube tus últimas 12 facturas de energía',
-      sub: 'Con tus facturas de CFE o de tu suministrador calculamos tu ahorro real. Es opcional, pero mejora mucho tu anteproyecto.'
+      sub: 'Con tus facturas de CFE o de tu suministrador preparamos una evaluación preliminar de ahorro. Es opcional, pero mejora mucho tu anteproyecto.'
     }
   },
 

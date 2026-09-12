@@ -5,7 +5,7 @@ const ROOF_COLOR = '#1a73e8';
 
 // Monta el mapa del sitio. Puede dibujar varias áreas y ubicar un punto eléctrico
 // independiente (acometida, medidor, transformador, subestación o tablero).
-export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint, allowRoof = true }) {
+export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint, allowRoof = true, initial = {} }) {
   const roofControls = allowRoof ? `
           <button type="button" class="dx-roof__add">+ Agregar otra área</button>
           <button type="button" class="dx-roof__clear">Borrar áreas</button>` : '';
@@ -69,6 +69,7 @@ export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint,
   const serviceClear = container.querySelector('.dx-roof__service-clear');
   const serviceStatus = container.querySelector('.dx-roof__service-status');
 
+  let disposed = false;
   let g = null, map = null, locationMarker = null, serviceMarker = null;
   let mode = allowRoof ? 'roof' : 'idle';
   let polys = [];        // áreas ya cerradas (editables)
@@ -231,6 +232,7 @@ export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint,
   }
 
   loadGoogleMaps().then((google) => {
+    if (disposed) return;
     g = google;
     map = new g.maps.Map(mapEl, {
       center: MEXICO_CENTER, zoom: 5, mapTypeId: 'satellite', tilt: 0,
@@ -254,15 +256,47 @@ export function mountRoofPicker(container, { onLocation, onRoof, onServicePoint,
     setStatus(allowRoof
       ? 'Busca tu dirección. Luego marca todas las áreas disponibles (techos, áreas verdes, estacionamientos…) y, si la conoces, la acometida.'
       : 'Busca tu dirección. Luego marca la acometida o el punto eléctrico principal.');
-  }).catch(() => setStatus('No pudimos cargar el mapa. Revisa tu conexión e intenta de nuevo.'));
+    function restore() {
+      if (disposed) return;
+      for (const vertices of initial.roof?.poligonos || []) {
+        if (!Array.isArray(vertices) || vertices.length < 3) continue;
+        const p = new g.maps.Polygon({ map, paths: vertices, editable: true, clickable: false,
+          fillColor: ROOF_COLOR, fillOpacity: .25, strokeColor: ROOF_COLOR, strokeWeight: 2 });
+        polys.push(p); attachPoly(p);
+      }
+      if (polys.length) { current?.setMap(null); current = polys.pop(); recompute(); }
+      if (initial.servicePoint) {
+        serviceType.value = initial.servicePoint.tipo || 'acometida';
+        servicePrecision.value = initial.servicePoint.precision || 'aproximada';
+        serviceCapacity.value = initial.servicePoint.capacidad_kva || '';
+        placeServicePoint(initial.servicePoint);
+      }
+    }
+    const location = initial.location;
+    inputEl.value = location?.direccion || initial.address || '';
+    if (location && Number.isFinite(location.lat) && Number.isFinite(location.lng)) {
+      goTo(location.lat, location.lng, location.direccion); restore();
+    } else if (initial.address) {
+      new g.maps.Geocoder().geocode({ address: initial.address, componentRestrictions: {country:'MX'} }, (results,status) => {
+        if (disposed || !container.isConnected) return;
+        if (status === 'OK' && results[0]) {
+          const loc=results[0].geometry.location;
+          goTo(loc.lat(),loc.lng(),initial.address); restore();
+          setStatus('Ubicación sugerida a partir del recibo. Confirma que sea tu instalación antes de marcar áreas.');
+        } else setStatus('Confirma la dirección en el buscador para ubicar tu instalación.');
+      });
+    }
+
+  }).catch(() => { if (!disposed) setStatus('No pudimos cargar el mapa. Revisa tu conexión e intenta de nuevo; puedes continuar sin marcar áreas.'); });
 
   locBtn.addEventListener('click', () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation || !map) return;
     setStatus('Buscando tu ubicación…');
     navigator.geolocation.getCurrentPosition(
-      (pos) => goTo(pos.coords.latitude, pos.coords.longitude),
+      (pos) => { if (!disposed && map) goTo(pos.coords.latitude, pos.coords.longitude); },
       () => setStatus('No pudimos obtener tu ubicación. Escribe tu dirección.'),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   });
+  return () => { disposed = true; clearAll(); if (g && map) g.maps.event.clearInstanceListeners(map); };
 }

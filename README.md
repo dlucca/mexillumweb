@@ -58,3 +58,13 @@ form shows the error state locally. Test the real send on a Vercel deployment
 ## Notes
 
 - Fonts load from Google Fonts (Barlow Semi Condensed, JetBrains Mono, Nunito).
+
+## Expediente para prospectos enviados por un asesor
+
+El modo `?rapido` ahora abre **recibos → revisión → operación → espacios → resumen**.
+En `/asesor` se crean enlaces individuales con contacto y datos conocidos.
+El expediente se guarda en Supabase y la lectura de recibos usa OpenAI Responses.
+
+Antes de desplegar, seguir [activación, variables y pruebas](docs/onboarding-recibos-primero.md)
+y aplicar la migración incluida. La lectura automática requiere su propia API key.
+Para inspeccionar la UI sin servicios reales: `node scripts/dev-expediente.mjs --demo`.
