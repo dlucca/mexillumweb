@@ -125,3 +125,8 @@ test('simulation assumptions persist without confirming receipts or accepting fo
  assert.deepEqual(r.data.simulation,{solarKw:45,batteryKwh:80,batteryKw:0,energyPrice:2.15,basePrice:1,intermediatePrice:2,peakPrice:4,manual:0,tariffSet:1,priceSource:"Recibo julio"});
  assert.deepEqual(r.data.receipts,[]);
 }));
+test('public profile selection creates a receipt-first draft with a validated installation',()=>fixture(async(call)=>{
+ const r=(await call({action:'create',installation:'university',answers:{sector:'forged'},contact:{email:'not-accepted@example.com'}})).body;
+ assert.equal(r.data.step,'receipts');assert.equal(r.data.answers.sector,'Institución educativa');assert.deepEqual(r.data.receipts,[]);assert.deepEqual(r.data.contact,{});
+ const invalid=(await call({action:'create',installation:'<script>'})).body;assert.deepEqual(invalid.data.answers,{});
+}));

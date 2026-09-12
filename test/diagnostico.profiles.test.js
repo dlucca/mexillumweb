@@ -59,10 +59,10 @@ test('todos los perfiles producen un resultado y payload identificable', () => {
   }
 });
 
-test('el hub enlaza las siete rutas y cada ruta carga su vista', async () => {
+test('el hub enlaza las rutas a recibos y cada ruta carga su vista', async () => {
   const hub = await readFile(new URL('../diagnostico/index.html', import.meta.url), 'utf8');
   for (const content of profiles) {
-    assert.match(hub, new RegExp(`href="${content.profile.route}"`), content.profile.id);
+    assert.match(hub, new RegExp(`href="${content.profile.route}\\?rapido&amp;inicio=1"`), content.profile.id);
     const html = await readFile(new URL(`..${content.profile.route}/index.html`, import.meta.url), 'utf8');
     assert.match(html, /diagnostico\..+view\.js|diagnostico\.view\.js/);
   }

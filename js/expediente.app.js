@@ -1,3 +1,4 @@
+import { expedienteEntry } from './expediente.entry.js';
 import { simulate, sanitizeSimulation } from './expediente.simulation.js?v=20260912-7';
 import { simulationView } from './expediente.simulation-view.js?v=20260912-7';
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js';
@@ -17,7 +18,8 @@ export async function initExpediente({root,content}) {
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
   let fileMessages=[],collect=()=>{}, mapCleanup=null;
-  if(!token){try{token=localStorage.getItem('mexillum:expediente:token')||'';}catch{}}
+  let storedToken='';try{storedToken=localStorage.getItem('mexillum:expediente:token')||'';}catch{}
+  const entry=expedienteEntry({search:location.search,hash:location.hash,storedToken,profileId:content.profile?.id});token=entry.token;
   const data=()=>record.data;
   function storeToken(){history.replaceState(null,'',`${location.pathname}${location.search}#exp=${token}`);try{localStorage.setItem('mexillum:expediente:token',token);}catch{}}
   async function call(action,body={}) {
@@ -257,7 +259,7 @@ export async function initExpediente({root,content}) {
   try {
     await stylesReady;
     if(token){await call('read');storeToken();}
-    else await call('create');
+    else await call('create',{installation:entry.installation});
     trackDx('expediente_opened',{profile_id:content.profile?.id});render();
   }catch(e){root.innerHTML=`<div class="dx__view"><h2 class="dx__question">No pudimos abrir el expediente</h2><p role="alert">${esc(e.message)}</p><p>Tu asesor puede ayudarte a recuperar el acceso.</p><button class="mx-btn mx-btn--ghost" data-retry>Intentar de nuevo</button></div>`;root.querySelector('[data-retry]').onclick=()=>location.reload();}
 }
