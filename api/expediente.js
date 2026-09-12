@@ -120,7 +120,7 @@ export default async function handler(req,res) {
       if(!Number.isFinite(size)||size<=0||size>MAX_BYTES)throw fail(400,'Cada archivo puede pesar hasta 25 MB.');
       if(d.files.length>=MAX_FILES || d.files.reduce((n,f)=>n+f.size,0)+size>MAX_TOTAL)throw fail(400,'Se alcanzó el límite del expediente (36 archivos o 250 MB).');
       const id=randomUUID(),path=`${row.id}/${id}.${ext}`;
-      const signed=await (await storage(`object/upload/sign/expediente-files/${path}`,{method:'POST'})).json();
+      const signed=await (await storage(`object/upload/sign/expediente-files/${path}`,{method:'POST',body:'{}'})).json();
       const raw=signed.url||signed.signedURL;
       if(!raw)throw fail(502,'No pudimos preparar la subida.');
       const uploadURL=raw.startsWith('http')?raw:`${config().url}${raw.startsWith('/storage/v1/')?'':'/storage/v1'}${raw}`;

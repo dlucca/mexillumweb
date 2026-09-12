@@ -15,7 +15,11 @@ export function fakeServices(){
      if(o.method==='PATCH') {list=list.filter(r=>'eq.'+r.revision===u.searchParams.get('revision'));for(const r of list)Object.assign(r,body);}
      return ok(structuredClone(list));
    }
-   if(u.pathname.includes('/storage/v1/object/upload/sign/')) return ok({url:'/object/upload/sign/expediente-files/a.pdf?token=signed'});
+   if(u.pathname.includes('/storage/v1/object/upload/sign/')) {
+     // Storage rejects an empty body when Content-Type is application/json.
+     if(!o.body)return ok({code:'EmptyRequestBody'},400);
+     return ok({url:'/object/upload/sign/expediente-files/a.pdf?token=signed'});
+   }
    if(u.pathname.includes('/storage/v1/object/sign/'))return ok({signedURL:'/object/sign/expediente-files/a.pdf?token=download'});
    if(o.method==='HEAD') {const key=u.pathname.split('/expediente-files/')[1],obj=objects.get(key);return new Response(null,{status:obj?200:404,headers:obj?{'content-length':String(obj.size),'content-type':obj.mime}:{}});}
    if(o.method==='DELETE'){for(const key of body.prefixes)objects.delete(key);return ok([]);}
@@ -47,7 +51,7 @@ test('stale revision cannot overwrite newer answers',()=>fixture(async(call)=>{
 test('combined 15.6 MB PDF accepted; complete verifies bytes, parsing is idempotent, provenance immutable',()=>fixture(async(call,mock)=>{
  let r=await draft(call);const token=r.token;r=await consent(call,r);
  const upload=await call({action:'upload',revision:r.revision,name:'RECIBOS CFE.pdf',mime:'application/pdf',size:15647211},token);assert.equal(upload.code,200);r=upload.body;assert.equal(r.uploadURL,'https://test.supabase.co/storage/v1/object/upload/sign/expediente-files/a.pdf?token=signed');
- const f=r.data.files[0];assert.equal((await call({action:'complete',revision:r.revision,fileId:f.id},token)).code,502);
+ const f=r.data.files[0];assert.equal((await call({action:'complete',revision:r.revision,fileId:f.id},token)).code,503);
  mock.objects.set(f.path,{size:15647211,mime:'application/pdf'});
  r=(await call({action:'complete',revision:r.revision,fileId:f.id},token)).body;
  r=(await call({action:'analyze',revision:r.revision,fileId:f.id},token)).body;

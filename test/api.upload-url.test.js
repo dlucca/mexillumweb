@@ -15,10 +15,11 @@ function fakeRes() {
 async function call(body, { existentes = [], headers = {} } = {}) {
   const fetchReal = globalThis.fetch;
   const env = { u: process.env.SUPABASE_URL, k: process.env.SUPABASE_SERVICE_ROLE_KEY };
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, options) => {
     if (String(url).includes('/storage/v1/object/list/')) {
       return { ok: true, json: async () => existentes.map((n) => ({ name: n })) };
     }
+    if (!options.body) return {ok:false,status:400,text:async ()=>'EmptyRequestBody'};
     return {
       ok: true,
       json: async () => ({ url: '/storage/v1/upload/sign/facturas/x?token=tok', token: 'tok' })

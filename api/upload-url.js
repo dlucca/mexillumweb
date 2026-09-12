@@ -112,6 +112,7 @@ export default async function handler(req, res) {
     const r = await fetch(signUrl, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: '{}',
     });
     if (!r.ok) {
       const detail = await r.text().catch(() => '');
