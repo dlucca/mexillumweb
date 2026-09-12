@@ -99,8 +99,8 @@ export async function initExpediente({root,content}) {
           try{await call('analyze',{fileId:ids[i]});}catch(e){fileMessages.push(e.message);}
         }
       }
-      data().step=data().receipts.length?'review':'operation';dirty=true;await save();render();
-      if(fileMessages.length)message('Algunos archivos necesitan revisión. Puedes continuar con los datos disponibles.',true);
+      data().step=data().receipts.length?'review':fileMessages.length?'receipts':'operation';dirty=true;await save();render();
+      if(fileMessages.length)message(fileMessages.join(' '),true);
     });
   }
   function reviewStep() {

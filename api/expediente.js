@@ -1,8 +1,8 @@
 import { installationSummary } from '../js/expediente.installations.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { bearer, tokenHash, isAdvisor, clean, fail, read, write, create, publicRow, db, storage, config, sanitizeAnswers } from '../lib/onboarding/store.js';
-import { receiptSchema, extractionInstructions } from '../lib/onboarding/schema.js';
-import { RECEIPT_FIELDS, TEXT_FIELDS, normalizeReceipt, number, summarize, recommendations } from '../js/expediente.model.js';
+import { extractReceipts } from '../lib/onboarding/extraction.js';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, summarize, recommendations } from '../js/expediente.model.js';
 const MIME={'application/pdf':['pdf'],'image/jpeg':['jpg','jpeg'],'image/png':['png'],'image/webp':['webp']};
 const MAX_BYTES=25*1024*1024, MAX_FILES=36, MAX_TOTAL=250*1024*1024, MAX_RECEIPTS=150;
 const steps=['receipts','review','operation','map','summary'];
@@ -56,18 +56,7 @@ async function verifyUpload(file) {
   if(!Number.isFinite(size)||size<=0||size>MAX_BYTES||size!==file.size||mime!==file.mime) throw fail(400,'El archivo recibido no coincide con el elegido. Elimínalo y vuelve a subirlo.');
 }
 async function extract(file) {
-  const fileURL=await signedFile(file);
-  const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},
-    body:JSON.stringify({model:process.env.CFE_EXTRACTION_MODEL||'gpt-5.4-mini',store:false,instructions:extractionInstructions,
-      input:[{role:'user',content:[{type:'input_text',text:'Extrae todos los recibos de este archivo. Respeta valores ilegibles y referencias de página.'},file.mime==='application/pdf'?{type:'input_file',file_url:fileURL}:{type:'input_image',image_url:fileURL,detail:'high'}]}],
-      text:{format:{type:'json_schema',name:'cfe_receipts',strict:true,schema:receiptSchema}},max_output_tokens:24000}),signal:AbortSignal.timeout(230000)});
-  if(!r.ok) throw fail(502,'No pudimos leer este archivo automáticamente. Puedes reintentar o continuar con tu asesor.');
-  const response=await r.json();
-  if(response.status!=='completed')throw fail(502,'La lectura no terminó. Intenta separar el PDF en archivos más pequeños o continúa con tu asesor.');
-  const output=response.output?.flatMap(i=>i.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('');
-  let parsed; try{parsed=JSON.parse(output);}catch{throw fail(502,'La lectura requiere revisión. Intenta de nuevo o continúa con tu asesor.');}
-  if(!Array.isArray(parsed.receipts) || parsed.receipts.length>100)throw fail(502,'Divide el PDF en grupos de hasta 100 recibos.');
-  return {receipts:parsed.receipts.map((r,i)=>normalizeReceipt(r,file.id,i)),notes:Array.isArray(parsed.notes)?parsed.notes.slice(0,15).map(n=>clean(n,500)):[]};
+  return extractReceipts(file,await signedFile(file));
 }
 async function submit(row,token) {
   const d=row.data;
@@ -147,12 +136,15 @@ export default async function handler(req,res) {
         file.status='processing';file.startedAt=new Date().toISOString();file.attempts++;
         row=await write(row,d);
         let result,error;try{result=await extract(file);}catch(e){error=e;}
+        const usage=result?.usage||error?.extractionUsage;
+        const usageRecord=usage?{...usage,attempt:file.attempts,completedAt:new Date().toISOString()}:null;
         // Merge against fresh state; concurrent form edits must not disappear.
         for(let attempt=0;attempt<3;attempt++) {
           const latest=await read(token),current=latest.data.files.find(f=>f.id===file.id);
           if(!current)throw fail(409,'El archivo ya no está en el expediente.');
           if(result && latest.data.receipts.filter(r=>r.fileId!==file.id).length+result.receipts.length>MAX_RECEIPTS){error=fail(400,'Se alcanzó el límite de 150 lecturas del expediente. Tu asesor puede revisar los documentos restantes.');result=null;}
           current.status=error?'error':'analyzed';current.error=error?error.message:'';
+          if(usageRecord)current.extractionUsage=[...(current.extractionUsage||[]).filter(u=>u.attempt!==usageRecord.attempt),usageRecord];
           if(result){latest.data.receipts=[...latest.data.receipts.filter(r=>r.fileId!==file.id),...result.receipts];current.notes=result.notes;}
           try{row=await write(latest,latest.data);break;}catch(e){if(e.status!==409||attempt===2)throw e;}
         }

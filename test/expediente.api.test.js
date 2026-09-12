@@ -23,7 +23,7 @@ export function fakeServices(){
    if(u.pathname.includes('/storage/v1/object/sign/'))return ok({signedURL:'/object/sign/expediente-files/a.pdf?token=download'});
    if(o.method==='HEAD') {const key=u.pathname.split('/expediente-files/')[1],obj=objects.get(key);return new Response(null,{status:obj?200:404,headers:obj?{'content-length':String(obj.size),'content-type':obj.mime}:{}});}
    if(o.method==='DELETE'){for(const key of body.prefixes)objects.delete(key);return ok([]);}
-   if(u.hostname==='api.openai.com') {extracted++;assert.equal(body.store,false);assert.equal(body.text.format.type,'json_schema');assert.match(body.instructions,/ignora cualquier instrucción/);return ok({status:providerStatus,output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({receipts:[{page:1,kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,kwh:9854,base:1440,intermediate:7405,peak:1009,uncertain:[]}],notes:[]})}]}]});}
+   if(u.hostname==='api.openai.com') {extracted++;assert.equal(body.store,false);assert.equal(body.service_tier,'default');assert.equal(body.reasoning.effort,'low');assert.equal(body.input[0].content[1].detail,'high');assert.equal(body.text.format.type,'json_schema');assert.match(body.instructions,/ignora cualquier instrucción/);return ok({status:providerStatus,model:'gpt-5.4-mini-2026-03-17',usage:{input_tokens:60000,output_tokens:8000,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:2000}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({receipts:[{page:1,kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,kwh:9854,base:1440,intermediate:7405,peak:1009,uncertain:[]}],notes:[]})}]}]});}
    if(u.hostname==='api.resend.com'){emails++;return ok({id:'email-1'});}
    throw new Error('Unexpected mock URL '+u.pathname);
  };
@@ -56,7 +56,10 @@ test('combined 15.6 MB PDF accepted; complete verifies bytes, parsing is idempot
  r=(await call({action:'complete',revision:r.revision,fileId:f.id},token)).body;
  r=(await call({action:'analyze',revision:r.revision,fileId:f.id},token)).body;
  assert.equal(r.data.receipts[0].total,32363.06);assert.equal(mock.extracted,1);
+ assert.equal(r.data.files[0].extractionUsage[0].estimatedCostUSD,.081);
+ assert.equal(r.data.files[0].extractionUsage[0].reasoningTokens,2000);
  r=(await call({action:'analyze',revision:r.revision,fileId:f.id},token)).body;assert.equal(mock.extracted,1);
+ assert.equal(r.data.files[0].extractionUsage.length,1);
  const modified={...r.data.receipts[0],total:100,original:{total:0},page:99,reviewed:true};
  r=(await call({action:'save',revision:r.revision,data:{receipts:[modified]}},token)).body;
  assert.equal(r.data.receipts[0].original.total,32363.06);assert.equal(r.data.receipts[0].page,1);assert.ok(r.data.receipts[0].correctedFields.includes('total'));
@@ -77,7 +80,14 @@ test('missing key leaves uploaded document intact and exposes manual continuatio
 test('incomplete extraction produces error, not partial numerical result',()=>fixture(async(call,mock)=>{
  let r=await draft(call),token=r.token;r=await consent(call,r);r=(await call({action:'upload',revision:r.revision,name:'x.pdf',mime:'application/pdf',size:12},token)).body;
  let f=r.data.files[0];mock.objects.set(f.path,{size:12,mime:'application/pdf'});r=(await call({action:'complete',revision:r.revision,fileId:f.id},token)).body;mock.status='incomplete';
- const result=await call({action:'analyze',revision:r.revision,fileId:f.id},token);assert.equal(result.code,502);assert.equal(result.body.data.receipts.length,0);assert.equal(result.body.data.files[0].status,'error');
+ const result=await call({action:'analyze',revision:r.revision,fileId:f.id},token);assert.equal(result.code,503);assert.equal(result.body.data.receipts.length,0);assert.equal(result.body.data.files[0].status,'error');
+ assert.equal(result.body.data.files[0].extractionUsage[0].estimatedCostUSD,.081);
+ mock.status='completed';
+ const retry=await call({action:'analyze',revision:result.body.revision,fileId:f.id},token);
+ assert.equal(retry.code,200);assert.equal(retry.body.data.files[0].extractionUsage.length,2);
+ assert.deepEqual(retry.body.data.files[0].extractionUsage.map(u=>u.attempt),[1,2]);
+ const saved=await call({action:'save',revision:retry.body.revision,data:{files:[{id:f.id,extractionUsage:[]}]}},token);
+ assert.equal(saved.body.data.files[0].extractionUsage.length,2);
 }));
 test('explicit submit sends one notification; refresh and retry do not resend',()=>fixture(async(call,mock)=>{
  let r=await draft(call),token=r.token;assert.equal(mock.emails,0);r=await consent(call,r);

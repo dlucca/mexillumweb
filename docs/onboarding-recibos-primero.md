@@ -7,7 +7,7 @@ Implementación del recorrido acordado para prospectos enviados por un asesor. E
 1. El asesor entra en `/asesor`, se autentica con la clave interna y registra contacto, sitio y datos conocidos. Crear el enlace **no envía correos**.
 2. El enlace individual abre `?rapido#exp=...` directamente en recibos. El token viaja en el fragmento, no en consultas de URLs del servidor. Permite leer y editar ese único expediente durante 30 días: es confidencial.
 3. Recibos PDF combinados y JPG/PNG/WebP: hasta 25 MiB cada uno, 36 archivos y 250 MiB por expediente; hasta 150 lecturas extraídas. HEIC requiere conversión a JPG en esta versión. La cantidad de archivos no se confunde con meses.
-4. Lectura automática con OpenAI Responses, salida estructurada y `store:false`. Se procesa un archivo por solicitud, con tres intentos máximos. PDF multipágina: carátulas separadas, fecha del periodo, sin recontar históricos. Importe del periodo con IVA separado del subtotal y de los cargos individuales. Los textos del documento se tratan como datos no confiables.
+4. Lectura automática con OpenAI Responses, GPT-5.4 mini, razonamiento bajo, detalle visual alto, procesamiento estándar, salida estructurada y `store:false`. Se procesa un archivo por solicitud, con tres intentos máximos. PDF multipágina: carátulas separadas, fecha del periodo, sin recontar históricos. Importe del periodo con IVA separado del subtotal y de los cargos individuales. Los textos del documento se tratan como datos no confiables.
 5. La revisión permite corregir campos y conservar el original y la página. Los datos dudosos, duplicados, servicios distintos y superposiciones se señalan. Solo las lecturas confirmadas y consistentes alimentan las sumas. Cobertura documental y validación económica son indicadores distintos.
 6. El formulario solicita objetivo, calendario, equipos, alcance del medidor y síntomas de calidad. No pide tarifa ni importe si hay recibos confirmados utilizables. Pide valores manuales explícitos si faltan. Preguntas de continuidad, ampliación y solar aparecen según las respuestas.
 7. El mapa recupera ubicación, polígonos y punto eléctrico. Propone la dirección del recibo, pendiente de confirmación; se puede omitir. Tipos por área: techo, estacionamiento, terreno u otro.
@@ -54,6 +54,16 @@ Configurar en el entorno destino:
 No colocar claves en código, URLs, capturas ni mensajes. La clave de asesor se introduce en la pantalla interna y no se persiste en el navegador. Esta primera versión usa una credencial compartida del equipo; para atribución individual se debe integrar el proveedor de identidad de Mexillum.
 
 La función dispone de 300 segundos en `vercel.json`; verificar compatibilidad del plan. La llamada de extracción tiene un límite de 230 segundos, deja margen para guardar errores y no ejecuta trabajo sin esperar tras responder. Cada archivo conserva el estado; si la pestaña se cierra durante la lectura, al volver se recupera del servidor. Para cargas largas, el siguiente paso es una cola de procesamiento.
+
+### Activación y consumo de OpenAI
+
+Guardar `OPENAI_API_KEY` directamente en Vercel para Production y volver a desplegar. La cuenta API necesita saldo/cuota y acceso al modelo. `CFE_EXTRACTION_MODEL=gpt-5.4-mini` puede fijarse explícitamente; ese es también el valor predeterminado del código. No se necesita otra migración de Supabase.
+
+Cada archivo conserva `extractionUsage`, un registro por intento con los tokens de entrada, caché, salida y razonamiento reportados por OpenAI, el modelo efectivo y el costo estimado en USD. El razonamiento ya está incluido en los tokens de salida y no se cobra dos veces en la estimación. Tarifas estándar verificadas el 2026-09-12 para GPT-5.4 mini: USD 0.75 / millón de tokens de entrada sin caché, USD 0.075 con caché y USD 4.50 de salida. La estimación excluye impuestos e infraestructura; no sustituye la factura del proveedor. Otros modelos conservan tokens, pero su costo queda en null hasta configurar tarifas verificadas.
+
+Los intentos incompletos conservan el consumo cuando OpenAI lo devuelve. Si la conexión se corta sin recibir el reporte, el consumo es desconocido, no cero; cotejar con OpenAI. Reabrir o volver a analizar un archivo terminado no repite la llamada ni duplica su registro. Los datos del registro son del servidor y no pueden reemplazarse desde el formulario.
+
+Los errores distinguen credenciales/acceso, saldo/cuota, saturación y lectura incompleta sin exponer respuestas del proveedor, claves ni URLs firmadas. Si no hay recibos identificados, se conserva la opción de reintentar. Si todos fallan, la pantalla permanece en Recibos y muestra el motivo.
 
 ## Privacidad y operación
 
