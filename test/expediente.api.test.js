@@ -153,6 +153,6 @@ test('same uploaded bytes retain only the first file and do not trigger another 
 }));
 test('service allocations and structured operation persist; invalid values and forged results do not',()=>fixture(async(call)=>{
  let r=await draft(call),token=r.token;
- r=(await call({action:'save',revision:r.revision,data:{serviceSettings:{'111':{areaM2:100,region:2,loadShape:1,saving:999},'222':{areaM2:-5}},answers:{loadShape:1,operationStart:8,operationEnd:18,offHoursPct:20,weekendPct:100,noSolarSpace:true}}},token)).body;
- assert.deepEqual(r.data.serviceSettings['111'],{areaM2:100,region:2,loadShape:1});assert.deepEqual(r.data.serviceSettings['222'],{});assert.equal(r.data.answers.operationStart,8);assert.equal(r.data.answers.noSolarSpace,true);
+ r=(await call({action:'save',revision:r.revision,data:{serviceSettings:{'111':{areaM2:100,region:2,loadShape:1,saving:999},'222':{areaM2:-5}},answers:{loadShape:1,operationStart:8,operationEnd:18,offHoursPct:20,weekendPct:100,noSolarSpace:true,hours:'extendido',days:'lv',off:'apaga'}}},token)).body;
+ assert.deepEqual(r.data.serviceSettings['111'],{areaM2:100,region:2,loadShape:1});assert.deepEqual(r.data.serviceSettings['222'],{});assert.equal(r.data.answers.operationStart,8);assert.equal(r.data.answers.operationEnd,20);assert.equal(r.data.answers.weekendPct,15);assert.equal(r.data.answers.offHoursPct,10);assert.equal(r.data.answers.noSolarSpace,true);
 }));
