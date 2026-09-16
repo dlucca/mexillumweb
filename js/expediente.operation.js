@@ -65,3 +65,28 @@ export function operationSummary(answers = {}, required = []) {
   }
   return out;
 }
+
+// Deep questions for the installations without a public diagnostic content file.
+// `industry`, `commerce` and `other` all read `diagnostico.content.js`; declaring
+// these there would hand the three of them the same questionnaire, which is the
+// defect this work removes. `university` has no public diagnostic at all.
+export const DEEP = {
+  industry: [
+    multi('cargas', '¿Qué concentra el consumo?', [['motores', 'Motores y bombas'], ['aire', 'Compresores de aire'], ['hornos', 'Hornos o fundición'], ['frio', 'Frío de proceso'], ['clima', 'Climatización'], ['luz', 'Iluminación']]),
+    select('flexibilidad', '¿Se puede mover algún proceso a otro horario?', [['varios', 'Sí, varios procesos'], ['alguno', 'Sí, uno o dos'], ['no', 'No, el proceso es continuo']]),
+    select('arranques', '¿Cómo arrancan los motores grandes?', [['directo', 'Arranque directo; se siente el golpe'], ['suave', 'Con arrancador suave o variador'], ['sinmotores', 'No hay motores grandes']])
+  ],
+  commerce: [
+    multi('cargas', '¿Qué concentra el consumo?', [['clima', 'Climatización'], ['frio', 'Refrigeración comercial'], ['cocina', 'Cocinas'], ['elevadores', 'Elevadores'], ['luz', 'Iluminación de sala'], ['servidores', 'Servidores']]),
+    select('horarioLocales', '¿Hay locales o áreas con horario propio?', [['varios', 'Sí, varios'], ['no', 'No, todo con el mismo horario']]),
+    select('climatizacion', '¿Cómo se enfría el inmueble?', [['chillers', 'Chillers centrales'], ['splits', 'Minisplits o equipos paquete'], ['mixto', 'Sistema mixto']])
+  ],
+  other: [
+    multi('cargas', '¿Qué concentra el consumo?', [['motores', 'Motores o bombas'], ['clima', 'Climatización'], ['frio', 'Refrigeración'], ['hornos', 'Hornos o calentamiento'], ['luz', 'Iluminación'], ['servidores', 'Servidores']]),
+    select('flexibilidad', '¿Se puede mover consumo a otro horario?', [['mucho', 'Sí, buena parte'], ['algo', 'Algo'], ['no', 'No']])
+  ],
+  university: [
+    multi('afterhours', '¿Qué queda encendido de noche y en fin de semana?', [['residencias', 'Residencias'], ['servidores', 'Servidores o centro de datos'], ['labfrio', 'Refrigeradores de laboratorio'], ['bibliotecas', 'Bibliotecas o áreas de estudio'], ['seguridad', 'Seguridad e iluminación'], ['bombeo', 'Bombeo'], ['nada', 'Nada, todo se apaga']], { exclusive: ['nada', 'nolose'] }),
+    select('respaldoTiempo', '¿Cuánto deben aguantar las cargas críticas?', [['minutos', 'Minutos, solo para apagar bien'], ['corto', '1 a 4 horas'], ['medio', '8 a 24 horas'], ['largo', 'Más de 24 horas']], { when: 'criticalLoads' })
+  ]
+};
