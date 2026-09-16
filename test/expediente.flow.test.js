@@ -30,8 +30,8 @@ test('saved receipt flow: refresh, clean status, suppressed tariff, operation, n
   await initExpediente({root,content:{profile:{id:'universidades'}}});assert.match(root.textContent,/actualizarlas/);
   await click('[data-action=read]');assert.equal(actions.filter(a=>a==='analyze').length,1);assert.match(root.textContent,/Procesado sin alertas/);
   await click('[data-nav=operation]');assert.equal(get('[name=manualTariff]'),null);assert.equal(get('[name=manualBill]'),null);
-  get('[name=loadShape]').value='1';get('[name=loadShape]').dispatchEvent(new w.Event('input',{bubbles:true}));
-  await click('[data-nav=map]');assert.equal(record.data.answers.loadShape,1);
+  get('[name=days]').value='lv';get('[name=days]').dispatchEvent(new w.Event('input',{bubbles:true}));
+  await click('[data-nav=map]');assert.equal(record.data.answers.days,'lv');
   get('[data-no-solar]').checked=true;get('[data-no-solar]').dispatchEvent(new w.Event('input',{bubbles:true}));
   await click('[data-nav=summary]');await until(()=>get('[data-sim-recalculate]'));
   assert.equal(record.data.answers.noSolarSpace,true);assert.match(root.textContent,/Batería nominal/);assert.doesNotMatch(root.textContent,/NaN|undefined/);assert.match(root.textContent,/Cargos y resultados por factura/);
