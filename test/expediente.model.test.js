@@ -20,9 +20,16 @@ test('invalid dates, consumption mismatches and impossible demands remain review
 });
 test('unreviewed readings do not feed economics',()=>{assert.equal(summarize([{...bill(),reviewed:false}]).total,null);});
 test('question suppression is driven by confirmed data and operational answers',()=>{
- const d={receipts:[bill()],answers:{objective:['cost'],equipment:[]}};assert.ok(!requiredQuestions(d).includes('manualBill'));assert.ok(!requiredQuestions(d).includes('outage'));
- assert.ok(requiredQuestions({...d,receipts:[]}).includes('manualBill'));
- assert.ok(requiredQuestions({...d,answers:{objective:['continuity'],equipment:['solar']}}).includes('solar'));
+ const d={receipts:[bill()],answers:{objective:['cost'],equipment:[]}};
+ assert.ok(!requiredQuestions(d).includes('manualBill'));
+ assert.ok(!requiredQuestions(d).includes('backupTime'));
+ assert.ok(requiredQuestions(d).includes('days'));
+ assert.ok(requiredQuestions(d).includes('power'));
+ assert.ok(!requiredQuestions(d).includes('schedule'),'schedule ya no existe');
+ assert.ok(requiredQuestions({...d,answers:{objective:['continuity'],equipment:[]}}).includes('backupTime'));
+ assert.ok(requiredQuestions({...d,answers:{objective:['growth'],equipment:[]}}).includes('growthSize'));
+ assert.ok(requiredQuestions({...d,answers:{objective:[],equipment:['solar']}}).includes('solarExport'));
+ assert.ok(requiredQuestions({...d,answers:{objective:[],equipment:[],power:['micro']}}).includes('powerFreq'));
 });
 test('recommendations are opportunities, not numerical savings or backup assumptions',()=>{
  const r=recommendations({receipts:[bill()],answers:{objective:['cost']}});assert.ok(r.some(x=>x.name==='Arbitraje horario'));assert.ok(!r.some(x=>x.name==='Continuidad operativa'));assert.ok(!JSON.stringify(r).includes('120000'));

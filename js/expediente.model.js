@@ -121,13 +121,15 @@ export function summarize(receipts = [], service = '') {
 }
 export function requiredQuestions(data) {
   const s=summarize(data.receipts,data.service);
-  const questions=['sector','objective','schedule','equipment','scope'];
+  const questions=['sector','objective','days','hours','off','equipment','scope','power'];
   const rows=s.rows.length?s.rows:(data.receipts||[]).filter(r=>r.kind==='bill'&&!r.excluded);
+  const a=data.answers||{};
   if(!rows.some(r=>usableReading(r,['tariff'])))questions.push('manualTariff');
   if(!rows.some(r=>usableReading(r,['total'])))questions.push('manualBill');
-  if(data.answers?.objective?.includes('continuity')) questions.push('outage');
-  if(data.answers?.objective?.includes('growth')) questions.push('growth');
-  if(data.answers?.equipment?.includes('solar')) questions.push('solar');
+  if(a.objective?.includes('continuity')) questions.push('backupTime');
+  if(a.objective?.includes('growth')) questions.push('growthSize');
+  if(a.equipment?.includes('solar')) questions.push('solarSize','solarExport');
+  if(a.power?.some(k=>!['ninguno','nolose'].includes(k))) questions.push('powerFreq');
   return questions;
 }
 export function recommendations(data) {
