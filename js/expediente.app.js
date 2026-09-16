@@ -4,6 +4,7 @@ import { billEconomics } from './expediente.billing.js?v=20260912-11';
 import { customerView } from './expediente.summary.js?v=20260912-11';
 import { simulationView } from './expediente.simulation-view.js?v=20260912-11';
 import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260912-11';
+import { operationQuestions, operationSummary, COMMON, CONDITIONAL } from './expediente.operation.js';
 import { redirectToCanonicalHost } from './expediente.origin.js?v=20260912-11';
 import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260912-11';
 import { mountRoofPicker } from './diagnostico.roof.js';
@@ -155,45 +156,41 @@ export async function initExpediente({root,content}) {
       <div class="exp-checks"><label><input type="checkbox" data-reviewed ${r.reviewed?'checked':''}> Revisé estos datos con el recibo.</label><label><input type="checkbox" data-excluded ${r.excluded?'checked':''}> Excluir este recibo del análisis.</label></div>
       <button class="mx-btn mx-btn--ghost" type="button" data-confirm>Guardar revisión</button></details>`;
   }
-  const field=(key,label,type='text',placeholder='')=>`<label class="exp-field">${label}<input name="${key}" type="${type}" ${type==='number'?'min="0" step="any"':''} value="${esc(data().answers[key]??'')}" placeholder="${esc(placeholder)}"></label>`;
-  const textarea=(key,label,placeholder)=>`<label class="exp-field">${label}<textarea name="${key}" rows="3" placeholder="${esc(placeholder)}">${esc(data().answers[key]||'')}</textarea></label>`;
-  function checks(key,legend,options) {return `<fieldset><legend>${legend}</legend><div class="exp-choices">${options.map(([value,label])=>`<label><input type="checkbox" name="${key}" value="${value}" ${data().answers[key]?.includes(value)?'checked':''}>${label}</label>`).join('')}</div></fieldset>`;}
-  function installationField(q) {
-    const value=installationValues(data().answers)[q.key];
-    if(q.type==='multi')return `<fieldset><legend>${esc(q.label)}</legend><div class="exp-choices">${q.options.map(o=>`<label><input type="checkbox" data-install-field="${q.key}" name="installation_${q.key}" value="${o.value}" ${value?.includes(o.value)?'checked':''}>${esc(o.label)}</label>`).join('')}</div></fieldset>`;
-    return `<label class="exp-field">${esc(q.label)}${q.hint?`<span class="exp-note">${esc(q.hint)}</span>`:''}${q.type==='text'?`<textarea data-install-field="${q.key}" rows="3" maxlength="1500">${esc(value||'')}</textarea>`:`<select data-install-field="${q.key}"><option value="">Por confirmar</option>${q.options.map(o=>`<option value="${o.value}" ${value===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`}</label>`;
+  // A single renderer for every one-tap question: 'name' for the shared COMMON/CONDITIONAL
+  // answers, 'data-install-field' for the ones specific to the chosen installation profile.
+  function choice(q,value,attr) {
+    if(q.type==='multi')return `<fieldset><legend>${esc(q.label)}</legend><div class="exp-choices">${q.options.map(o=>`<label><input type="checkbox" ${attr}="${q.key}" name="${attr==='name'?q.key:`installation_${q.key}`}" value="${o.value}" ${(value||[]).includes(o.value)?'checked':''}>${esc(o.label)}</label>`).join('')}</div></fieldset>`;
+    return `<label class="exp-field">${esc(q.label)}${q.hint?`<span class="exp-note">${esc(q.hint)}</span>`:''}<select ${attr}="${q.key}"><option value="">Por confirmar</option>${q.options.map(o=>`<option value="${o.value}" ${value===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select></label>`;
   }
-  function installationSection() {
-    const p=installationFor(data().answers.sector),fields=installationFields(data().answers);
-    return p?`<section class="exp-installation" aria-labelledby="installation-heading"><h3 id="installation-heading">${esc(p.title)}</h3><p class="exp-note">Estos datos no aparecen en los recibos. Completa lo que conoces; lo demás puede revisarse con mantenimiento.</p>${fields.filter(q=>!q.when).map(installationField).join('')}<div data-install-dependent>${fields.filter(q=>q.when).map(installationField).join('')}</div></section>`:'<p class="exp-note">Selecciona el tipo de instalación para ver sus preguntas específicas.</p>';
-  }
-  function scheduleField() {
-    const p=installationFor(data().answers.sector);
-    return textarea('schedule',p?.scheduleLabel||'Días, horarios y temporadas de actividad',p?.scheduleHint||'Días y horas de operación, turnos y temporadas de menor actividad. Si no lo sabes, déjalo pendiente.');
+  const commonField=q=>choice(q,data().answers[q.key],'name');
+  const installField=q=>choice(q,installationValues(data().answers)[q.key],'data-install-field');
+  // A collapsible group of one-tap questions with a small "answered so far" counter.
+  function section(title,fields,open=true) {
+    const done=fields.filter(q=>{const v=data().answers[q.key]??installationValues(data().answers)[q.key];return Array.isArray(v)?v.length:!!v;}).length;
+    return fields.length?`<details class="exp-section" ${open?'open':''}><summary>${esc(title)} <span>${done} de ${fields.length} contestadas</span></summary>${fields.map(q=>q.installation?installField(q):commonField(q)).join('')}</details>`:'';
   }
   function readingStats(rows){
     const clean=rows.filter(r=>!receiptStatus(r).needsReview&&!billEconomics(r).issues.length&&!r.refreshUnmatched);
     const identity=serviceResolver(rows),unique=new Map();for(const r of rows)if(!r.excluded&&r.total!=null)unique.set(`${identity(r.service)}:${r.start}:${r.end}`,r);
     return {clean:clean.length,alerts:rows.length-clean.length,total:unique.size?[...unique.values()].reduce((n,r)=>n+r.total,0):null};
   }
-  function operationInputs(){const a=data().answers;return `<section class="exp-installation"><h3>Perfil de actividad para la simulación</h3><p class="exp-note">Estas respuestas distribuyen el consumo facturado por hora. Puedes ajustar cada servicio en el resumen. Los comentarios de texto se guardan para tu asesor.</p><label class="exp-field">Actividad habitual<select name="loadShape" data-numeric><option value="">No lo sé · perfil uniforme supuesto</option>${[[0,'Uniforme las 24 horas'],[1,'Mayor durante el día'],[2,'Mayor durante la noche']].map(([v,l])=>`<option value="${v}" ${a.loadShape===v?'selected':''}>${l}</option>`).join('')}</select></label><div class="exp-fields">${[['operationStart','Inicio del horario diurno',0,23,8],['operationEnd','Fin del horario diurno',1,24,18],['offHoursPct','Consumo fuera de actividad, relativo al habitual (%)',1,100,50],['weekendPct','Consumo de fin de semana, relativo al habitual (%)',1,100,100]].map(([k,l,min,max,def])=>`<label class="exp-field">${l}<input name="${k}" type="number" data-numeric min="${min}" max="${max}" step="1" value="${a[k]??''}" placeholder="Supuesto: ${def}"></label>`).join('')}</div></section>`;}
   function operationStep() {
-    const questions=requiredQuestions(data()),a=data().answers;
-    frame('Completemos cómo funciona tu instalación','Solo necesitamos lo que no aparece en los recibos. Puedes dejar pendiente cualquier dato que tengas que consultar.',`
+    const required=requiredQuestions(data()),a=data().answers;
+    const active=operationQuestions(a,required);
+    const pick=keys=>active.filter(q=>keys.includes(q.key));
+    const profile=installationFor(a.sector);
+    let profileFields=installationFields(a).map(q=>({...q,installation:true}));
+    const extras=active.filter(q=>CONDITIONAL.some(c=>c.key===q.key));
+    frame('Completemos cómo funciona tu instalación','Solo necesitamos lo que no aparece en los recibos. Todo se contesta con un toque; puedes dejar pendiente cualquier dato que tengas que consultar.',`
       <form class="exp-operation" onsubmit="return false">
       <label class="exp-field">Tipo de instalación<select name="sector"><option value="">Seleccionar</option>${INSTALLATIONS.map(p=>`<option value="${p.sector}" ${a.sector===p.sector?'selected':''}>${p.label}</option>`).join('')}</select></label>
-      ${checks('objective','¿Qué quieres mejorar?',[['cost','Reducir el costo de energía'],['continuity','Evitar interrupciones'],['growth','Ampliar capacidad'],['unknown','Quiero orientación']])}
-      <div data-schedule>${scheduleField()}</div>${operationInputs()}
-      ${checks('equipment','¿Qué equipos tienen hoy?',[['solar','Paneles solares'],['battery','Baterías'],['generator','Planta de emergencia'],['ups','UPS'],['none','Ninguno'],['unknown','No lo sé']])}
-      <label class="exp-field">¿Este servicio abastece toda la instalación?<select name="scope"><option value="">Por confirmar</option>${['Sí, toda la instalación','Solo una parte; hay otros medidores','No lo sé'].map(v=>`<option ${a.scope===v?'selected':''}>${v}</option>`).join('')}</select></label>
-      ${questions.includes('manualTariff')?`<div class="exp-manual"><p>Mientras revisamos tus recibos, puedes completar estos datos si los conoces.</p><label class="exp-field">Tarifa o suministro<select name="manualTariff"><option value="">No lo sé</option>${['GDMTH','GDMTO','GDBT','PDBT','DIST','DIT','Suministrador privado','Sin conexión a la red'].map(v=>`<option ${a.manualTariff===v?'selected':''}>${v}</option>`).join('')}</select></label></div>`:'<p class="exp-note">Tarifa obtenida de los recibos. Puedes corregirla en Revisión.</p>'}
-      ${questions.includes('manualBill')?field('manualBill','Pago mensual aproximado (MXN)','number','Monto, no un rango'):''}
-      <div data-installation>${installationSection()}</div>
-      ${textarea('quality','Cortes o variaciones de voltaje que debamos conocer','Si ocurren, describe qué equipos o actividades afectan. Si no lo sabes, puedes dejarlo pendiente.')}
-      <div data-conditional>${conditionalFields(questions)}</div>
+      ${section('Tu operación',pick(['days','hours','off']))}
+      <div data-goals>${section('Qué buscas',pick(['objective','equipment','scope','power','powerFreq']))}</div>
+      <div data-installation>${profile?section(profile.title,profileFields):'<p class="exp-note">Selecciona el tipo de instalación para ver sus preguntas específicas.</p>'}</div>
+      <div data-conditional>${section('Datos extra',extras.filter(q=>!['powerFreq'].includes(q.key)))}</div>
       </form>`,btn(data().receipts.length?'review':'receipts','Atrás')+btn('map','Continuar a espacios',true));
     // Keep separate answers for each installation; switching never relabels prior answers.
-    let displayedProfile=installationFor(a.sector)?.id;
+    let displayedProfile=profile?.id;
     collect=()=>{
       const f=root.querySelector('form');if(!f)return;
       if(displayedProfile){data().answers.installations||={};const values=data().answers.installations[displayedProfile]||={};
@@ -201,32 +198,38 @@ export async function initExpediente({root,content}) {
         fields.forEach(el=>{const key=el.dataset.installField;if(el.type==='checkbox')multiKeys.add(key);else values[key]=el.value;});
         for(const key of multiKeys)values[key]=[...f.querySelectorAll(`[data-install-field="${key}"]:checked`)].map(el=>el.value);
       }
-      f.querySelectorAll('input[name]:not([type=checkbox]):not([data-install-field]),select[name],textarea[name]').forEach(el=>data().answers[el.name]=el.name==='manualBill'||el.hasAttribute('data-numeric')?number(el.value):el.value);
-      for(const k of ['objective','equipment'])data().answers[k]=[...f.querySelectorAll(`input[name=${k}]:checked`)].map(el=>el.value);
+      f.querySelectorAll('select[name]').forEach(el=>data().answers[el.name]=el.value);
+      for(const q of COMMON.concat(CONDITIONAL))if(q.type==='multi')data().answers[q.key]=[...f.querySelectorAll(`input[name="${q.key}"]:checked`)].map(el=>el.value);
     };
     const form=root.querySelector('form');
     form.addEventListener('input',markDirty);
     form.addEventListener('change',e=>{
       const el=e.target;
       if(el.type==='checkbox'){
-        const exclusive=el.dataset.installField?['ninguna','nolose']:el.name==='equipment'?['none','unknown']:['unknown'];
+        // Exclusive codes ('ninguna'/'nolose' or a question's own override) come from the
+        // question itself, never a hand-kept list; see expediente.operation.js `exclusive`.
+        const q=[...COMMON,...CONDITIONAL,...profileFields].find(x=>x.key===(el.dataset.installField||el.name));
+        const exclusive=q?.exclusive||['ninguna','nolose'];
         if(el.checked)form.querySelectorAll(`input[name="${el.name}"]`).forEach(other=>{if(other!==el&&(exclusive.includes(el.value)||exclusive.includes(other.value)))other.checked=false;});
       }
       collect();
-      if(el.name==='sector'){
-        displayedProfile=installationFor(data().answers.sector)?.id;
-        root.querySelector('[data-installation]').innerHTML=installationSection();
-        root.querySelector('[data-schedule]').innerHTML=scheduleField();
+      if(el.name==='sector')displayedProfile=installationFor(data().answers.sector)?.id;
+      if(el.name==='sector'||el.name==='objective'||el.dataset.installField==='criticalLoads'){
+        // Recompute so a profile switch, a growth-gated field or a critical-load toggle
+        // all redraw with the fields that actually apply now, not the ones from last render.
+        profileFields=installationFields(data().answers).map(q=>({...q,installation:true}));
+        const p=installationFor(data().answers.sector);
+        root.querySelector('[data-installation]').innerHTML=p?section(p.title,profileFields):'<p class="exp-note">Selecciona el tipo de instalación para ver sus preguntas específicas.</p>';
       }
-      if(['objective','equipment'].includes(el.name))root.querySelector('[data-conditional]').innerHTML=conditionalFields(requiredQuestions(data()));
-      if(['objective','equipment'].includes(el.name)||el.dataset.installField==='criticalLoads'){
-        const dependent=root.querySelector('[data-install-dependent]');
-        if(dependent)dependent.innerHTML=installationFields(data().answers).filter(q=>q.when).map(installationField).join('');
+      if(['objective','equipment','power'].includes(el.name)){
+        const req=requiredQuestions(data()),act=operationQuestions(data().answers,req);
+        const goals=root.querySelector('[data-goals]');
+        if(goals)goals.innerHTML=section('Qué buscas',act.filter(q=>['objective','equipment','scope','power','powerFreq'].includes(q.key)));
+        root.querySelector('[data-conditional]').innerHTML=section('Datos extra',act.filter(q=>CONDITIONAL.some(c=>c.key===q.key)&&q.key!=='powerFreq'));
       }
       markDirty();
     });
   }
-  function conditionalFields(q) {return `${q.includes('outage')?textarea('outage','Qué debe seguir funcionando durante un corte','Indica equipos o servicios críticos y cuánto tiempo deben operar. Puedes describir un corte reciente.'):''}${q.includes('growth')?textarea('growth','Qué planean ampliar','Nuevos equipos, edificios, cargadores o capacidad prevista.'):''}${q.includes('solar')?textarea('solar','Qué conoces del sistema solar actual','Capacidad instalada, generación del inversor o si hay excedentes. Puedes completarlo después.'):''}`;}
   function mapStep() {
     const hasCost=data().answers.objective?.includes('cost'), allowRoof=hasCost || data().answers.objective?.includes('unknown') || data().answers.equipment?.includes('solar') || !data().answers.objective?.length;
     frame('Ubica tu instalación y los espacios disponibles',allowRoof?'Confirma la dirección y marca las áreas donde podríamos evaluar paneles. No necesitas medidas exactas; puedes completarlo con mantenimiento después.':'Confirma la ubicación de tu instalación. Si lo conoces, también puedes marcar el medidor o punto eléctrico.',`
@@ -261,7 +264,7 @@ export async function initExpediente({root,content}) {
       <div class="exp-facts"><div><span>Periodo disponible</span><strong class="exp-small">${esc(s.start||'Pendiente')} → ${esc(s.end||'Pendiente')}</strong></div><div><span>Importe confirmado · con IVA</span><strong>${money(s.total)}</strong></div><div><span>Consumo confirmado</span><strong>${num(s.kwh)}${s.kwh!=null?' kWh':''}</strong></div></div>
       <dl class="exp-list"><dt>Documentos</dt><dd>${d.files.filter(f=>f.status!=='pending').length} archivos · ${s.usable.length} recibos confirmados</dd><dt>Tarifa confirmada</dt><dd>${esc(s.tariffs.join(', ')||'Pendiente')}</dd><dt>Datos por revisar</dt><dd>${stats.alerts} recibos con alertas · ${s.duplicates.length} duplicados · ${s.overlaps.length} periodos superpuestos</dd><dt>Espacios candidatos</dt><dd>${d.roof?.area_m2?`~${num(d.roof.area_m2)} m²`:'Pendientes'}</dd><dt>Certeza del ahorro</dt><dd>Consulta el estado y los supuestos de cada escenario arriba. La curva medida de demanda sigue pendiente.</dd></dl>
       </details>${pendingEvaluations.length?`<details class="exp-operation-summary"><summary>Otras evaluaciones pendientes</summary><p class="exp-note">Estos temas requieren datos adicionales y no están calculados en los escenarios de arriba.</p><div class="exp-recommendations">${pendingEvaluations.map(r=>`<article><h4>${esc(r.name)}</h4><span>${esc(r.status)}</span><p>${esc(r.reason)}</p></article>`).join('')}</div></details>`:''}
-      ${installationFor(d.answers.sector)?`<details class="exp-operation-summary"><summary>Datos de ${esc(installationFor(d.answers.sector).label.toLowerCase())}</summary><dl class="exp-list"><dt>${esc(installationFor(d.answers.sector).scheduleLabel||'Horarios y temporadas')}</dt><dd>${esc(d.answers.schedule||'Por confirmar')}</dd>${installationSummary(d.answers).map(item=>`<dt>${esc(item.label)}</dt><dd>${esc(item.value)}</dd>`).join('')}</dl></details>`:''}
+      ${operationSummary(d.answers,requiredQuestions(d)).length||installationFor(d.answers.sector)?`<details class="exp-operation-summary"><summary>Datos de operación${installationFor(d.answers.sector)?` · ${esc(installationFor(d.answers.sector).label.toLowerCase())}`:''}</summary><dl class="exp-list">${[...operationSummary(d.answers,requiredQuestions(d)),...installationSummary(d.answers)].map(item=>`<dt>${esc(item.label)}</dt><dd>${esc(item.value)}</dd>`).join('')}</dl></details>`:''}
       <h3>Contacto para la revisión</h3><div class="exp-fields"><label class="exp-field">Nombre<input data-contact="name" autocomplete="name" value="${esc(d.contact.name||'')}"></label><label class="exp-field">Correo<input type="email" data-contact="email" autocomplete="email" value="${esc(d.contact.email||'')}"></label><label class="exp-field">Empresa o institución<input data-contact="company" autocomplete="organization" value="${esc(d.contact.company||'')}"></label><label class="exp-field">Nombre de la instalación<input data-site value="${esc(d.site||'')}"></label></div>
       <label class="exp-consent"><input data-consent type="checkbox" ${d.consent?'checked':''}> Autorizo a Mexillum a utilizar estos datos para evaluar y dar seguimiento a mi proyecto. <a href="/aviso-de-privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>.</label>
       <button class="mx-btn mx-btn--primary" type="button" data-action="submit">${record.submittedAt?'Guardar actualización':'Solicitar revisión del asesor'}</button>`,btn('map','Atrás')+btn('receipts','Agregar más recibos'));
