@@ -1,4 +1,4 @@
-import {serviceResolver,ALL_SERVICES,unresolvedFields} from './expediente.model.js?v=20260912-11';
+import {serviceResolver,ALL_SERVICES,unresolvedFields} from './expediente.model.js?v=20260915-1';
 export const fmtNumber=(v,d=0)=>Number.isFinite(v)?new Intl.NumberFormat('es-MX',{maximumFractionDigits:d}).format(v):'Pendiente';
 export const fmtMoney=v=>Number.isFinite(v)?new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}).format(v):'Pendiente';
 export function billImpact(result){

@@ -1,4 +1,4 @@
-import {impactView,COVERAGE_EXPLANATION,SAVINGS_EXPLANATION,BATTERY_EXPLANATION} from './expediente.summary.js?v=20260912-11';
+import {impactView,COVERAGE_EXPLANATION,SAVINGS_EXPLANATION,BATTERY_EXPLANATION} from './expediente.summary.js?v=20260915-1';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n=(v,d=0)=>Number.isFinite(v)?new Intl.NumberFormat('es-MX',{maximumFractionDigits:d}).format(v):'Pendiente';
 const money=v=>Number.isFinite(v)?new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}).format(v):'Pendiente';

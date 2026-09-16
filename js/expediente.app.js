@@ -1,12 +1,12 @@
-import { expedienteEntry } from './expediente.entry.js?v=20260912-11';
-import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260912-11';
-import { billEconomics } from './expediente.billing.js?v=20260912-11';
-import { customerView } from './expediente.summary.js?v=20260912-11';
-import { simulationView } from './expediente.simulation-view.js?v=20260912-11';
-import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260912-11';
+import { expedienteEntry } from './expediente.entry.js?v=20260915-1';
+import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260915-1';
+import { billEconomics } from './expediente.billing.js?v=20260915-1';
+import { customerView } from './expediente.summary.js?v=20260915-1';
+import { simulationView } from './expediente.simulation-view.js?v=20260915-1';
+import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260915-1';
 import { operationQuestions, operationSummary, COMMON, CONDITIONAL } from './expediente.operation.js';
-import { redirectToCanonicalHost } from './expediente.origin.js?v=20260912-11';
-import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260912-11';
+import { redirectToCanonicalHost } from './expediente.origin.js?v=20260915-1';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260915-1';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { trackDx } from './diagnostico.analytics.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -16,7 +16,7 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const stylesReady=Promise.all(['/css/expediente.css?v=20260912-11','/css/expediente-summary.css?v=20260912-11'].map(href=>new Promise((resolve,reject)=>{
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260915-1','/css/expediente-summary.css?v=20260915-1'].map(href=>new Promise((resolve,reject)=>{
     const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
@@ -303,7 +303,7 @@ export async function initExpediente({root,content}) {
         simulationWorker?.terminate();simulationWorker=null;
         const snapshot=structuredClone(data());
         const result=await new Promise((resolve,reject)=>{
-          const worker=new Worker(new URL('./expediente.simulation-worker.js?v=20260912-11',import.meta.url),{type:'module'});
+          const worker=new Worker(new URL('./expediente.simulation-worker.js?v=20260915-1',import.meta.url),{type:'module'});
           const timeout=setTimeout(()=>{worker.terminate();reject(Error('El cálculo está tardando más de lo esperado. Intenta descargar el resumen otra vez.'));},120000);
           const finish=()=>{clearTimeout(timeout);worker.terminate();};
           worker.onmessage=({data:response})=>{finish();response.error?reject(Error(response.error)):resolve(response.result);};
@@ -311,7 +311,7 @@ export async function initExpediente({root,content}) {
           worker.postMessage(snapshot);
         });
         try{
-          const {downloadSummaryPdf}=await import('./expediente.pdf.js?v=20260912-11');
+          const {downloadSummaryPdf}=await import('./expediente.pdf.js?v=20260915-1');
           await downloadSummaryPdf(snapshot,result);message('PDF preparado. Ábrelo desde tus descargas para imprimirlo o compartirlo.');
         }finally{root.querySelector('[data-simulation]').innerHTML=simulationView(result);bindSimulation();}
       });
@@ -328,7 +328,7 @@ export async function initExpediente({root,content}) {
     };
     const container=root.querySelector('[data-simulation]');
     try{
-      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260912-11',import.meta.url),{type:'module'});
+      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260915-1',import.meta.url),{type:'module'});
       worker.onmessage=({data:response})=>{if(!container.isConnected||simulationWorker!==worker)return;worker.terminate();simulationWorker=null;container.innerHTML=response.error?`<p class="exp-error">${esc(response.error)}</p>`:simulationView(response.result);bindSimulation();};
       worker.onerror=()=>{if(container.isConnected)container.innerHTML='<p class="exp-error">No pudimos iniciar la simulación. Recarga para volver a intentarlo. Tus datos siguen guardados.</p>';worker.terminate();};
       worker.postMessage(structuredClone(d));
