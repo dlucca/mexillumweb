@@ -54,6 +54,9 @@ test('server retains separate installations and rejects forged choices and arbit
  assert.equal(sanitizeInstallations({university:{vacations:'invented'}}).university.vacations,undefined);
  assert.deepEqual(sanitizeInstallations(null),{});
 });
+test('condiciones keeps ninguna exclusive for legacy()-based installations',()=>{
+ assert.deepEqual(sanitizeInstallations({pumping:{condiciones:['diesel','ninguna']}}).pumping.condiciones,['ninguna']);
+});
 test('summary includes only active installation in readable labels with pending data visible',()=>{
  const a={sector:'Bombeo',installations:{pumping:{hidraulica:'tanque_sin_horario'},university:{afterhours:['servidores']}}};
  const summary=installationSummary(a);

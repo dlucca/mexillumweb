@@ -15,7 +15,7 @@ function legacy(content){
     ...(q.key==='crecimiento'?{when:'growth'}:{})
   }));
   const constraints=content.pasos.find(q=>q.key==='disparador').opciones.filter(o=>['diesel','excedente','aislado'].includes(o.codigo)).map(o=>[o.codigo,o.label]);
-  fields.push(multi('condiciones','¿Hay alguna otra condición que debamos considerar?', [...constraints,['ninguna','Ninguna de estas']]));
+  fields.push(multi('condiciones','¿Hay alguna otra condición que debamos considerar?', [...constraints,['ninguna','Ninguna de estas']],{exclusive:['ninguna','nolose']}));
   return fields;
 }
 const university={id:'university',sector:'Institución educativa',label:'Universidad o institución educativa',title:'Actividad y servicios del campus',
