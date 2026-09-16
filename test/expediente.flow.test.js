@@ -36,6 +36,22 @@ test('saved receipt flow: refresh, clean status, suppressed tariff, operation, n
   daysSelect.value='lv';daysSelect.dispatchEvent(new w.Event('input',{bubbles:true}));daysSelect.dispatchEvent(new w.Event('change',{bubbles:true}));
   assert.equal(get('[name=days]'),daysSelect,'answering must update the counter in place, not re-render the section (which would drop focus)');
   assert.match(operationSection.querySelector('summary span').textContent,/^1 de 3/,'counter must reflect the just-answered question immediately, even though days/hours/off never trigger a section re-render');
+  // Unlike days/hours/off, a change to objective/equipment/power DOES rebuild the whole
+  // "Qué buscas" section (dependent conditional fields can appear or disappear), and a
+  // change to objective/sector/criticalLoads rebuilds the installation section too. That
+  // rebuild must not steal focus off the checkbox just tapped, nor reopen a section the
+  // client had collapsed.
+  const goalsContainer=get('[data-goals]');
+  goalsContainer.querySelector('details').open=false;
+  const growthBefore=get('[name=objective][value=growth]');
+  growthBefore.focus();growthBefore.checked=true;
+  growthBefore.dispatchEvent(new w.Event('input',{bubbles:true}));
+  growthBefore.dispatchEvent(new w.Event('change',{bubbles:true}));
+  const growthAfter=get('[name=objective][value=growth]');
+  assert.notEqual(growthAfter,growthBefore,'sanity check: the checkbox really was rebuilt by the section redraw');
+  assert.equal(w.document.activeElement,growthAfter,'focus must return to the toggled checkbox, not fall to <body>');
+  assert.equal(goalsContainer.querySelector('details').open,false,'a section the client collapsed must stay collapsed across the redraw');
+  assert.match(goalsContainer.querySelector('details summary span').textContent,/^1 de /,'the "Qué buscas" counter must reflect the newly answered objective checkbox');
   await click('[data-nav=map]');assert.equal(record.data.answers.days,'lv');
   get('[data-no-solar]').checked=true;get('[data-no-solar]').dispatchEvent(new w.Event('input',{bubbles:true}));
   await click('[data-nav=summary]');await until(()=>get('[data-sim-recalculate]'));
@@ -54,4 +70,22 @@ test('saved receipt flow: refresh, clean status, suppressed tariff, operation, n
   await click('[data-nav=receipts]');await click('[data-action=read]');assert.equal(actions.filter(a=>a==='analyze').length,1,'current extraction must not be charged again');
   assert.ok(terminated>0);assert.ok(!actions.includes('submit'));
  }finally{for(const id of revokeTimers)clearTimeout(id);globalThis.setTimeout=nativeTimer;URL.createObjectURL=createURL;URL.revokeObjectURL=revokeURL;dom.window.close();for(const k of keys)if(old[k])Object.defineProperty(globalThis,k,old[k]);else delete globalThis[k];}
+});
+
+// Regression: `multi()` appends a `nolose` option to every multi-choice question,
+// including `objective`. Answering "No lo sé" there must be at least as permissive
+// for roof marking as answering nothing at all — never worse.
+test('objective:[nolose] still allows roof marking, same as answering nothing',async()=>{
+ const dom=new JSDOM('<html><head></head><body><main></main></body></html>',{url:'https://www.mexillum.com/diagnostico-industria-comercio?rapido#exp=nolose-token'}),w=dom.window;
+ const keys=['window','document','location','history','localStorage','navigator','Worker','fetch'],old=Object.fromEntries(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
+ let record={id:'nolose-test',revision:1,extractionEnabled:true,extractionVersion:'test-new',data:{step:'map',contact:{},site:'',answers:{sector:'Institución educativa',objective:['nolose']},files:[],receipts:[],consent:true,roof:null}};
+ const fetch=async(url,o)=>{const b=JSON.parse(o.body);if(b.action==='save'){record.data=structuredClone(b.data);record.revision++;}return {ok:true,json:async()=>structuredClone(record)};};
+ for(const [k,v] of Object.entries({window:w,document:w.document,location:w.location,history:w.history,localStorage:w.localStorage,navigator:w.navigator,Worker:class{},fetch}))Object.defineProperty(globalThis,k,{configurable:true,writable:true,value:v});
+ w.scrollTo=()=>{};const append=w.document.head.append.bind(w.document.head);w.document.head.append=(...nodes)=>{append(...nodes);for(const node of nodes)if(node.tagName==='LINK')queueMicrotask(()=>node.onload?.());};
+ const root=w.document.querySelector('main');
+ try{
+  await initExpediente({root,content:{profile:{id:'test'}}});
+  await until(()=>root.querySelector('.dx-roof__bar'));
+  assert.ok(root.querySelector('.dx-roof__add'),'objective:["nolose"] must not be worse than answering nothing: roof marking (the "+ Agregar otra área" control) must still be offered');
+ }finally{dom.window.close();for(const k of keys)if(old[k])Object.defineProperty(globalThis,k,old[k]);else delete globalThis[k];}
 });

@@ -163,14 +163,17 @@ test('el correo al asesor lleva etiquetas visibles, no códigos internos',()=>fi
  r=await consent(call,r);
  r=(await call({action:'save',revision:r.revision,data:{
    contact:{name:'Prueba',email:'example@example.com',company:'Hotel de prueba'},
-   answers:{sector:'Hotel',days:'lv',hours:'dos_turnos',off:'basico',scope:'parte',objective:['cost'],installations:{hotel:{ocupacion:'alta'}}}
+   answers:{sector:'Hotel',days:'lv',hours:'dos_turnos',off:'basico',scope:'parte',objective:['cost'],power:['nolose'],installations:{hotel:{ocupacion:'alta'}}}
  }},token)).body;
  assert.equal((await call({action:'submit',revision:r.revision},token)).code,200);
  const body=mock.lastEmail.text;
  assert.ok(body.includes('Lunes a viernes'),'falta la etiqueta de días');
  assert.ok(body.includes('Dos turnos'),'falta la etiqueta de horario');
  assert.ok(body.includes('60 a 80 %'),'falta la etiqueta de ocupación');
+ assert.ok(body.includes('Tipo de instalación: Hotel'),'falta el tipo de instalación en el correo');
  // Ningún código interno debe llegar al asesor. `parte` se busca entre comillas porque
  // la etiqueta visible («Solo una parte; hay otros medidores») contiene esa palabra.
+ // `power:['nolose']` hace que la aserción de `nolose` deje de ser vacía: sin esta
+ // respuesta, ningún código 'nolose' llegaría a aparecer en el cuerpo de todos modos.
  for(const code of ['dos_turnos','basico','"parte"','"lv"','nolose'])assert.ok(!body.includes(code),`filtró el código ${code}`);
 }));

@@ -182,6 +182,25 @@ export async function initExpediente({root,content}) {
       if(span)span.textContent=`${sectionDone(keys)} de ${keys.length} contestadas`;
     });
   }
+  // Some sections DO have to redraw in place (a growth-gated field appearing, a critical-load
+  // toggle changing what's asked). That replaces the section's <details> node outright, which
+  // would otherwise reopen a section the client collapsed and drop focus off whatever control
+  // they just tapped. These two helpers let a redraw carry that state across the replacement.
+  const sectionOpenState=container=>{const d=container?.querySelector('details');return d?d.open:null;};
+  const restoreSectionOpenState=(container,open)=>{if(open==null)return;const d=container?.querySelector('details');if(d)d.open=open;};
+  const controlIdentity=el=>{
+    const attr=el.dataset?.installField?'data-install-field':el.name?'name':null;
+    return attr?{attr,key:attr==='data-install-field'?el.dataset.installField:el.name,value:el.type==='checkbox'?el.value:null,type:el.type}:null;
+  };
+  const findControl=(scope,id)=>{
+    if(!id||!scope)return null;
+    for(const n of scope.querySelectorAll(`[${id.attr}]`)){
+      if(n.getAttribute(id.attr)!==id.key)continue;
+      if(id.value!=null){if(n.type==='checkbox'&&n.value===id.value)return n;}
+      else return n;
+    }
+    return null;
+  };
   function readingStats(rows){
     const clean=rows.filter(r=>!receiptStatus(r).needsReview&&!billEconomics(r).issues.length&&!r.refreshUnmatched);
     const identity=serviceResolver(rows),unique=new Map();for(const r of rows)if(!r.excluded&&r.total!=null)unique.set(`${identity(r.service)}:${r.start}:${r.end}`,r);
@@ -226,19 +245,38 @@ export async function initExpediente({root,content}) {
         if(el.checked)form.querySelectorAll(`input[name="${el.name}"]`).forEach(other=>{if(other!==el&&(exclusive.includes(el.value)||exclusive.includes(other.value)))other.checked=false;});
       }
       collect();
+      // Remember what the client was doing before any redraw below can destroy the node:
+      // which control had focus (by name/data-install-field + value, since checkboxes are
+      // rebuilt wholesale) and whether the sections about to redraw were open or collapsed.
+      const hadFocus=document.activeElement===el;
+      const identity=controlIdentity(el);
+      const installContainer=root.querySelector('[data-installation]');
+      const goalsContainer=root.querySelector('[data-goals]');
+      const conditionalContainer=root.querySelector('[data-conditional]');
+      const openBefore={installation:sectionOpenState(installContainer),goals:sectionOpenState(goalsContainer),conditional:sectionOpenState(conditionalContainer)};
       if(el.name==='sector')displayedProfile=installationFor(data().answers.sector)?.id;
+      let redrewInstallation=false,redrewGoals=false;
       if(el.name==='sector'||el.name==='objective'||el.dataset.installField==='criticalLoads'){
         // Recompute so a profile switch, a growth-gated field or a critical-load toggle
         // all redraw with the fields that actually apply now, not the ones from last render.
         profileFields=installationFields(data().answers).map(q=>({...q,installation:true}));
         const p=installationFor(data().answers.sector);
-        root.querySelector('[data-installation]').innerHTML=p?section(p.title,profileFields):'<p class="exp-note">Selecciona el tipo de instalación para ver sus preguntas específicas.</p>';
+        installContainer.innerHTML=p?section(p.title,profileFields):'<p class="exp-note">Selecciona el tipo de instalación para ver sus preguntas específicas.</p>';
+        redrewInstallation=true;
       }
       if(['objective','equipment','power'].includes(el.name)){
         const req=requiredQuestions(data()),act=operationQuestions(data().answers,req);
-        const goals=root.querySelector('[data-goals]');
-        if(goals)goals.innerHTML=section('Qué buscas',act.filter(q=>['objective','equipment','scope','power','powerFreq'].includes(q.key)));
-        root.querySelector('[data-conditional]').innerHTML=section('Datos extra',act.filter(q=>CONDITIONAL.some(c=>c.key===q.key)&&q.key!=='powerFreq'));
+        if(goalsContainer)goalsContainer.innerHTML=section('Qué buscas',act.filter(q=>['objective','equipment','scope','power','powerFreq'].includes(q.key)));
+        conditionalContainer.innerHTML=section('Datos extra',act.filter(q=>CONDITIONAL.some(c=>c.key===q.key)&&q.key!=='powerFreq'));
+        redrewGoals=true;
+      }
+      // A collapsed section must stay collapsed across its own redraw.
+      if(redrewInstallation)restoreSectionOpenState(installContainer,openBefore.installation);
+      if(redrewGoals){restoreSectionOpenState(goalsContainer,openBefore.goals);restoreSectionOpenState(conditionalContainer,openBefore.conditional);}
+      // The control the client just operated may have been replaced by the redraw above;
+      // find its twin in the fresh markup and give it focus back.
+      if(hadFocus&&identity&&(redrewInstallation||redrewGoals)){
+        (findControl(form,identity)||findControl(root,identity))?.focus({preventScroll:true});
       }
       // Sections that were redrawn above already carry a fresh count; this also fixes the
       // ones that weren't (their own field just answered, nothing about their list changed).
@@ -247,7 +285,7 @@ export async function initExpediente({root,content}) {
     });
   }
   function mapStep() {
-    const hasCost=data().answers.objective?.includes('cost'), allowRoof=hasCost || data().answers.objective?.includes('unknown') || data().answers.equipment?.includes('solar') || !data().answers.objective?.length;
+    const hasCost=data().answers.objective?.includes('cost'), allowRoof=hasCost || data().answers.objective?.includes('unknown') || data().answers.objective?.includes('nolose') || data().answers.equipment?.includes('solar') || !data().answers.objective?.length;
     frame('Ubica tu instalación y los espacios disponibles',allowRoof?'Confirma la dirección y marca las áreas donde podríamos evaluar paneles. No necesitas medidas exactas; puedes completarlo con mantenimiento después.':'Confirma la ubicación de tu instalación. Si lo conoces, también puedes marcar el medidor o punto eléctrico.',`
       <label class="exp-consent"><input type="checkbox" data-no-solar ${data().answers.noSolarSpace?'checked':''}> No hay espacio disponible para instalar paneles; evaluar baterías.</label><div data-map></div><div data-area-types></div>
       <p class="exp-note">La superficie marcada es candidata. Su disponibilidad, estructura y sombras se revisan antes de diseñar el sistema.</p>`,btn('operation','Atrás')+btn('summary','Ver simulación',true));

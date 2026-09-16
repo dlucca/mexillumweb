@@ -2,7 +2,7 @@ import {solarResource,solarKey} from '../lib/onboarding/solar.js';
 import {EXTRACTION_VERSION} from '../lib/onboarding/schema.js';
 import {mergeReadings} from '../lib/onboarding/refresh.js';
 import { sanitizeSimulation } from '../js/expediente.simulation-settings.js';
-import { installationSummary } from '../js/expediente.installations.js';
+import { installationFor, installationSummary } from '../js/expediente.installations.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { bearer, tokenHash, isAdvisor, clean, fail, read, write, create, publicRow, db, storage, config, sanitizeAnswers } from '../lib/onboarding/store.js';
 import { extractReceipts } from '../lib/onboarding/extraction.js';
@@ -80,6 +80,7 @@ async function submit(row,token) {
     `Archivos recibidos: ${d.files.filter(f=>f.status!=='pending').length}; recibos identificados: ${d.receipts.filter(r=>r.kind==='bill').length}; recibos confirmados utilizables: ${s.usable.length}`,
     `Servicio: ${s.selected||'Por confirmar'}`,`Periodo disponible: ${s.start||'?'} a ${s.end||'?'}`,`Importe confirmado del periodo (con IVA): ${money(s.total)}`,
     `Duplicados: ${s.duplicates.length}; solapamientos: ${s.overlaps.length}; pendientes de revisión: ${s.pending.length}`,
+    `Tipo de instalación: ${installationFor(d.answers.sector)?.label||'Por confirmar'}`,
     'Operación:', ...operationSummary(d.answers,requiredQuestions(d)).map(item=>`  ${item.label}: ${item.value}`),
     ...installationSummary(d.answers).map(item=>`  ${item.label}: ${item.value}`),
     `Áreas candidatas: ${d.roof?.area_m2?Math.round(d.roof.area_m2)+' m²':'Pendiente'}`,

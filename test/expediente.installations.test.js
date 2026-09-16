@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {INSTALLATIONS,installationFor,installationFields,installationSummary,sanitizeInstallations} from '../js/expediente.installations.js';
 import {sanitizeAnswers} from '../lib/onboarding/store.js';
 import {requiredQuestions,normalizeReceipt} from '../js/expediente.model.js';
+import {COMMON,CONDITIONAL,DEEP} from '../js/expediente.operation.js';
 
 test('each installation has distinct operational questions and no free text', () => {
  assert.equal(INSTALLATIONS.length,10);
@@ -56,6 +57,22 @@ test('server retains separate installations and rejects forged choices and arbit
 });
 test('condiciones keeps ninguna exclusive for legacy()-based installations',()=>{
  assert.deepEqual(sanitizeInstallations({pumping:{condiciones:['diesel','ninguna']}}).pumping.condiciones,['ninguna']);
+});
+// Guard against the exclusive-option class of bug (a `multi` question whose
+// "none of the above" option is not wired into its own `exclusive` array, so it
+// can be picked alongside real answers). This iterates every multi question this
+// project declares, not just the one that regressed, so the next one is covered too.
+test('every multi question keeps a ninguna-like option exclusive',()=>{
+ const questions=[...COMMON,...CONDITIONAL,...Object.values(DEEP).flat(),...INSTALLATIONS.flatMap(p=>p.fields)];
+ assert.ok(questions.length>0);
+ for(const q of questions){
+  if(q.type!=='multi')continue;
+  for(const o of q.options){
+   if(/^(ninguna|ninguno|nada|none)$/.test(o.value)){
+    assert.ok((q.exclusive||[]).includes(o.value),`${q.key}: la opción "${o.value}" debe estar en exclusive`);
+   }
+  }
+ }
 });
 test('summary includes only active installation in readable labels with pending data visible',()=>{
  const a={sector:'Bombeo',installations:{pumping:{hidraulica:'tanque_sin_horario'},university:{afterhours:['servidores']}}};
