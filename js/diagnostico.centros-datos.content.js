@@ -1,4 +1,5 @@
 import { createProfileContent, sharedOptions } from './diagnostico.profile.js';
+import { select, multi } from './expediente.operation.js';
 
 export default createProfileContent({
   id: 'centros_datos', label: 'Centros de datos', route: '/diagnostico-centros-datos',
@@ -35,6 +36,11 @@ export default createProfileContent({
       { codigo: 'nolose', label: 'No lo sé' }
     ]
   },
+  profundas: [
+    select('cargaCritica', '¿Qué carga crítica tiene la instalación?', [['chica', 'Menos de 100 kW'], ['media', '100 a 500 kW'], ['grande', '500 kW a 2 MW'], ['muygrande', 'Más de 2 MW']]),
+    select('redundancia', '¿Qué redundancia tiene hoy?', [['n', 'N, sin redundancia'], ['n1', 'N+1'], ['2n', '2N']]),
+    select('autonomiaActual', '¿Cuánta autonomía dan los UPS y la planta?', [['ups', 'Solo los minutos del UPS'], ['planta8', 'UPS más planta con combustible para 8 horas'], ['planta24', 'Planta con combustible para más de 24 horas']])
+  ],
   continuityLabel: 'Una interrupción compromete SLA o datos',
   continuidadCritica: true,
   outageQuestion: 'Si falla la alimentación de red durante 30 minutos, ¿qué implica?',

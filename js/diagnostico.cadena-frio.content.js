@@ -1,4 +1,5 @@
 import { createProfileContent } from './diagnostico.profile.js';
+import { select, multi } from './expediente.operation.js';
 
 export default createProfileContent({
   id: 'cadena_frio', label: 'Cadena de frío y alimentos', route: '/diagnostico-cadena-frio',
@@ -33,6 +34,10 @@ export default createProfileContent({
       { codigo: 'nolose', label: 'No lo sé' }
     ]
   },
+  profundas: [
+    select('margen', '¿Cuánto tiempo aguanta el producto sin frío?', [['minutos', 'Menos de 30 minutos'], ['corto', '1 a 2 horas'], ['medio', '4 a 8 horas'], ['largo', 'Más de 8 horas']]),
+    select('temperatura', '¿A qué temperatura trabajan?', [['congelado', 'Congelado, −18 °C o menos'], ['refrigerado', 'Refrigerado, 0 a 8 °C'], ['ambas', 'Las dos']])
+  ],
   continuityLabel: 'Un corte pone en riesgo temperatura o producto',
   continuidadCritica: true,
   outageQuestion: 'Si la instalación pierde energía 30 minutos en el peor momento, ¿qué pasa?',

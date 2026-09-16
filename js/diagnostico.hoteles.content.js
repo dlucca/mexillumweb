@@ -1,6 +1,8 @@
 // Todo el copy y las reglas del funnel v2, como datos — versión hoteles. Cambiar contenido o
 // reordenar prioridades = editar este archivo. Sin lógica: engine.js lee de acá. Copy es-MX (tuteo).
 
+import { select, multi } from './expediente.operation.js';
+
 const content = {
   profile: {
     id: 'hoteles',
@@ -115,7 +117,11 @@ const content = {
     }
   ],
 
-  profundas: [],
+  profundas: [
+    select('ocupacion', '¿Cuál es la ocupación promedio al año?', [['baja', 'Menos de 40 %'], ['media', '40 a 60 %'], ['alta', '60 a 80 %'], ['muyalta', 'Más de 80 %']]),
+    select('temporada', '¿Cómo cambia entre temporada alta y baja?', [['marcada', 'Muy marcada; en temporada baja se vacía'], ['moderada', 'Moderada'], ['parejo', 'Casi parejo todo el año']]),
+    multi('amenidades', '¿Qué amenidades tiene la propiedad?', [['alberca', 'Alberca climatizada'], ['spa', 'Spa o gimnasio'], ['lavanderia', 'Lavandería propia'], ['restaurante', 'Restaurantes o cocinas'], ['eventos', 'Salones de eventos'], ['clima', 'Climatización central']])
+  ],
 
   gate: {
     titulo: 'Tu diagnóstico está listo.',

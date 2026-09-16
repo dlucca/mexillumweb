@@ -89,3 +89,19 @@ test('profundas viven fuera de pasos y no alteran el contrato público', () => {
     }
   }
 });
+
+test('cada perfil con archivo de contenido declara sus preguntas profundas', () => {
+  const esperado = {
+    hoteles: ['ocupacion', 'temporada', 'amenidades'],
+    cadena_frio: ['margen', 'temperatura'],
+    bombeo: ['potencia', 'variadores'],
+    electromovilidad: ['cargadores', 'potenciaCargador', 'ventana'],
+    centros_datos: ['cargaCritica', 'redundancia', 'autonomiaActual'],
+    microred: ['consumoDia', 'diesel']
+  };
+  for (const content of profiles) {
+    const id = content.profile?.id;
+    if (!(id in esperado)) continue;
+    assert.deepEqual(content.profundas.map((q) => q.key), esperado[id], id);
+  }
+});

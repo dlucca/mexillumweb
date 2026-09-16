@@ -1,4 +1,5 @@
 import { createProfileContent, sharedOptions } from './diagnostico.profile.js';
+import { select, multi } from './expediente.operation.js';
 
 export default createProfileContent({
   id: 'microred', label: 'Microredes y sitios remotos', route: '/diagnostico-microred',
@@ -37,6 +38,10 @@ export default createProfileContent({
       { codigo: 'nolose', label: 'No lo tengo claro' }
     ]
   },
+  profundas: [
+    select('consumoDia', '¿Cuánta energía usa el sitio al día?', [['chico', 'Menos de 20 kWh'], ['medio', '20 a 100 kWh'], ['grande', '100 a 500 kWh'], ['muygrande', 'Más de 500 kWh']]),
+    select('diesel', '¿Cuánto combustible consume al mes?', [['ninguno', 'No usamos combustible'], ['poco', 'Menos de 500 litros'], ['medio', '500 a 2000 litros'], ['mucho', 'Más de 2000 litros']])
+  ],
   continuityLabel: 'Quedarnos sin energía nos cuesta producción o servicio',
   continuidadCritica: true,
   tariffQuestion: '¿Cómo se paga hoy la energía de tu sitio?',

@@ -1,4 +1,5 @@
 import { createProfileContent, sharedOptions } from './diagnostico.profile.js';
+import { select, multi } from './expediente.operation.js';
 
 export default createProfileContent({
   id: 'electromovilidad', label: 'Electromovilidad', route: '/diagnostico-electromovilidad',
@@ -35,6 +36,11 @@ export default createProfileContent({
       { codigo: 'nolose', label: 'No lo sabemos todavía' }
     ]
   },
+  profundas: [
+    select('cargadores', '¿Cuántos cargadores tienen o planean?', [['pocos', '1 a 3'], ['medios', '4 a 10'], ['muchos', '11 a 30'], ['flota', 'Más de 30']]),
+    select('potenciaCargador', '¿De qué potencia es cada cargador?', [['lento', 'Hasta 7 kW'], ['semi', '11 a 22 kW'], ['rapido', '50 a 150 kW'], ['ultra', 'Más de 150 kW'], ['mezcla', 'Hay de varias potencias']]),
+    select('ventana', '¿Cuánto tiempo están conectados los vehículos?', [['corta', 'Menos de 1 hora'], ['media', '2 a 4 horas'], ['noche', 'Toda la noche'], ['dia', 'Todo el día']])
+  ],
   condicional: {
     key: 'crecimiento', notaLabel: 'Crecimiento previsto',
     when: { disparador: 'capacidad' },

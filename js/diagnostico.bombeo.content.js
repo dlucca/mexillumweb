@@ -1,4 +1,5 @@
 import { createProfileContent } from './diagnostico.profile.js';
+import { select, multi } from './expediente.operation.js';
 
 export default createProfileContent({
   id: 'bombeo', label: 'Bombeo de agua', route: '/diagnostico-bombeo',
@@ -33,6 +34,10 @@ export default createProfileContent({
       { codigo: 'nolose', label: 'No lo sé' }
     ]
   },
+  profundas: [
+    select('potencia', '¿Qué potencia tiene la bomba más grande?', [['chica', 'Menos de 20 HP'], ['media', '20 a 75 HP'], ['grande', '75 a 250 HP'], ['muygrande', 'Más de 250 HP']]),
+    select('variadores', '¿Tienen variadores de frecuencia?', [['todas', 'Sí, en todas las bombas'], ['algunas', 'En algunas'], ['no', 'No']])
+  ],
   continuityLabel: 'Un paro del bombeo nos cuesta servicio, cultivo o proceso',
   outageQuestion: 'Si el bombeo se detiene 30 minutos en el peor momento, ¿qué pasa?',
   outageOptions: [
