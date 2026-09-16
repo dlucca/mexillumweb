@@ -165,9 +165,22 @@ export async function initExpediente({root,content}) {
   const commonField=q=>choice(q,data().answers[q.key],'name');
   const installField=q=>choice(q,installationValues(data().answers)[q.key],'data-install-field');
   // A collapsible group of one-tap questions with a small "answered so far" counter.
+  // The keys it owns are stamped on the element so the counter can be corrected in place
+  // after any of them changes, without re-rendering the section (which would drop focus).
+  const sectionDone=keys=>keys.filter(k=>{const v=data().answers[k]??installationValues(data().answers)[k];return Array.isArray(v)?v.length:!!v;}).length;
   function section(title,fields,open=true) {
-    const done=fields.filter(q=>{const v=data().answers[q.key]??installationValues(data().answers)[q.key];return Array.isArray(v)?v.length:!!v;}).length;
-    return fields.length?`<details class="exp-section" ${open?'open':''}><summary>${esc(title)} <span>${done} de ${fields.length} contestadas</span></summary>${fields.map(q=>q.installation?installField(q):commonField(q)).join('')}</details>`:'';
+    const keys=fields.map(q=>q.key);
+    return fields.length?`<details class="exp-section" data-keys="${keys.join(',')}" ${open?'open':''}><summary>${esc(title)} <span>${sectionDone(keys)} de ${keys.length} contestadas</span></summary>${fields.map(q=>q.installation?installField(q):commonField(q)).join('')}</details>`:'';
+  }
+  // Fixes every section's counter without touching anything else in the DOM, so it stays
+  // correct even for a section that has no reason to redraw (e.g. days/hours/off never gate
+  // anything) and never steals focus from whatever control the client just used.
+  function refreshSectionCounters(scope) {
+    scope.querySelectorAll('.exp-section[data-keys]').forEach(el=>{
+      const keys=el.dataset.keys.split(',').filter(Boolean);
+      const span=el.querySelector(':scope>summary>span');
+      if(span)span.textContent=`${sectionDone(keys)} de ${keys.length} contestadas`;
+    });
   }
   function readingStats(rows){
     const clean=rows.filter(r=>!receiptStatus(r).needsReview&&!billEconomics(r).issues.length&&!r.refreshUnmatched);
@@ -227,6 +240,9 @@ export async function initExpediente({root,content}) {
         if(goals)goals.innerHTML=section('Qué buscas',act.filter(q=>['objective','equipment','scope','power','powerFreq'].includes(q.key)));
         root.querySelector('[data-conditional]').innerHTML=section('Datos extra',act.filter(q=>CONDITIONAL.some(c=>c.key===q.key)&&q.key!=='powerFreq'));
       }
+      // Sections that were redrawn above already carry a fresh count; this also fixes the
+      // ones that weren't (their own field just answered, nothing about their list changed).
+      refreshSectionCounters(form);
       markDirty();
     });
   }

@@ -17,7 +17,9 @@ await mkdir('.codex_tmp/onboarding-ui',{recursive:true});
  if(await page.locator('[name=sector]').inputValue()!=='Institución educativa')throw Error('Lost advisor sector');
  await page.locator('[name=objective][value=cost]').check();await page.locator('[name=days]').selectOption('lv');await page.locator('[name=hours]').selectOption('extendido');await page.locator('[name=off]').selectOption('basico');await page.locator('[name=equipment][value=none]').check();await page.locator('[name=scope]').selectOption('todo');
  if(await page.locator('.exp-operation textarea').count())throw Error('Step 3 still asks the client to type');
- const sectors=[['Industria y manufactura','arranques'],['Comercio y oficinas','climatizacion'],['Hotel','ocupacion'],['Cadena de frío','margen'],['Bombeo','variadores'],['Carga de vehículos','ventana'],['Centro de datos','redundancia'],['Sitio remoto','diesel'],['Otro','flexibilidad'],['Institución educativa','respaldoTiempo']];
+ // respaldoTiempo is conditional on criticalLoads and isn't set until after this loop; use
+ // vacations (unconditionally visible for university) to prove the profile switch worked.
+ const sectors=[['Industria y manufactura','arranques'],['Comercio y oficinas','climatizacion'],['Hotel','ocupacion'],['Cadena de frío','margen'],['Bombeo','variadores'],['Carga de vehículos','ventana'],['Centro de datos','redundancia'],['Sitio remoto','diesel'],['Otro','flexibilidad'],['Institución educativa','vacations']];
  for(const [sector,key] of sectors){await page.locator('[name=sector]').selectOption(sector);await page.locator(`[data-install-field="${key}"]`).waitFor();}
  await page.locator('[name=sector]').selectOption('Institución educativa');
  await page.locator('[data-install-field=vacations]').selectOption('continua');
@@ -46,9 +48,9 @@ await mkdir('.codex_tmp/onboarding-ui',{recursive:true});
  // Exercise missing-document questions without relying on extraction.
  const manual=await browser.newPage();await manual.goto('http://127.0.0.1:4173/diagnostico-industria-comercio?rapido');
  await manual.getByRole('heading',{name:'Empecemos por tus recibos'}).waitFor();await manual.locator('[data-nav=operation]').click();
- await manual.locator('[name=manualTariff]').waitFor();await manual.locator('[name=manualBill]').fill('90000');
- await manual.locator('[name=objective][value=continuity]').check();await manual.locator('[name=outage]').waitFor();
- await manual.locator('[name=equipment][value=solar]').check();await manual.locator('[name=solar]').waitFor();
+ await manual.locator('[name=manualTariff]').waitFor();await manual.locator('[name=manualBill]').selectOption('medio');
+ await manual.locator('[name=objective][value=continuity]').check();await manual.locator('[name=backupTime]').waitFor();
+ await manual.locator('[name=equipment][value=solar]').check();await manual.locator('[name=solarSize]').waitFor();
  // A small Maps SDK double verifies persisted geometry independently of Google availability.
  const mapPage=await browser.newPage();await mapPage.goto('http://127.0.0.1:4173/asesor/');
  const mapResult=await mapPage.evaluate(async()=>{

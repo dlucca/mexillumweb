@@ -30,7 +30,12 @@ test('saved receipt flow: refresh, clean status, suppressed tariff, operation, n
   await initExpediente({root,content:{profile:{id:'universidades'}}});assert.match(root.textContent,/actualizarlas/);
   await click('[data-action=read]');assert.equal(actions.filter(a=>a==='analyze').length,1);assert.match(root.textContent,/Procesado sin alertas/);
   await click('[data-nav=operation]');assert.equal(get('[name=manualTariff]'),null);assert.equal(get('[name=manualBill]'),null);
-  get('[name=days]').value='lv';get('[name=days]').dispatchEvent(new w.Event('input',{bubbles:true}));
+  const operationSection=[...root.querySelectorAll('.exp-section')].find(s=>s.querySelector('summary').textContent.includes('Tu operación'));
+  assert.match(operationSection.querySelector('summary span').textContent,/^0 de 3/,'counter starts at zero');
+  const daysSelect=get('[name=days]');
+  daysSelect.value='lv';daysSelect.dispatchEvent(new w.Event('input',{bubbles:true}));daysSelect.dispatchEvent(new w.Event('change',{bubbles:true}));
+  assert.equal(get('[name=days]'),daysSelect,'answering must update the counter in place, not re-render the section (which would drop focus)');
+  assert.match(operationSection.querySelector('summary span').textContent,/^1 de 3/,'counter must reflect the just-answered question immediately, even though days/hours/off never trigger a section re-render');
   await click('[data-nav=map]');assert.equal(record.data.answers.days,'lv');
   get('[data-no-solar]').checked=true;get('[data-no-solar]').dispatchEvent(new w.Event('input',{bubbles:true}));
   await click('[data-nav=summary]');await until(()=>get('[data-sim-recalculate]'));
