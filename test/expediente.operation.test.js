@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { COMMON, CONDITIONAL, SCHEDULE, derivedSchedule, operationQuestions, operationSummary } from '../js/expediente.operation.js';
 import { sanitizeSimulation } from '../js/expediente.simulation-settings.js';
+import { sanitizeAnswers } from '../lib/onboarding/store.js';
 
 test('ninguna pregunta común o condicional pide texto y todas cierran con nolose', () => {
   for (const q of [...COMMON, ...CONDITIONAL]) {
@@ -69,4 +70,42 @@ test('el resumen devuelve etiquetas visibles y omite lo no contestado', () => {
   for (const code of ['dos_turnos', 'nolose', '"lv"', 'battery']) assert.ok(!flat.includes(code), code);
   assert.ok(!flat.includes('Por confirmar'), 'no debe listar preguntas sin respuesta');
   assert.deepEqual(operationSummary({}), []);
+});
+
+test('el servidor descarta códigos inventados y campos eliminados', () => {
+  const out = sanitizeAnswers({
+    sector: 'Hotel', days: 'lv', hours: 'inventado', off: 'mitad', scope: 'parte',
+    objective: ['cost', 'fake'], equipment: ['solar', 'fake'], power: ['apagones'],
+    schedule: 'Lunes a viernes de 7 a 20', quality: 'Se va la luz seguido',
+    outage: 'x', growth: 'y', solar: 'z'
+  });
+  assert.equal(out.days, 'lv');
+  assert.equal(out.scope, 'parte');
+  assert.equal(out.hours, undefined, 'código inventado');
+  assert.deepEqual(out.objective, ['cost']);
+  assert.deepEqual(out.equipment, ['solar']);
+  for (const k of ['schedule', 'quality', 'outage', 'growth', 'solar']) {
+    assert.ok(!(k in out), `${k} debe desaparecer`);
+  }
+});
+
+test('el servidor deriva los números y nunca los acepta del cuerpo', () => {
+  const out = sanitizeAnswers({ days: 'todos', hours: 'nocturno', off: 'apaga' });
+  assert.equal(out.weekendPct, 100);
+  assert.equal(out.loadShape, 2);
+  assert.equal(out.operationStart, 6);
+  assert.equal(out.operationEnd, 20);
+  assert.equal(out.offHoursPct, 10);
+  // Un cuerpo falsificado no puede inyectar números.
+  const forged = sanitizeAnswers({ hours: 'matutino', loadShape: 0, operationStart: 23, operationEnd: 1, offHoursPct: 99, weekendPct: 1 });
+  assert.equal(forged.loadShape, 1);
+  assert.equal(forged.operationStart, 7);
+  assert.equal(forged.operationEnd, 16);
+  assert.equal(forged.offHoursPct, undefined);
+  assert.equal(forged.weekendPct, undefined);
+});
+
+test('manualTariff deja de ser texto libre', () => {
+  assert.equal(sanitizeAnswers({ manualTariff: 'gdmth' }).manualTariff, 'gdmth');
+  assert.equal(sanitizeAnswers({ manualTariff: 'lo que sea' }).manualTariff, undefined);
 });
