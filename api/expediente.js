@@ -6,7 +6,8 @@ import { installationSummary } from '../js/expediente.installations.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { bearer, tokenHash, isAdvisor, clean, fail, read, write, create, publicRow, db, storage, config, sanitizeAnswers } from '../lib/onboarding/store.js';
 import { extractReceipts } from '../lib/onboarding/extraction.js';
-import { RECEIPT_FIELDS, TEXT_FIELDS, number, summarize, recommendations } from '../js/expediente.model.js';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, summarize, recommendations, requiredQuestions } from '../js/expediente.model.js';
+import { operationSummary } from '../js/expediente.operation.js';
 const MIME={'application/pdf':['pdf'],'image/jpeg':['jpg','jpeg'],'image/png':['png'],'image/webp':['webp']};
 const MAX_BYTES=25*1024*1024, MAX_FILES=36, MAX_TOTAL=250*1024*1024, MAX_RECEIPTS=150;
 const steps=['receipts','review','operation','map','summary'];
@@ -79,7 +80,9 @@ async function submit(row,token) {
     `Archivos recibidos: ${d.files.filter(f=>f.status!=='pending').length}; recibos identificados: ${d.receipts.filter(r=>r.kind==='bill').length}; recibos confirmados utilizables: ${s.usable.length}`,
     `Servicio: ${s.selected||'Por confirmar'}`,`Periodo disponible: ${s.start||'?'} a ${s.end||'?'}`,`Importe confirmado del periodo (con IVA): ${money(s.total)}`,
     `Duplicados: ${s.duplicates.length}; solapamientos: ${s.overlaps.length}; pendientes de revisión: ${s.pending.length}`,
-    `Operación: ${JSON.stringify({...d.answers,installations:undefined})}`, ...installationSummary(d.answers).map(item=>`${item.label}: ${item.value}`),`Áreas candidatas: ${d.roof?.area_m2?Math.round(d.roof.area_m2)+' m²':'Pendiente'}`,
+    'Operación:', ...operationSummary(d.answers,requiredQuestions(d)).map(item=>`  ${item.label}: ${item.value}`),
+    ...installationSummary(d.answers).map(item=>`  ${item.label}: ${item.value}`),
+    `Áreas candidatas: ${d.roof?.area_m2?Math.round(d.roof.area_m2)+' m²':'Pendiente'}`,
     ...recommendations(d).map(r=>`${r.name}: ${r.status}. ${r.reason}`),
     'Consulta el resumen del enlace para ver escenarios por servicio, supuestos y datos pendientes. La evaluación prioriza cobertura y ahorro operativo; inversión y retorno quedan para la propuesta técnica.',`Abrir expediente confidencial: ${link}`].join('\n');
   const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':`expediente-${row.id}`},body:JSON.stringify({

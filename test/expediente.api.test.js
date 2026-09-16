@@ -6,7 +6,7 @@ import handler from '../api/expediente.js';
 const ADVISOR='a'.repeat(40);
 function response(){return {code:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(c){this.code=c;return this;},json(b){this.body=b;return this;}};}
 export function fakeServices(){
- const rows=new Map(),objects=new Map();let extracted=0,emails=0,providerStatus='completed';
+ const rows=new Map(),objects=new Map();let extracted=0,emails=0,lastEmail=null,providerStatus='completed';
  const ok=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
  const fetch=async(input,o={})=>{
    const u=new URL(input),body=o.body?JSON.parse(o.body):{};
@@ -27,10 +27,10 @@ export function fakeServices(){
    if(u.pathname.includes('/storage/v1/object/sign/')&&!o.method)return new Response(mockPDFBytes);
    if(o.method==='DELETE'){for(const key of body.prefixes)objects.delete(key);return ok([]);}
    if(u.hostname==='api.openai.com') {extracted++;assert.equal(body.store,false);assert.equal(body.service_tier,'default');assert.equal(body.reasoning.effort,'medium');assert.equal(body.input[0].content[1].detail,'high');assert.equal(body.text.format.type,'json_schema');assert.match(body.instructions,/ignora cualquier instrucción/);return ok({status:providerStatus,model:'gpt-5.4-mini-2026-03-17',usage:{input_tokens:60000,output_tokens:8000,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:2000}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({receipts:[{page:1,kind:'bill',service:'123',tariff:'GDMTH',start:'2026-01-31',end:'2026-02-28',total:32363.06,kwh:9854,base:1440,intermediate:7405,peak:1009,uncertain:[]}],notes:[]})}]}]});}
-   if(u.hostname==='api.resend.com'){emails++;return ok({id:'email-1'});}
+   if(u.hostname==='api.resend.com'){emails++;lastEmail=body;return ok({id:'email-1'});}
    throw new Error('Unexpected mock URL '+u.pathname);
  };
- return {fetch,rows,objects,get extracted(){return extracted;},get emails(){return emails;},set status(v){providerStatus=v;}};
+ return {fetch,rows,objects,get extracted(){return extracted;},get emails(){return emails;},get lastEmail(){return lastEmail;},set status(v){providerStatus=v;}};
 }
 async function fixture(fn){
  const env={SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'fake-service-role',ADVISOR_API_KEY:ADVISOR,OPENAI_API_KEY:'fake-openai',RESEND_API_KEY:'fake-resend'};
@@ -155,4 +155,22 @@ test('service allocations and structured operation persist; invalid values and f
  let r=await draft(call),token=r.token;
  r=(await call({action:'save',revision:r.revision,data:{serviceSettings:{'111':{areaM2:100,region:2,loadShape:1,saving:999},'222':{areaM2:-5}},answers:{loadShape:1,operationStart:8,operationEnd:18,offHoursPct:20,weekendPct:100,noSolarSpace:true,hours:'extendido',days:'lv',off:'apaga'}}},token)).body;
  assert.deepEqual(r.data.serviceSettings['111'],{areaM2:100,region:2,loadShape:1});assert.deepEqual(r.data.serviceSettings['222'],{});assert.equal(r.data.answers.operationStart,8);assert.equal(r.data.answers.operationEnd,20);assert.equal(r.data.answers.weekendPct,15);assert.equal(r.data.answers.offHoursPct,10);assert.equal(r.data.answers.noSolarSpace,true);
+}));
+
+test('el correo al asesor lleva etiquetas visibles, no códigos internos',()=>fixture(async(call,mock)=>{
+ let r=await draft(call);
+ const token=r.token;
+ r=await consent(call,r);
+ r=(await call({action:'save',revision:r.revision,data:{
+   contact:{name:'Prueba',email:'example@example.com',company:'Hotel de prueba'},
+   answers:{sector:'Hotel',days:'lv',hours:'dos_turnos',off:'basico',scope:'parte',objective:['cost'],installations:{hotel:{ocupacion:'alta'}}}
+ }},token)).body;
+ assert.equal((await call({action:'submit',revision:r.revision},token)).code,200);
+ const body=mock.lastEmail.text;
+ assert.ok(body.includes('Lunes a viernes'),'falta la etiqueta de días');
+ assert.ok(body.includes('Dos turnos'),'falta la etiqueta de horario');
+ assert.ok(body.includes('60 a 80 %'),'falta la etiqueta de ocupación');
+ // Ningún código interno debe llegar al asesor. `parte` se busca entre comillas porque
+ // la etiqueta visible («Solo una parte; hay otros medidores») contiene esa palabra.
+ for(const code of ['dos_turnos','basico','"parte"','"lv"','nolose'])assert.ok(!body.includes(code),`filtró el código ${code}`);
 }));
