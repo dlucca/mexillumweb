@@ -14,3 +14,4 @@ node_modules/
 .claude/worktrees/
 .superpowers/
 .codex_tmp/
+.vercel
