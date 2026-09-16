@@ -112,9 +112,9 @@ test('malformed JSON is a client error',()=>fixture(async(call)=>{assert.equal((
 test('installation details persist through create, save, sector switch, reopen and submit',()=>fixture(async(call,mock)=>{
  let r=(await call({action:'create',advisor:true,contact:{name:'Prueba',email:'example@example.com'},answers:{sector:'Institución educativa',installations:{university:{vacations:'continua'}}}},ADVISOR)).body;
  const token=r.token;assert.equal(r.data.answers.installations.university.vacations,'continua');
- r=(await call({action:'save',revision:r.revision,data:{consent:true,answers:{...r.data.answers,installations:{university:{...r.data.answers.installations.university,criticalLoads:['frio'],criticalDetail:'Muestras: 2 horas',injected:'ignore'},pumping:{hidraulica:'sin_tanque'}}}}},token)).body;
+ r=(await call({action:'save',revision:r.revision,data:{consent:true,answers:{...r.data.answers,installations:{university:{...r.data.answers.installations.university,criticalLoads:['frio'],respaldoTiempo:'corto',injected:'ignore'},pumping:{hidraulica:'sin_tanque'}}}}},token)).body;
  r=(await call({action:'save',revision:r.revision,data:{answers:{...r.data.answers,sector:'Bombeo'}}},token)).body;
- r=(await call({action:'read'},token)).body;assert.equal(r.data.answers.installations.university.criticalDetail,'Muestras: 2 horas');assert.equal(r.data.answers.installations.pumping.hidraulica,'sin_tanque');assert.equal(r.data.answers.installations.university.injected,undefined);
+ r=(await call({action:'read'},token)).body;assert.equal(r.data.answers.installations.university.respaldoTiempo,'corto');assert.equal(r.data.answers.installations.pumping.hidraulica,'sin_tanque');assert.equal(r.data.answers.installations.university.injected,undefined);
  r=(await call({action:'submit',revision:r.revision},token)).body;assert.ok(r.submittedAt);assert.equal(mock.emails,1);
 }));
 
