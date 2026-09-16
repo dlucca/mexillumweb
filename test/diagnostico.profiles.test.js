@@ -76,3 +76,16 @@ test('bombeo: el mapa de áreas se fuerza en el enriquecimiento', async () => {
   const pasos = pasosEnriquecimiento(res, bombeo, { conectado: true });
   assert.equal(pasos[0], 'techo');
 });
+
+test('profundas viven fuera de pasos y no alteran el contrato público', () => {
+  for (const content of profiles) {
+    const id = content.profile?.id;
+    assert.ok(Array.isArray(content.profundas), `${id}: profundas debe ser un array`);
+    const keysEnPasos = new Set(content.pasos.map((p) => p.key));
+    for (const q of content.profundas) {
+      assert.ok(!keysEnPasos.has(q.key), `${id}: ${q.key} no debe estar en pasos`);
+      assert.ok(['select', 'multi'].includes(q.type), `${id}: ${q.key} debe ser select o multi`);
+      assert.ok(q.options.at(-1).value === 'nolose', `${id}: ${q.key} debe cerrar con nolose`);
+    }
+  }
+});

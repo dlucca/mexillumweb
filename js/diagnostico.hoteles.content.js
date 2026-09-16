@@ -115,6 +115,8 @@ const content = {
     }
   ],
 
+  profundas: [],
+
   gate: {
     titulo: 'Tu diagnóstico está listo.',
     cuerpo: 'Cuando gustes podemos agendar una llamada para revisar contigo las posibilidades que muestra tu diagnóstico, resolver dudas y definir qué datos de tu propiedad afinan el anteproyecto. Sin costo ni compromiso.',

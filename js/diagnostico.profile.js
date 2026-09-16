@@ -137,6 +137,10 @@ export function createProfileContent(definition) {
 
   const pasos = [...comunes, propia, ...(condicional ? [condicional] : [])];
 
+  // Preguntas profundas: solo las usa el paso 3 del expediente. Se quedan fuera de
+  // `pasos` para que el flujo público y el motor no las vean ni las puntúen.
+  const profundas = (definition.profundas || []).map(clone);
+
   merge(content, {
     profile: {
       id: definition.id,
@@ -147,6 +151,7 @@ export function createProfileContent(definition) {
     intro: definition.intro,
     plantaLabel: site,
     pasos,
+    profundas,
     perfilSector: sectorLabels,
     perfilExposicion: definition.exposures || [],
     perfilExposicionDefault: definition.defaultExposure,
