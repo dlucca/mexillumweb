@@ -1,4 +1,7 @@
 // Local development fixture; never imported by production code. All data is synthetic.
+import { PDFDocument } from 'pdf-lib';
+// Extraction opens the downloaded file with pdf-lib, so the demo must serve a real PDF.
+const demoPDF=await PDFDocument.create();demoPDF.addPage();const demoPDFBytes=await demoPDF.save();
 export function fakeServices(){
  const rows=new Map(),objects=new Map();
  const ok=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
@@ -11,7 +14,9 @@ export function fakeServices(){
    if(o.method==='PATCH'){list=list.filter(r=>'eq.'+r.revision===u.searchParams.get('revision'));list.forEach(r=>Object.assign(r,body));}return ok(structuredClone(list));
   }
   if(u.pathname.includes('/object/upload/sign/')) return ok({url:'http://127.0.0.1:4173/demo-upload/'+u.pathname.split('/expediente-files/')[1]});
-  if(u.pathname.includes('/object/sign/'))return ok({signedURL:'/object/sign/expediente-files/demo.pdf'});
+  // Signing is a POST; downloading the signed URL is a plain GET. Keep them apart.
+  if(u.pathname.includes('/object/sign/')&&o.method==='POST')return ok({signedURL:'/object/sign/expediente-files/demo.pdf'});
+  if(u.pathname.includes('/object/sign/')&&!o.method)return new Response(demoPDFBytes,{headers:{'content-type':'application/pdf'}});
   if(o.method==='HEAD'){const obj=objects.get(u.pathname.split('/expediente-files/')[1]);return new Response(null,{status:obj?200:404,headers:obj?{'content-length':String(obj.size),'content-type':obj.mime}:{}});}
   if(o.method==='DELETE'){body.prefixes.forEach(k=>objects.delete(k));return ok([]);}
   if(u.hostname==='api.openai.com'){
