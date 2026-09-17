@@ -1,12 +1,12 @@
-import { expedienteEntry } from './expediente.entry.js?v=20260915-1';
-import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260915-1';
-import { billEconomics } from './expediente.billing.js?v=20260915-1';
-import { customerView } from './expediente.summary.js?v=20260915-1';
-import { simulationView } from './expediente.simulation-view.js?v=20260915-1';
-import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260915-1';
+import { expedienteEntry } from './expediente.entry.js?v=20260916-1';
+import { sanitizeSimulation } from './expediente.simulation-settings.js?v=20260916-1';
+import { billEconomics } from './expediente.billing.js?v=20260916-1';
+import { customerView } from './expediente.summary.js?v=20260916-1';
+import { simulationView } from './expediente.simulation-view.js?v=20260916-1';
+import { INSTALLATIONS, installationFor, installationValues, installationFields, installationSummary } from './expediente.installations.js?v=20260916-1';
 import { operationQuestions, operationSummary, COMMON, CONDITIONAL } from './expediente.operation.js';
-import { redirectToCanonicalHost } from './expediente.origin.js?v=20260915-1';
-import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260915-1';
+import { redirectToCanonicalHost } from './expediente.origin.js?v=20260916-1';
+import { RECEIPT_FIELDS, TEXT_FIELDS, number, receiptIssues, summarize, requiredQuestions, recommendations, serviceResolver, ALL_SERVICES, receiptStatus, unresolvedFields } from './expediente.model.js?v=20260916-1';
 import { mountRoofPicker } from './diagnostico.roof.js';
 import { trackDx } from './diagnostico.analytics.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -16,17 +16,19 @@ const labels=['Recibos','Revisión','Operación','Espacios','Resumen'];
 const steps=['receipts','review','operation','map','summary'];
 export async function initExpediente({root,content}) {
   if (redirectToCanonicalHost()) return;
-  const stylesReady=Promise.all(['/css/expediente.css?v=20260915-1','/css/expediente-summary.css?v=20260915-1'].map(href=>new Promise((resolve,reject)=>{
+  const stylesReady=Promise.all(['/css/expediente.css?v=20260916-1','/css/expediente-summary.css?v=20260916-1'].map(href=>new Promise((resolve,reject)=>{
     const css=document.createElement('link');css.rel='stylesheet';css.href=href;css.onload=resolve;css.onerror=()=>reject(new Error('No pudimos cargar el diseño. Recarga la página para intentar de nuevo.'));document.head.append(css);
   })));
   let token=new URLSearchParams(location.hash.slice(1)).get('exp')||'',record=null,busy=false,dirty=false,timer=null,saveChain=Promise.resolve();
   let fileMessages=[],collect=()=>{}, mapCleanup=null,simulationWorker=null;
   const resourceAttempts=new Set();
-  async function updateSolarResource(){const d=data();if(d.step!=='summary'||!d.location||d.answers.noSolarSpace)return;const key=`${Number(d.location.lat).toFixed(3)},${Number(d.location.lng).toFixed(3)}:${d.simulation?.tilt??20}:${d.simulation?.azimuth??0}`;if(d.solarResource?.key===key||resourceAttempts.has(key))return;resourceAttempts.add(key);message('Consultando el recurso solar de la ubicación…');try{await call('solar-resource');}catch{ /* A failed lookup remains visibly a stated solar-yield assumption. */ }}
+  async function updateSolarResource(){const d=data();if(focus)return;if(d.step!=='summary'||!d.location||d.answers.noSolarSpace)return;const key=`${Number(d.location.lat).toFixed(3)},${Number(d.location.lng).toFixed(3)}:${d.simulation?.tilt??20}:${d.simulation?.azimuth??0}`;if(d.solarResource?.key===key||resourceAttempts.has(key))return;resourceAttempts.add(key);message('Consultando el recurso solar de la ubicación…');try{await call('solar-resource');}catch{ /* A failed lookup remains visibly a stated solar-yield assumption. */ }}
   let storedToken='';try{storedToken=localStorage.getItem('mexillum:expediente:token')||'';}catch{}
   const entry=expedienteEntry({search:location.search,hash:location.hash,storedToken,profileId:content.profile?.id});token=entry.token;
+  // A focused link shows one step only; the client's own step and saved token stay untouched.
+  const focus=entry.focus,focusParam={operation:'operacion',map:'mapa'}[focus];
   const data=()=>record.data;
-  function storeToken(){history.replaceState(null,'',`${location.pathname}${location.search}#exp=${token}`);try{localStorage.setItem('mexillum:expediente:token',token);}catch{}}
+  function storeToken(){history.replaceState(null,'',`${location.pathname}${location.search}#exp=${token}${focus?`&paso=${focusParam}`:''}`);if(focus)return;try{localStorage.setItem('mexillum:expediente:token',token);}catch{}}
   async function call(action,body={}) {
     const r=await fetch('/api/expediente',{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({action,revision:record?.revision,...body})});
     const json=await r.json().catch(()=>({error:'No pudimos conectar con tu expediente.'}));
@@ -60,14 +62,16 @@ export async function initExpediente({root,content}) {
   function frame(title,subtitle,body,nav='') {
     mapCleanup?.();mapCleanup=null;simulationWorker?.terminate();simulationWorker=null;collect=()=>{};
     const i=steps.indexOf(data().step);
+    if(focus)nav=`<button type="button" class="mx-btn mx-btn--primary" data-focus-save>Guardar</button>`;
     root.innerHTML=`<div class="dx__view exp"><div class="exp-topline"><span class="dx__diag-kicker">Tu proyecto con Mexillum</span><span data-save role="status">${dirty?'Cambios pendientes':'Avance guardado'}</span></div>
-      <ol class="exp-steps" aria-label="Progreso">${labels.map((l,k)=>`<li ${k===i?'aria-current="step"':''}><span>${k+1}</span>${l}</li>`).join('')}</ol>
+      ${focus?'':`<ol class="exp-steps" aria-label="Progreso">${labels.map((l,k)=>`<li ${k===i?'aria-current="step"':''}><span>${k+1}</span>${l}</li>`).join('')}</ol>`}
       ${data().site?`<p class="exp-site">${esc(data().site)}</p>`:''}<h2 class="dx__question" tabindex="-1" data-focus>${title}</h2><p class="dx__col-sub">${subtitle}</p>
       <p data-message role="status" hidden></p>${body}<nav class="dx__nav exp-nav" aria-label="Pasos del expediente">${nav}</nav>
       <div class="exp-resume"><button type="button" class="dx__skip" data-save-link>Copiar enlace para continuar después</button><p>El enlace permite acceder a tus datos. Compártelo solo con quienes participen en este proyecto.</p></div></div>`;
     root.querySelector('[data-focus]')?.focus({preventScroll:true});window.scrollTo(0,0);
     root.querySelector('[data-save-link]').onclick=()=>action(async()=>{await save();try{await navigator.clipboard.writeText(location.href);message('Enlace copiado. Puedes continuar desde otro dispositivo.');}catch{message('Guarda la dirección de esta página para continuar después.');}});
     root.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>action(async()=>{await save();data().step=b.dataset.nav;dirty=true;await save();await updateSolarResource();render();}));
+    root.querySelector('[data-focus-save]')?.addEventListener('click',()=>action(async()=>{dirty=true;await save();message('Listo. Tus respuestas quedaron guardadas.');}));
     root.querySelectorAll('input:not([type=file]),textarea,select').forEach(el=>el.addEventListener('input',markDirty));
   }
   const btn=(step,label,primary=false)=>`<button type="button" class="mx-btn mx-btn--${primary?'primary':'ghost'}" data-nav="${step}">${label}</button>`;
@@ -341,7 +345,7 @@ export async function initExpediente({root,content}) {
         simulationWorker?.terminate();simulationWorker=null;
         const snapshot=structuredClone(data());
         const result=await new Promise((resolve,reject)=>{
-          const worker=new Worker(new URL('./expediente.simulation-worker.js?v=20260915-1',import.meta.url),{type:'module'});
+          const worker=new Worker(new URL('./expediente.simulation-worker.js?v=20260916-1',import.meta.url),{type:'module'});
           const timeout=setTimeout(()=>{worker.terminate();reject(Error('El cálculo está tardando más de lo esperado. Intenta descargar el resumen otra vez.'));},120000);
           const finish=()=>{clearTimeout(timeout);worker.terminate();};
           worker.onmessage=({data:response})=>{finish();response.error?reject(Error(response.error)):resolve(response.result);};
@@ -349,7 +353,7 @@ export async function initExpediente({root,content}) {
           worker.postMessage(snapshot);
         });
         try{
-          const {downloadSummaryPdf}=await import('./expediente.pdf.js?v=20260915-1');
+          const {downloadSummaryPdf}=await import('./expediente.pdf.js?v=20260916-1');
           await downloadSummaryPdf(snapshot,result);message('PDF preparado. Ábrelo desde tus descargas para imprimirlo o compartirlo.');
         }finally{root.querySelector('[data-simulation]').innerHTML=simulationView(result);bindSimulation();}
       });
@@ -366,14 +370,14 @@ export async function initExpediente({root,content}) {
     };
     const container=root.querySelector('[data-simulation]');
     try{
-      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260915-1',import.meta.url),{type:'module'});
+      const worker=simulationWorker=new Worker(new URL('./expediente.simulation-worker.js?v=20260916-1',import.meta.url),{type:'module'});
       worker.onmessage=({data:response})=>{if(!container.isConnected||simulationWorker!==worker)return;worker.terminate();simulationWorker=null;container.innerHTML=response.error?`<p class="exp-error">${esc(response.error)}</p>`:simulationView(response.result);bindSimulation();};
       worker.onerror=()=>{if(container.isConnected)container.innerHTML='<p class="exp-error">No pudimos iniciar la simulación. Recarga para volver a intentarlo. Tus datos siguen guardados.</p>';worker.terminate();};
       worker.postMessage(structuredClone(d));
     }catch{container.innerHTML='<p class="exp-error">No pudimos iniciar el cálculo en este navegador. Actualízalo o intenta desde otro dispositivo.</p>';}
     root.querySelector('[data-action=submit]').onclick=()=>action(async()=>{dirty=true;await save();if(!record.submittedAt){await call('submit');trackDx('expediente_submitted',{profile_id:content.profile?.id,receipts:s.usable.length});}render();message('Tu expediente quedó guardado para revisión.');});
   }
-  function render(){({receipts:receiptStep,review:reviewStep,operation:operationStep,map:mapStep,summary:summaryStep}[data().step]||receiptStep)();}
+  function render(){({receipts:receiptStep,review:reviewStep,operation:operationStep,map:mapStep,summary:summaryStep}[focus||data().step]||receiptStep)();}
   window.addEventListener('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
   root.innerHTML='<p class="dx__col-sub" role="status">Abriendo tu expediente…</p>';
   try {

@@ -1,5 +1,5 @@
 import {PDFDocument,StandardFonts,rgb} from './vendor/pdf-lib-1.17.1.bundle.js';
-import {billImpact,customerSummary,fmtNumber as n,fmtMoney as money,COVERAGE_EXPLANATION,SAVINGS_EXPLANATION,BATTERY_EXPLANATION} from './expediente.summary.js?v=20260915-1';
+import {billImpact,customerSummary,fmtNumber as n,fmtMoney as money,COVERAGE_EXPLANATION,SAVINGS_EXPLANATION,BATTERY_EXPLANATION} from './expediente.summary.js?v=20260916-1';
 // The downloadable report uses structured data, never page HTML, access links or file tokens.
 export async function createSummaryPdf(data,result,{createdAt=new Date()}={}){
  const pdf=await PDFDocument.create();pdf.setTitle(`Resumen Mexillum - ${data.site||'Proyecto energético'}`);pdf.setAuthor('Mexillum');pdf.setCreationDate(createdAt);

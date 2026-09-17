@@ -89,3 +89,26 @@ test('objective:[nolose] still allows roof marking, same as answering nothing',a
   assert.ok(root.querySelector('.dx-roof__add'),'objective:["nolose"] must not be worse than answering nothing: roof marking (the "+ Agregar otra área" control) must still be offered');
  }finally{dom.window.close();for(const k of keys)if(old[k])Object.defineProperty(globalThis,k,old[k]);else delete globalThis[k];}
 });
+for(const [paso,step,marker] of [['mapa','map','.dx-roof__bar'],['operacion','operation','form.exp-operation']])test(`focused ${paso} link shows only its part and never moves the client's step`,async()=>{
+ const dom=new JSDOM('<html><head></head><body><main></main></body></html>',{url:`https://www.mexillum.com/diagnostico-industria-comercio?rapido#exp=focus-token&paso=${paso}`}),w=dom.window;
+ const keys=['window','document','location','history','localStorage','navigator','Worker','fetch'],old=Object.fromEntries(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
+ let record={id:'focus-test',revision:1,extractionEnabled:true,extractionVersion:'test-new',data:{step:'summary',contact:{},site:'Planta',answers:{sector:'Hotel'},files:[],receipts:[],consent:true,roof:null,location:{lat:21,lng:-101}}};
+ const actions=[];
+ const fetch=async(url,o)=>{const b=JSON.parse(o.body);actions.push(b.action);if(b.action==='save'){record.data=structuredClone(b.data);record.revision++;}return {ok:true,json:async()=>structuredClone(record)};};
+ for(const [k,v] of Object.entries({window:w,document:w.document,location:w.location,history:w.history,localStorage:w.localStorage,navigator:w.navigator,Worker:class{},fetch}))Object.defineProperty(globalThis,k,{configurable:true,writable:true,value:v});
+ w.scrollTo=()=>{};const append=w.document.head.append.bind(w.document.head);w.document.head.append=(...nodes)=>{append(...nodes);for(const node of nodes)if(node.tagName==='LINK')queueMicrotask(()=>node.onload?.());};
+ const root=w.document.querySelector('main');
+ try{
+  await initExpediente({root,content:{profile:{id:'test'}}});
+  await until(()=>root.querySelector(marker));
+  assert.equal(root.querySelector('.exp-steps'),null,'the progress bar would reveal the other steps');
+  assert.equal(root.querySelectorAll('[data-nav]').length,0,'no button may lead to another step');
+  assert.equal(w.location.hash,`#exp=focus-token&paso=${paso}`,'reloading must keep the page focused');
+  assert.equal(w.localStorage.getItem('mexillum:expediente:token'),null,'a focused visitor must not inherit the full expediente on this device');
+  assert.deepEqual(actions,['read'],'opening a focused link must not trigger other writes');
+  root.querySelector('[data-focus-save]').click();
+  await until(()=>root.querySelector('[data-message]:not([hidden])')?.textContent.includes('guardad'));
+  assert.equal(record.data.step,'summary','the client keeps the step they were on');
+  assert.ok(actions.includes('save'));
+ }finally{dom.window.close();for(const k of keys)if(old[k])Object.defineProperty(globalThis,k,old[k]);else delete globalThis[k];}
+});

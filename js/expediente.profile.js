@@ -1,5 +1,5 @@
-import {invoiceDays,tariffBand,regionFor} from './expediente.calendar.js?v=20260915-1';
-import {usableReading} from './expediente.model.js?v=20260915-1';
+import {invoiceDays,tariffBand,regionFor} from './expediente.calendar.js?v=20260916-1';
+import {usableReading} from './expediente.model.js?v=20260916-1';
 export const BANDS=['base','intermediate','peak'];
 // Weighted water filling preserves exact bill kWh while respecting measured maxima.
 export function allocateEnergy(hours,target){
